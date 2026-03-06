@@ -5,6 +5,7 @@
 import Audio from './audio.js';
 import Lyrics from './lyrics.js';
 import Renderer from './renderer.js';
+import Sync from './sync.js';
 import { formatTime, debounce } from './utils.js';
 
 const ExportEngine = (() => {
@@ -218,6 +219,7 @@ const ExportEngine = (() => {
       inactiveColorOverride: inactiveColorPicker.value !== '#FFFFFF' ? inactiveColorPicker.value : null,
       showProgressBar:       showProgressToggle ? showProgressToggle.checked : true,
       showTitle:             showTitleToggle    ? showTitleToggle.checked    : true,
+      voiceConfig:           Sync.getVoiceConfig(),
     };
   }
 

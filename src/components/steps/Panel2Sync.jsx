@@ -8,6 +8,37 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
         Reproduce la canción y pulsa <kbd>Espacio</kbd> o el botón TAP al inicio de cada frase.
       </p>
 
+      {/* ── Voice configuration ── */}
+      <div className="voice-config-panel">
+        <div className="voice-config-header">
+          <span className="voice-config-title">🎤 Cantantes</span>
+          <div className="voice-count-selector">
+            {[1, 2, 3, 4].map(n => (
+              <button key={n} id={`voiceCountBtn_${n}`} className={`voice-count-btn${n === 2 ? ' active' : ''}`}>{n}</button>
+            ))}
+          </div>
+        </div>
+        <div className="voice-config-rows">
+          {[
+            { id: 1, name: 'Voz 1',  color: '#FF6B6B' },
+            { id: 2, name: 'Voz 2',  color: '#4ECDC4' },
+            { id: 3, name: 'Voz 3',  color: '#FFE66D' },
+            { id: 4, name: 'Voz 4',  color: '#C084FC' },
+          ].map(v => (
+            <div key={v.id} id={`voiceRow_${v.id}`} className="voice-row" style={{ display: v.id > 2 ? 'none' : '' }}>
+              <span className="voice-row-swatch" style={{ background: v.color }} />
+              <input type="text" id={`voiceName_${v.id}`} className="voice-name-input" defaultValue={v.name} />
+              <input type="color" id={`voiceColor_${v.id}`} className="voice-color-picker" defaultValue={v.color} />
+            </div>
+          ))}
+          <div className="voice-row voice-row-all">
+            <span className="voice-row-swatch" style={{ background: '#FFFFFF' }} />
+            <span className="voice-all-label">Todos juntos</span>
+            <input type="color" id="allVoiceColor" className="voice-color-picker" defaultValue="#FFFFFF" />
+          </div>
+        </div>
+      </div>
+
       <div className="sync-layout">
         {/* ── Left: player + tap ── */}
         <div className="sync-player">
@@ -33,6 +64,9 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
               <input id="volumeBar" type="range" className="volume-bar" min="0" max="1" step="0.01" defaultValue="1" />
             </div>
           </div>
+
+          {/* Active voice selector */}
+          <div id="voicePills" className="voice-pills" />
 
           {/* TAP button */}
           <button id="tapBtn" className="tap-btn">

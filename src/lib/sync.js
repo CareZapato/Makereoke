@@ -13,6 +13,17 @@ const Sync = (() => {
   let isInitialized = false;
   let _syncProgressListener = null;
 
+  /* ─── VOICE STATE ─── */
+  const VOICE_DEFAULTS = [
+    { name: 'Voz 1', color: '#FF6B6B' },
+    { name: 'Voz 2', color: '#4ECDC4' },
+    { name: 'Voz 3', color: '#FFE66D' },
+    { name: 'Voz 4', color: '#C084FC' },
+  ];
+  const ALL_VOICE_DEFAULT_COLOR = '#FFFFFF';
+  let voiceCount = 2;
+  let currentVoice = 1; // 1..N = singer; 0 = "todos juntos"
+
   const els = {
     playBtn:    () => document.getElementById('syncPlayBtn'),
     rewindBtn:  () => document.getElementById('syncRewindBtn'),
@@ -28,7 +39,93 @@ const Sync = (() => {
     waveCanvas: () => document.getElementById('waveformCanvas'),
     playhead:   () => document.getElementById('playhead'),
     volBar:     () => document.getElementById('volumeBar'),
+    voicePills: () => document.getElementById('voicePills'),
   };
+
+  /* ─── VOICE HELPERS ─── */
+  function getVoiceColor(v) {
+    if (v === null || v === undefined) return null;
+    if (v === 0) {
+      const el = document.getElementById('allVoiceColor');
+      return el?.value || ALL_VOICE_DEFAULT_COLOR;
+    }
+    const el = document.getElementById(`voiceColor_${v}`);
+    return el?.value || VOICE_DEFAULTS[v - 1]?.color || '#aaaaaa';
+  }
+
+  function getVoiceName(v) {
+    if (v === 0) return 'Todos juntos';
+    const el = document.getElementById(`voiceName_${v}`);
+    return el?.value || VOICE_DEFAULTS[v - 1]?.name || `Voz ${v}`;
+  }
+
+  function setVoiceCount(n) {
+    voiceCount = n;
+    for (let i = 1; i <= 4; i++) {
+      const btn = document.getElementById(`voiceCountBtn_${i}`);
+      if (btn) btn.classList.toggle('active', i === n);
+      const row = document.getElementById(`voiceRow_${i}`);
+      if (row) row.style.display = i <= n ? '' : 'none';
+    }
+    // If active voice is out of range, reset to 1
+    if (currentVoice > n) selectVoice(1);
+    else buildVoicePills();
+  }
+
+  function selectVoice(v) {
+    currentVoice = v;
+    buildVoicePills();
+    // Update TAP button accent color
+    const color = getVoiceColor(v);
+    const tapBtn = els.tapBtn();
+    if (tapBtn && color) {
+      tapBtn.style.background = `linear-gradient(135deg, ${color}cc, ${color}88)`;
+      tapBtn.style.boxShadow = `0 0 20px ${color}66`;
+    }
+  }
+
+  function buildVoicePills() {
+    const container = els.voicePills();
+    if (!container) return;
+    container.innerHTML = '';
+
+    for (let i = 1; i <= voiceCount; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'voice-pill' + (currentVoice === i ? ' active' : '');
+      btn.dataset.voice = i;
+      const color = getVoiceColor(i);
+      btn.style.setProperty('--vc', color);
+      btn.textContent = getVoiceName(i);
+      btn.title = `[Tecla ${i}]`;
+      btn.addEventListener('click', () => selectVoice(i));
+      container.appendChild(btn);
+    }
+
+    if (voiceCount > 1) {
+      const btn = document.createElement('button');
+      btn.className = 'voice-pill voice-pill-all' + (currentVoice === 0 ? ' active' : '');
+      btn.dataset.voice = 0;
+      const color = getVoiceColor(0);
+      btn.style.setProperty('--vc', color);
+      btn.textContent = 'Todos juntos';
+      btn.title = '[Tecla 0]';
+      btn.addEventListener('click', () => selectVoice(0));
+      container.appendChild(btn);
+    }
+  }
+
+  /* Returns full voice config — used by export engine for colored rendering */
+  function getVoiceConfig() {
+    const voices = [];
+    for (let i = 1; i <= voiceCount; i++) {
+      voices.push({ name: getVoiceName(i), color: getVoiceColor(i) });
+    }
+    return {
+      count: voiceCount,
+      voices,
+      allColor: getVoiceColor(0),
+    };
+  }
 
   /* ─── INIT ─── */
   function init() {
@@ -44,6 +141,21 @@ const Sync = (() => {
     els.seekBar().addEventListener('input', () => Audio.seek(parseFloat(els.seekBar().value)));
     els.volBar().addEventListener('input', () => Audio.setVolume(parseFloat(els.volBar().value)));
 
+    // Voice count buttons
+    for (let n = 1; n <= 4; n++) {
+      const btn = document.getElementById(`voiceCountBtn_${n}`);
+      if (btn) btn.addEventListener('click', () => setVoiceCount(n));
+    }
+    // Rebuild pills when colors/names change
+    for (let n = 1; n <= 4; n++) {
+      const col  = document.getElementById(`voiceColor_${n}`);
+      const name = document.getElementById(`voiceName_${n}`);
+      if (col)  col.addEventListener('input', () => buildVoicePills());
+      if (name) name.addEventListener('input', () => buildVoicePills());
+    }
+    const allCol = document.getElementById('allVoiceColor');
+    if (allCol) allCol.addEventListener('input', () => buildVoicePills());
+
     document.addEventListener('keydown', onKeyDown);
   }
 
@@ -52,6 +164,10 @@ const Sync = (() => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.code === 'Space') { e.preventDefault(); handleTap(); }
     if (e.code === 'Backspace') handleUndo();
+    // Voice selection via digit keys
+    const digit = e.key >= '0' && e.key <= '4' ? parseInt(e.key) : -1;
+    if (digit === 0 && voiceCount > 1) { selectVoice(0); return; }
+    if (digit >= 1 && digit <= voiceCount) { selectVoice(digit); return; }
   }
 
   /* ─── SETUP (called each time panel2 is shown) ─── */
@@ -61,6 +177,12 @@ const Sync = (() => {
     Audio.onEnded = () => { els.playBtn().textContent = '▶'; };
 
     currentSyncIdx = 0;
+    // Apply stored voice count
+    setVoiceCount(voiceCount);
+    buildVoicePills();
+    // Set initial TAP button color
+    selectVoice(currentVoice);
+
     buildLyricsList();
     updateProgress();
     updateGoButton();
@@ -161,15 +283,16 @@ const Sync = (() => {
 
     const t = Audio.getCurrentTime();
     Lyrics.setTime(currentSyncIdx, t);
+    Lyrics.setVoice(currentSyncIdx, currentVoice);
 
     const item = document.querySelector(`[data-line-idx="${currentSyncIdx}"]`);
     if (item) {
       item.classList.add('synced');
       item.classList.remove('current');
+      item.dataset.voice = currentVoice;
       const timeEl = item.querySelector('.sync-time');
       if (timeEl) timeEl.textContent = formatTime(t, true);
-      const dot = item.querySelector('.sync-dot');
-      if (dot) dot.style.background = 'var(--success)';
+      _applyVoiceStyle(item, currentVoice);
     }
 
     currentSyncIdx++;
@@ -198,16 +321,17 @@ const Sync = (() => {
     if (idx < 0) return;
 
     Lyrics.setTime(idx, null);
+    Lyrics.setVoice(idx, null);
     currentSyncIdx = idx;
 
     const item = document.querySelector(`[data-line-idx="${idx}"]`);
     if (item) {
       item.classList.remove('synced', 'current');
       item.classList.add('current');
+      delete item.dataset.voice;
       const timeEl = item.querySelector('.sync-time');
       if (timeEl) timeEl.textContent = '';
-      const dot = item.querySelector('.sync-dot');
-      if (dot) dot.style.background = '';
+      _clearVoiceStyle(item);
     }
 
     updateProgress();
@@ -224,6 +348,23 @@ const Sync = (() => {
     updateProgress();
     updateGoButton();
     toast('Marcas reiniciadas', 'warn');
+  }
+
+  /* ─── VOICE STYLE HELPERS ─── */
+  function _applyVoiceStyle(item, v) {
+    const color = getVoiceColor(v);
+    if (!color) return;
+    const dot  = item.querySelector('.sync-dot');
+    const text = item.querySelector('.lyric-text');
+    if (dot)  { dot.style.background  = color; dot.style.boxShadow = `0 0 6px ${color}99`; }
+    if (text) text.style.color = color;
+  }
+
+  function _clearVoiceStyle(item) {
+    const dot  = item.querySelector('.sync-dot');
+    const text = item.querySelector('.lyric-text');
+    if (dot)  { dot.style.background = ''; dot.style.boxShadow = ''; }
+    if (text) text.style.color = '';
   }
 
   /* ─── BUILD LIST ─── */
@@ -245,7 +386,13 @@ const Sync = (() => {
           <span class="sync-time">${line.time !== null ? formatTime(line.time, true) : ''}</span>
           <span class="lyric-text">${escapeHtml(line.text)}</span>
         `;
-        if (line.time !== null) li.classList.add('synced');
+        if (line.time !== null) {
+          li.classList.add('synced');
+          if (line.voice !== null && line.voice !== undefined) {
+            li.dataset.voice = line.voice;
+            _applyVoiceStyle(li, line.voice);
+          }
+        }
         if (i === currentSyncIdx) li.classList.add('current');
       }
       ul.appendChild(li);
@@ -274,6 +421,7 @@ const Sync = (() => {
   return {
     setup,
     drawWaveform,
+    getVoiceConfig,
     setSyncProgressListener(cb) { _syncProgressListener = cb; },
   };
 })();

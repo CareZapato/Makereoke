@@ -9,7 +9,7 @@ const Lyrics = (() => {
     const rawLines = raw.split('\n');
     lines = rawLines.map(l => {
       const trimmed = l.trim();
-      return { text: trimmed, time: null, isBlank: trimmed === '' };
+      return { text: trimmed, time: null, isBlank: trimmed === '', voice: null };
     });
     while (lines.length && lines[lines.length - 1].isBlank) lines.pop();
     return lines;
@@ -24,9 +24,9 @@ const Lyrics = (() => {
       if (m) {
         const sec = parseInt(m[1]) * 60 + parseFloat(m[2]);
         const text = m[3].trim();
-        result.push({ text, time: sec, isBlank: text === '' });
+        result.push({ text, time: sec, isBlank: text === '', voice: null });
       } else if (l.trim() === '') {
-        result.push({ text: '', time: null, isBlank: true });
+        result.push({ text: '', time: null, isBlank: true, voice: null });
       }
     }
     if (result.length) lines = result;
@@ -42,7 +42,11 @@ const Lyrics = (() => {
     if (index >= 0 && index < lines.length) lines[index].time = time;
   }
 
-  function resetTimes() { lines.forEach(l => { l.time = null; }); }
+  function setVoice(index, voiceId) {
+    if (index >= 0 && index < lines.length) lines[index].voice = voiceId;
+  }
+
+  function resetTimes() { lines.forEach(l => { l.time = null; l.voice = null; }); }
 
   function getActiveIndex(time) {
     let active = -1;
@@ -74,6 +78,7 @@ const Lyrics = (() => {
       text:    String(l.text ?? ''),
       time:    l.time ?? null,
       isBlank: Boolean(l.isBlank),
+      voice:   l.voice ?? null,
     }));
   }
 
@@ -81,7 +86,7 @@ const Lyrics = (() => {
   function lyricsCount()  { return lines.filter(l => !l.isBlank).length; }
 
   return {
-    parse, parseLRC, autoLoad, restore, setTime, resetTimes,
+    parse, parseLRC, autoLoad, restore, setTime, setVoice, resetTimes,
     getActiveIndex, getSyncedLines, toLRC, syncedCount, lyricsCount,
     get lines() { return lines; },
   };

@@ -335,7 +335,7 @@ const Renderer = (() => {
   ];
 
   function drawFrame(canvas, opts) {
-    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true } = opts;
+    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null } = opts;
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
     const T=THEMES[theme]||THEMES.classic;
     const GI=clampN(glowIntensity,0,3);
@@ -353,6 +353,15 @@ const Renderer = (() => {
     const currLine=activeIdx>=0?lines[activeIdx]:null;
     const nextLine=activeIdx>=0&&activeIdx<lines.length-1?lines[activeIdx+1]:null;
     const activeColor=activeColorOverride||T.textActive, inactiveColor=inactiveColorOverride||T.textDim;
+
+    // Resolve per-line voice color if voiceConfig is provided
+    function _lineActiveColor(line) {
+      if (!voiceConfig || line.voice === null || line.voice === undefined) return activeColor;
+      if (line.voice === 0) return voiceConfig.allColor || activeColor;
+      const v = voiceConfig.voices[line.voice - 1];
+      return (v && v.color) ? v.color : activeColor;
+    }
+
     const cx=W/2, fsLg=Math.max(22,Math.round(fontSize*W/1920)), fsMd=Math.max(16,Math.round(fsLg*0.62)), fsSm=Math.max(12,Math.round(fsLg*0.44));
     const midY = textPosition==='lower' ? H*0.72 : textPosition==='upper' ? H*0.28 : H*0.5;
 
@@ -383,14 +392,15 @@ const Renderer = (() => {
       ctx.fillText(_fit(ctx,nextLine.text,W-80),cx,midY+fsLg*1.05);
     }
     if (currLine) {
+      const lineActiveColor=_lineActiveColor(currLine);
       const lineEnd=nextLine?nextLine.time:duration;
       const linePct=lineEnd>currLine.time?clampN((time-currLine.time)/(lineEnd-currLine.time),0,1):1;
       const txt=_fit(ctx,currLine.text,W-80);
       ctx.font=`700 ${fsLg}px 'Segoe UI', sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.shadowColor=T.shadowActive; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=activeColor; ctx.fillText(txt,cx,midY);
+      ctx.shadowColor=T.shadowActive; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY);
       const txtW=ctx.measureText(txt).width, startX=cx-txtW/2;
       ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-      ctx.shadowColor=activeColor; ctx.shadowBlur=14*GI; ctx.fillStyle='#ffffff'; ctx.fillText(txt,cx,midY); ctx.restore();
+      ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle='#ffffff'; ctx.fillText(txt,cx,midY); ctx.restore();
       ctx.shadowBlur=0; ctx.textBaseline='alphabetic';
     } else {
       ctx.font=`300 ${fsMd}px 'Segoe UI', sans-serif`; ctx.fillStyle='rgba(255,255,255,0.22)';

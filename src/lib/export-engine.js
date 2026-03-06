@@ -13,12 +13,17 @@ const ExportEngine = (() => {
   /* ── State ────────────────────────────────────────────── */
   let currentTheme     = 'classic';
   let currentAnimation = 'none';
+  let currentOverlay   = 'none';
+  let currentTextPos   = 'center';
+  let currentGlow      = 1;
   let previewRaf       = null;
   let recording        = false;
 
   /* ── DOM refs (set in init) ────────────────────────────── */
-  let themeSelector, animGrid;
+  let themeSelector, animGrid, overlayGrid;
   let resolutionSelect, fontSizeSlider, fontSizeVal;
+  let glowSlider, glowVal, textPositionSelect, fpsSelect;
+  let showProgressToggle, showTitleToggle;
   let songTitleInput, activeColorPicker, inactiveColorPicker;
   let previewCanvas, exportPlayBtn, exportSeekBar, exportCurrentTime;
   let startRecordBtn, previewExportBtn;
@@ -76,11 +81,47 @@ const ExportEngine = (() => {
       animGrid.appendChild(card);
     });
 
+    /* ── Build overlay grid from Renderer.OVERLAY_LIST ── */
+    overlayGrid = document.getElementById('overlayGrid');
+    if (overlayGrid) {
+      overlayGrid.innerHTML = '';
+      Renderer.OVERLAY_LIST.forEach(o => {
+        const card = document.createElement('div');
+        card.className = 'anim-card' + (o.id === currentOverlay ? ' active' : '');
+        card.dataset.ov = o.id;
+        card.innerHTML = `<span class="anim-emoji">${o.emoji}</span><span class="anim-label">${o.label}</span>`;
+        card.addEventListener('click', () => {
+          currentOverlay = o.id;
+          overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === o.id));
+          renderPreviewFrame();
+        });
+        overlayGrid.appendChild(card);
+      });
+    }
+
     /* ── Font size ── */
     fontSizeSlider.addEventListener('input', () => {
       fontSizeVal.textContent = fontSizeSlider.value + 'px';
       renderPreviewFrame();
     });
+
+    /* ── Glow + text position + new controls ── */
+    glowSlider         = document.getElementById('glowSlider');
+    glowVal            = document.getElementById('glowVal');
+    textPositionSelect = document.getElementById('textPositionSelect');
+    fpsSelect          = document.getElementById('fpsSelect');
+    showProgressToggle = document.getElementById('showProgressToggle');
+    showTitleToggle    = document.getElementById('showTitleToggle');
+    if (glowSlider) {
+      glowSlider.addEventListener('input', () => {
+        currentGlow = parseFloat(glowSlider.value);
+        if (glowVal) glowVal.textContent = currentGlow.toFixed(1) + '×';
+        renderPreviewFrame();
+      });
+    }
+    if (textPositionSelect) textPositionSelect.addEventListener('change', () => { currentTextPos = textPositionSelect.value; renderPreviewFrame(); });
+    if (showProgressToggle) showProgressToggle.addEventListener('change', renderPreviewFrame);
+    if (showTitleToggle)    showTitleToggle.addEventListener('change', renderPreviewFrame);
 
     /* ── Color pickers ── */
     activeColorPicker.addEventListener('input', renderPreviewFrame);
@@ -166,10 +207,15 @@ const ExportEngine = (() => {
       lines:                 Lyrics.getSyncedLines(),
       theme:                 currentTheme,
       animation:             currentAnimation,
+      overlayEffect:         currentOverlay,
+      textPosition:          currentTextPos,
+      glowIntensity:         currentGlow,
       fontSize:              parseInt(fontSizeSlider.value, 10),
       songTitle:             songTitleInput.value.trim(),
       activeColorOverride:   activeColorPicker.value   !== '#FFD700' ? activeColorPicker.value   : null,
       inactiveColorOverride: inactiveColorPicker.value !== '#FFFFFF' ? inactiveColorPicker.value : null,
+      showProgressBar:       showProgressToggle ? showProgressToggle.checked : true,
+      showTitle:             showTitleToggle    ? showTitleToggle.checked    : true,
     };
   }
 
@@ -217,16 +263,23 @@ const ExportEngine = (() => {
     startRecordBtn.disabled = true;
     previewExportBtn.disabled = true;
 
-    const videoStream = recCanvas.captureStream(30);
+    const fps = parseInt(fpsSelect?.value || '30', 10);
+    const mimeTypes = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm',
+    ];
+    const mimeType = mimeTypes.find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(_){ return false; } }) || 'video/webm';
+    const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const videoStream = recCanvas.captureStream(fps);
     const audioInfo   = Audio.createRecordingStream();
     const combined    = new MediaStream([
       ...videoStream.getVideoTracks(),
       ...audioInfo.stream.getAudioTracks(),
     ]);
 
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-      ? 'video/webm;codecs=vp9,opus'
-      : 'video/webm';
     const recorder = new MediaRecorder(combined, { mimeType });
     const chunks   = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
@@ -238,7 +291,7 @@ const ExportEngine = (() => {
 
       const rawTitle  = songTitleInput.value.trim() || 'karaoke';
       const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
-      const filename  = safeTitle + '.webm';
+      const filename  = safeTitle + '.' + ext;
 
       const url = URL.createObjectURL(blob);
       const a   = document.createElement('a');
@@ -313,6 +366,13 @@ const ExportEngine = (() => {
       if (animGrid) animGrid.querySelectorAll('.anim-card')
         .forEach(c => c.classList.toggle('active', c.dataset.anim === s.animation));
     }
+    if (s.overlay !== undefined) {
+      currentOverlay = s.overlay;
+      if (overlayGrid) overlayGrid.querySelectorAll('.anim-card')
+        .forEach(c => c.classList.toggle('active', c.dataset.ov === s.overlay));
+    }
+    if (s.textPosition && textPositionSelect) { currentTextPos = s.textPosition; textPositionSelect.value = s.textPosition; }
+    if (s.glow !== undefined && glowSlider) { currentGlow = s.glow; glowSlider.value = s.glow; if (glowVal) glowVal.textContent = parseFloat(s.glow).toFixed(1) + '×'; }
     if (s.fontSize    && fontSizeSlider)   { fontSizeSlider.value = s.fontSize; fontSizeVal.textContent = s.fontSize + 'px'; }
     if (s.resolution  && resolutionSelect)   resolutionSelect.value   = s.resolution;
     if (s.activeColor   && activeColorPicker)   activeColorPicker.value   = s.activeColor;

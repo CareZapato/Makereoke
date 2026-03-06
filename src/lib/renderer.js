@@ -40,6 +40,21 @@ const Renderer = (() => {
       baseX: i/10, spread: sr(i*5)*0.12+0.06, hue: i*36,
       ph: sr(i*5+1)*6.28, spdH: sr(i*5+2)*15+8, spdX: (sr(i*5+3)-0.5)*0.06,
     })),
+    noteParts: Array.from({ length: 20 }, (_, i) => ({
+      x: sr(i*9+400), y: sr(i*9+401), spd: sr(i*9+402)*0.035+0.012,
+      ch: ['\u266A','\u266B','\u266C','\u2669'][i%4], ph: sr(i*9+403)*6.28,
+      sz: sr(i*9+404)*0.7+0.8, drift: (sr(i*9+405)-0.5)*0.018,
+    })),
+    embers: Array.from({ length: 38 }, (_, i) => ({
+      x: sr(i*8+500), y: sr(i*8+501), spd: sr(i*8+502)*0.045+0.018,
+      ph: sr(i*8+503)*6.28, hue: sr(i*8+504)*40+8,
+      r: sr(i*8+505)*2+0.8, drift: (sr(i*8+506)-0.5)*0.02,
+    })),
+    snow: Array.from({ length: 55 }, (_, i) => ({
+      x: sr(i*7+600), y: sr(i*7+601), spd: sr(i*7+602)*0.025+0.008,
+      r: sr(i*7+603)*2.2+0.6, ph: sr(i*7+604)*6.28,
+      drift: (sr(i*7+605)-0.5)*0.015,
+    })),
   };
 
   const MCHARS = 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ012345679';
@@ -238,10 +253,92 @@ const Renderer = (() => {
     { id: 'hielo',   label: 'Hielo',    emoji: '❄️' },
   ];
 
+  /* ── Foreground overlay effects (render AFTER text) ── */
+  const OVERLAYS = {
+    none: () => {},
+
+    notas: (ctx, W, H, t) => {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      DATA.noteParts.forEach(n => {
+        const y = 1 - ((n.y + t * n.spd) % 1);
+        const x = n.x + Math.sin(t * 0.9 + n.ph) * n.drift * 4;
+        const fade = Math.min(1, Math.min(y * 9, (1 - y) * 9)) * 0.4;
+        if (fade < 0.02) return;
+        ctx.globalAlpha = fade;
+        const sz = Math.round(n.sz * 20 * W / 1920);
+        ctx.font = `${sz}px serif`;
+        ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 4;
+        ctx.fillText(n.ch, x * W, y * H);
+      });
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    },
+
+    brasas: (ctx, W, H, t) => {
+      DATA.embers.forEach(e => {
+        const y = 1 - ((e.y + t * e.spd) % 1);
+        const x = e.x + Math.sin(t * 1.4 + e.ph) * e.drift * 4;
+        const fade = Math.min(1, Math.min(y * 9, (1 - y) * 9));
+        if (fade < 0.02) return;
+        const pulse = 0.55 + 0.45 * Math.sin(t * 5 + e.ph);
+        const pr = e.r * W / 800;
+        ctx.globalAlpha = fade * pulse * 0.7;
+        const glow = ctx.createRadialGradient(x*W, y*H, 0, x*W, y*H, pr*5);
+        glow.addColorStop(0, `hsla(${e.hue},100%,95%,0.9)`);
+        glow.addColorStop(0.4, `hsla(${e.hue},100%,65%,0.45)`);
+        glow.addColorStop(1, 'transparent');
+        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x*W, y*H, pr*5, 0, 6.28); ctx.fill();
+        ctx.globalAlpha = fade * pulse;
+        ctx.fillStyle = `hsl(${e.hue},100%,96%)`; ctx.beginPath(); ctx.arc(x*W, y*H, pr, 0, 6.28); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    },
+
+    nieve: (ctx, W, H, t) => {
+      DATA.snow.forEach(s => {
+        const y = (s.y + t * s.spd) % 1;
+        const x = s.x + Math.sin(t * 0.6 + s.ph) * s.drift * 4;
+        const fade = Math.min(1, Math.min(y * 14, (1 - y) * 14)) * 0.62;
+        if (fade < 0.02) return;
+        const r2 = s.r * W / 1920;
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = '#fff'; ctx.shadowColor = '#c8e0ff'; ctx.shadowBlur = r2 * 3;
+        ctx.beginPath(); ctx.arc(x*W, y*H, r2, 0, 6.28); ctx.fill();
+      });
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    },
+
+    burbujas: (ctx, W, H, t) => {
+      DATA.snow.forEach((s, i) => {
+        const y = 1 - ((s.y + t * s.spd * 0.65) % 1);
+        const x = s.x + Math.sin(t * 0.4 + s.ph) * s.drift * 5;
+        const fade = Math.min(1, Math.min(y * 10, (1 - y) * 10)) * 0.52;
+        if (fade < 0.02) return;
+        const r2 = (s.r + 1) * W / 1400;
+        const hue = (i * 17 + t * 12) % 360;
+        ctx.globalAlpha = fade;
+        ctx.strokeStyle = `hsla(${hue},80%,85%,0.7)`; ctx.lineWidth = r2 * 0.35;
+        ctx.beginPath(); ctx.arc(x*W, y*H, r2, 0, 6.28); ctx.stroke();
+        ctx.fillStyle = `hsla(${hue},60%,90%,0.12)`;
+        ctx.beginPath(); ctx.arc(x*W, y*H, r2, 0, 6.28); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    },
+  };
+
+  const OVERLAY_LIST = [
+    { id: 'none',     label: 'Ninguno',  emoji: '⬜' },
+    { id: 'notas',    label: 'Notas',    emoji: '🎵' },
+    { id: 'brasas',   label: 'Brasas',   emoji: '🔥' },
+    { id: 'nieve',    label: 'Nieve',    emoji: '❄️' },
+    { id: 'burbujas', label: 'Burbujas', emoji: '🫧' },
+  ];
+
   function drawFrame(canvas, opts) {
-    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride } = opts;
+    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true } = opts;
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
     const T=THEMES[theme]||THEMES.classic;
+    const GI=clampN(glowIntensity,0,3);
 
     const bg=ctx.createLinearGradient(0,0,0,H);
     bg.addColorStop(0,T.base[0]); bg.addColorStop(1,T.base[1]);
@@ -256,22 +353,25 @@ const Renderer = (() => {
     const currLine=activeIdx>=0?lines[activeIdx]:null;
     const nextLine=activeIdx>=0&&activeIdx<lines.length-1?lines[activeIdx+1]:null;
     const activeColor=activeColorOverride||T.textActive, inactiveColor=inactiveColorOverride||T.textDim;
-    const cx=W/2, fsLg=Math.max(22,Math.round(fontSize*W/1920)), fsMd=Math.max(16,Math.round(fsLg*0.62)), fsSm=Math.max(12,Math.round(fsLg*0.44)), midY=H*0.5;
+    const cx=W/2, fsLg=Math.max(22,Math.round(fontSize*W/1920)), fsMd=Math.max(16,Math.round(fsLg*0.62)), fsSm=Math.max(12,Math.round(fsLg*0.44));
+    const midY = textPosition==='lower' ? H*0.72 : textPosition==='upper' ? H*0.28 : H*0.5;
 
-    if (songTitle) {
+    if (showTitle && songTitle) {
       ctx.font=`500 ${fsSm}px 'Segoe UI', sans-serif`; ctx.fillStyle='rgba(255,255,255,0.38)';
       ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.fillText(songTitle,28,36);
     }
 
-    const pbH=Math.max(4,Math.round(H*0.007)), pbY=H-pbH-18;
-    ctx.fillStyle=T.progressBg; ctx.beginPath(); ctx.roundRect(28,pbY,W-56,pbH,pbH/2); ctx.fill();
-    const pPct=duration>0?clampN(time/duration,0,1):0;
-    if (pPct>0) {
-      const pg=ctx.createLinearGradient(28,0,W-56,0); pg.addColorStop(0,T.progressFg); pg.addColorStop(1,activeColor);
-      ctx.fillStyle=pg; ctx.beginPath(); ctx.roundRect(28,pbY,(W-56)*pPct,pbH,pbH/2); ctx.fill();
+    if (showProgressBar) {
+      const pbH=Math.max(4,Math.round(H*0.007)), pbY=H-pbH-18;
+      ctx.fillStyle=T.progressBg; ctx.beginPath(); ctx.roundRect(28,pbY,W-56,pbH,pbH/2); ctx.fill();
+      const pPct=duration>0?clampN(time/duration,0,1):0;
+      if (pPct>0) {
+        const pg=ctx.createLinearGradient(28,0,W-56,0); pg.addColorStop(0,T.progressFg); pg.addColorStop(1,activeColor);
+        ctx.fillStyle=pg; ctx.beginPath(); ctx.roundRect(28,pbY,(W-56)*pPct,pbH,pbH/2); ctx.fill();
+      }
+      ctx.font=`300 ${fsSm}px monospace`; ctx.fillStyle='rgba(255,255,255,0.38)';
+      ctx.textAlign='right'; ctx.textBaseline='alphabetic'; ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`,W-28,pbY-8);
     }
-    ctx.font=`300 ${fsSm}px monospace`; ctx.fillStyle='rgba(255,255,255,0.38)';
-    ctx.textAlign='right'; ctx.textBaseline='alphabetic'; ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`,W-28,pbY-8);
 
     if (prevLine) {
       ctx.font=`300 ${fsSm}px 'Segoe UI', sans-serif`; ctx.fillStyle=T.textPrev;
@@ -287,15 +387,17 @@ const Renderer = (() => {
       const linePct=lineEnd>currLine.time?clampN((time-currLine.time)/(lineEnd-currLine.time),0,1):1;
       const txt=_fit(ctx,currLine.text,W-80);
       ctx.font=`700 ${fsLg}px 'Segoe UI', sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.shadowColor=T.shadowActive; ctx.shadowBlur=28+Math.sin(time*4.5)*7; ctx.fillStyle=activeColor; ctx.fillText(txt,cx,midY);
+      ctx.shadowColor=T.shadowActive; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=activeColor; ctx.fillText(txt,cx,midY);
       const txtW=ctx.measureText(txt).width, startX=cx-txtW/2;
       ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-      ctx.shadowColor=activeColor; ctx.shadowBlur=14; ctx.fillStyle='#ffffff'; ctx.fillText(txt,cx,midY); ctx.restore();
+      ctx.shadowColor=activeColor; ctx.shadowBlur=14*GI; ctx.fillStyle='#ffffff'; ctx.fillText(txt,cx,midY); ctx.restore();
       ctx.shadowBlur=0; ctx.textBaseline='alphabetic';
     } else {
       ctx.font=`300 ${fsMd}px 'Segoe UI', sans-serif`; ctx.fillStyle='rgba(255,255,255,0.22)';
       ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('♪  ♪  ♪',cx,midY); ctx.textBaseline='alphabetic';
     }
+    // Foreground overlay (renders atop text)
+    ctx.save(); (OVERLAYS[overlayEffect]||OVERLAYS.none)(ctx,W,H,time); ctx.restore();
   }
 
   function _fit(ctx, text, maxW) {
@@ -306,7 +408,7 @@ const Renderer = (() => {
     return t+'…';
   }
 
-  return { drawFrame, THEMES, ANIMATIONS, ANIMATION_LIST, THEME_LIST };
+  return { drawFrame, THEMES, ANIMATIONS, OVERLAY_LIST, ANIMATION_LIST, THEME_LIST };
 })();
 
 export default Renderer;

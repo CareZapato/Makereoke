@@ -51,6 +51,9 @@ const ExportEngine = (() => {
     progressBarInner   = document.getElementById('progressBarInner');
     progressLabel      = document.getElementById('progressLabel');
 
+    // Guard: export panel may not be mounted yet on first boot
+    if (!themeSelector || !animGrid || !fontSizeSlider || !exportPlayBtn || !startRecordBtn) return;
+
     /* ── Build theme buttons from Renderer.THEME_LIST ── */
     themeSelector.innerHTML = '';
     Renderer.THEME_LIST.forEach(t => {

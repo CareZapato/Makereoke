@@ -21,12 +21,11 @@ export default function App() {
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [syncDone, setSyncDone]         = useState(false);
 
-  /* ── Boot: init ExportEngine, bridge Projects → React, restore folder ── */
+  /* ── Boot: init ExportEngine, bridge Projects → React ── */
   useEffect(() => {
     ExportEngine.init();
     Projects.setProjectChangeListener(name => setProjectName(name));
     Sync.setSyncProgressListener(count => setSyncDone(count > 0));
-    Projects.tryRestoreFolder(); // silent background – no await needed for UI
   }, []);
 
   /* ── Step change → call module setup ── */

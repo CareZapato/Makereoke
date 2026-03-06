@@ -22,10 +22,15 @@ export default function Header({ step, projectName, onOpenProjects, onSaveProjec
           <div className="project-indicator">
             <span className="project-indicator-dot" />
             <span className="project-indicator-name" id="currentProjectName">{projectName}</span>
-            <button className="btn btn-ghost proj-save-btn" onClick={onSaveProject}>
-              💾 Guardar
-            </button>
           </div>
+        )}
+
+        {step >= 2 && (
+          <button className="btn btn-ghost proj-save-btn" onClick={onSaveProject}
+            title={projectName ? 'Guardar en carpeta del proyecto' : 'Descargar proyecto como archivo'}
+            style={{ fontSize: '0.85rem' }}>
+            💾 {projectName ? 'Guardar' : 'Guardar archivo'}
+          </button>
         )}
 
         <button className="btn btn-ghost" onClick={onOpenProjects} style={{ fontSize: '0.85rem' }}>

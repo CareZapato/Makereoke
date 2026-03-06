@@ -960,7 +960,8 @@ kbd {
 
 /* Path input row — text field + icon buttons */
 .path-input-wrap {
-  display: flex; align-items: stretch;
+  display: flex; align-items: center;
+  height: 38px;
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -971,20 +972,23 @@ kbd {
 .path-input {
   flex: 1; min-width: 0;
   background: transparent; border: none; outline: none;
-  padding: 8px 10px;
+  padding: 0 10px;
+  height: 100%;
   font-size: 0.82rem; color: var(--text);
   cursor: default;
 }
 .path-input::placeholder { color: var(--text-dim); }
 .path-btn-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 36px; flex-shrink: 0;
+  width: 36px; height: 100%; flex-shrink: 0;
   background: transparent; border: none; border-left: 1px solid var(--border);
   color: var(--text-dim);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
+.path-btn-browse { border-left: none; border-right: 1px solid var(--border); }
 .path-btn-icon:hover:not(:disabled) { background: rgba(255,255,255,0.07); color: var(--text); }
+.path-btn-clear:hover { color: #ff6b6b !important; }
 .path-btn-icon:disabled { opacity: 0.35; cursor: default; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1133,3 +1137,80 @@ kbd {
   padding: 4px 6px; border-radius: 4px; font-size: 0.85rem; transition: all 0.15s;
 }
 .icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+/* ============================================================
+   FOLDER BROWSER MODAL
+   ============================================================ */
+.fb-overlay {
+  position: fixed; inset: 0; z-index: 600;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.18s ease;
+}
+
+.fb-modal {
+  width: 480px; max-width: 94vw;
+  max-height: 78vh;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  animation: scaleIn 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+@keyframes scaleIn {
+  from { transform: scale(0.93); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.fb-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.fb-title { font-size: 1rem; font-weight: 700; }
+.fb-close { width: 30px; height: 30px; border-radius: 50%; }
+
+.fb-current-path {
+  padding: 8px 18px;
+  font-size: 0.75rem; color: var(--text-dim);
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.fb-list {
+  flex: 1; overflow-y: auto;
+  padding: 6px 0;
+}
+
+.fb-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 9px 18px;
+  background: none; border: none; text-align: left;
+  color: var(--text); cursor: pointer;
+  transition: background 0.12s;
+  font-size: 0.9rem;
+}
+.fb-item:hover { background: rgba(255,255,255,0.06); }
+.fb-item-icon { flex-shrink: 0; font-size: 1rem; }
+.fb-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-up .fb-item-name { color: var(--text-dim); font-style: italic; }
+
+.fb-state {
+  padding: 24px 18px;
+  color: var(--text-dim); font-size: 0.88rem; text-align: center;
+}
+.fb-error { color: #ff6b6b; }
+
+.fb-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}

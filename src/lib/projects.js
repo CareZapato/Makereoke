@@ -1,11 +1,15 @@
 /* ============================================================
    projects.js — Song project management (ES module)
-   Uses File System Access API (Chrome/Edge).
+   Uses File System Access API (Chrome/Edge on HTTPS / localhost).
+   Each project = a subfolder containing:
+     • project.json  (lyrics, times, settings)
+     • <audio-file>  (original audio, copied on first save)
    ============================================================ */
 
 import Lyrics from './lyrics.js';
 import Audio from './audio.js';
 import { toast } from './utils.js';
+
 
 const Projects = (() => {
 
@@ -47,6 +51,7 @@ const Projects = (() => {
   let currentProjData     = null;
   let _pendingSettings    = null;
   let _projectChangeListener = null;
+  let _serverFolder       = '';
 
   /* ── FileSystem helpers ────────────────────────────────────── */
   async function _readJson(dirHandle) {
@@ -87,7 +92,7 @@ const Projects = (() => {
     return result;
   }
 
-  /* ── Scanning ──────────────────────────────────────────────── */
+  /* ── Scanning ──────────────────────────────────────────── */
   async function scanProjects() {
     if (!rootHandle) return [];
     const list = [];
@@ -110,11 +115,11 @@ const Projects = (() => {
   /* ── Folder picker ─────────────────────────────────────────── */
   async function openFolder() {
     if (!window.isSecureContext) {
-      toast('La API de archivos requiere HTTPS o localhost. Accede vía http://localhost:5500', 'error');
+      toast('La selección de carpeta requiere HTTPS. Conecta vía https:// para seleccionar carpetas desde cualquier PC.', 'warn');
       return null;
     }
     if (!window.showDirectoryPicker) {
-      toast('Tu navegador no soporta la API de archivos. Usa Chrome o Edge.', 'error');
+      toast('Tu navegador no soporta el selector de carpetas. Usa Chrome o Edge.', 'error');
       return null;
     }
     try {
@@ -167,8 +172,9 @@ const Projects = (() => {
   }
 
   /* ── Load project ───────────────────────────────────────────── */
-  async function loadProject(handle, audioLoaderFn) {
-    const data = await _readJson(handle);
+  async function loadProject(proj, audioLoaderFn) {
+    const handle = proj?.handle ?? proj;
+    const data   = await _readJson(handle);
     if (!data) { toast('No se pudo leer project.json', 'error'); return false; }
     currentProjHandle = handle;
     currentProjData   = data;
@@ -190,19 +196,33 @@ const Projects = (() => {
     }
 
     if (data.settings) _pendingSettings = { ...data.settings };
-
+    _updateHeaderIndicator();
     return data;
   }
 
   /* ── Save project ───────────────────────────────────────────── */
   async function saveCurrentProject() {
-    if (!currentProjHandle) { toast('No hay proyecto abierto. Crea o carga uno.', 'warn'); return false; }
-
     const songTitle = document.getElementById('songTitleInput')?.value.trim()
                     || currentProjData?.songTitle || '';
-    const lines      = Lyrics.lines;
-    const settings   = _readUISettings();
-    const audioFile  = Audio.rawFile;
+
+    /* Auto-create project subfolder if root selected but no project open yet */
+    if (!currentProjHandle) {
+      if (!rootHandle) {
+        /* No folder at all — fall back to download */
+        saveProjectAsDownload();
+        return true;
+      }
+      if (!songTitle) {
+        toast('Define el nombre del proyecto en el Paso 1 antes de guardar.', 'warn');
+        return false;
+      }
+      const safeName    = songTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'Sin título';
+      currentProjHandle = await rootHandle.getDirectoryHandle(safeName, { create: true });
+    }
+
+    const lines     = Lyrics.lines;
+    const settings  = _readUISettings();
+    const audioFile = Audio.rawFile;
 
     const data = _buildProjectData(
       songTitle,
@@ -296,24 +316,119 @@ const Projects = (() => {
     _projectChangeListener = cb;
   }
 
+  /* ── Clear folder ──────────────────────────────────────────── */
+  async function clearFolder() {
+    rootHandle     = null;
+    _pendingHandle = null;
+    try {
+      const db = await _openDB();
+      await new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).delete('rootFolder');
+        tx.oncomplete = res; tx.onerror = rej;
+      });
+      db.close();
+    } catch (e) { /* ignore */ }
+    _updateHeaderIndicator();
+  }
+
+  /* ── Download-based save (fallback without File System API) ─── */
+  function _triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  }
+
+  function saveProjectAsDownload() {
+    const songTitle = document.getElementById('songTitleInput')?.value.trim()
+                    || currentProjData?.songTitle || currentProjHandle?.name || 'proyecto';
+    const lines    = Lyrics.lines;
+    const settings = _readUISettings();
+    const data     = _buildProjectData(
+      songTitle, lines,
+      currentProjData?.audioFileName ?? null,
+      settings, currentProjData?.createdAt,
+    );
+    const safeName = songTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'proyecto';
+    _triggerDownload(
+      new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+      safeName + '.mkproject'
+    );
+    const rawText = lines.map(l => l.text).join('\n');
+    if (rawText.trim()) {
+      _triggerDownload(
+        new Blob([rawText], { type: 'text/plain;charset=utf-8' }),
+        safeName + '.txt'
+      );
+    }
+    toast(`💾 Proyecto descargado: ${safeName}.mkproject`, 'success');
+  }
+
+  /* ── Import from .mkproject file ───────────────────────── */
+  async function loadProjectFromJson(file) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.lines || !data.version) {
+        toast('Archivo no válido. Usa un archivo .mkproject.', 'error');
+        return false;
+      }
+      currentProjData   = data;
+      currentProjHandle = null;
+      if (data.lines?.length) {
+        Lyrics.restore(data.lines);
+        const rawText = data.lines.map(l => l.text).join('\n');
+        const el = document.getElementById('lyricsInput');
+        if (el) el.value = rawText;
+      }
+      if (data.settings) _pendingSettings = { ...data.settings };
+      _updateHeaderIndicator();
+      toast(`Proyecto importado: ${data.songTitle || file.name}`, 'success');
+      return data;
+    } catch (e) {
+      toast('No se pudo leer el archivo de proyecto.', 'error');
+      return false;
+    }
+  }
+
+  /* ── restoreFromData — called by ProjectsOverlay (server-side load) ── */
+  function restoreFromData(name, data) {
+    currentProjHandle = null; // no File System handle needed
+    currentProjData   = data;
+    if (data?.settings) _pendingSettings = { ...data.settings };
+    _serverFolder = _serverFolder; // keep as-is
+    _updateHeaderIndicator();
+  }
+
+  function setPendingSettings(settings) {
+    _pendingSettings = { ...settings };
+  }
+
   /* ── Public ─────────────────────────────────────────────────── */
   return {
     openFolder,
+    clearFolder,
     tryRestoreFolder,
     requestStoredPermission,
     scanProjects,
     createProject,
     loadProject,
     saveCurrentProject,
+    saveProjectAsDownload,
+    loadProjectFromJson,
     saveVideoToProject,
     consumePendingSettings,
-    updateHeaderIndicator: _updateHeaderIndicator,
     setProjectChangeListener,
+    restoreFromData,
+    setPendingSettings,
     get hasFolder()        { return rootHandle !== null; },
     get hasPendingHandle() { return _pendingHandle !== null; },
     get rootFolderName()   { return rootHandle?.name ?? null; },
     get currentName()      { return currentProjHandle?.name ?? null; },
     get isOpen()           { return currentProjHandle !== null; },
+    get serverFolder()     { return _serverFolder; },
   };
 
 })();

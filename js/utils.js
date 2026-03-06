@@ -3,7 +3,7 @@
    ============================================================ */
 
 /** ── App version ── cambiar aquí para actualizar en toda la UI */
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.2.2';
 
 /** Format seconds to MM:SS or MM:SS.ms */
 function formatTime(sec, ms = false) {

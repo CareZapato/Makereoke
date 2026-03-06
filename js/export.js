@@ -1,260 +1,292 @@
 /* ============================================================
-   export.js — Video export/recording step
+   export.js — Step 4: Export (video recording)
    ============================================================ */
 
 const Export = (() => {
 
-  let isInitialized = false;
-  let currentTheme = 'classic';
-  let previewRaf = null;
-  let isRecording = false;
-  let mediaRecorder = null;
-  let recordedChunks = [];
+  /* ── State ────────────────────────────────────────────── */
+  let currentTheme     = 'classic';
+  let currentAnimation = 'none';
+  let previewRaf       = null;
+  let recording        = false;
 
-  /* ─── INIT ─── */
+  /* ── DOM refs (set in init) ────────────────────────────── */
+  let themeSelector, animGrid;
+  let resolutionSelect, fontSizeSlider, fontSizeVal;
+  let songTitleInput, activeColorPicker, inactiveColorPicker;
+  let previewCanvas, exportPlayBtn, exportSeekBar, exportCurrentTime;
+  let startRecordBtn, previewExportBtn;
+  let recordProgress, progressBarInner, progressLabel;
+
+  /* ═══════════════════════════════════════════════════════
+     init() — called once on DOMContentLoaded
+  ═══════════════════════════════════════════════════════ */
   function init() {
-    if (isInitialized) return;
-    isInitialized = true;
+    themeSelector      = document.getElementById('themeSelector');
+    animGrid           = document.getElementById('animGrid');
+    resolutionSelect   = document.getElementById('resolutionSelect');
+    fontSizeSlider     = document.getElementById('fontSizeSlider');
+    fontSizeVal        = document.getElementById('fontSizeVal');
+    songTitleInput     = document.getElementById('songTitleInput');
+    activeColorPicker  = document.getElementById('activeColorPicker');
+    inactiveColorPicker= document.getElementById('inactiveColorPicker');
+    previewCanvas      = document.getElementById('exportPreviewCanvas');
+    exportPlayBtn      = document.getElementById('exportPlayBtn');
+    exportSeekBar      = document.getElementById('exportSeekBar');
+    exportCurrentTime  = document.getElementById('exportCurrentTime');
+    startRecordBtn     = document.getElementById('startRecordBtn');
+    previewExportBtn   = document.getElementById('previewExportBtn');
+    recordProgress     = document.getElementById('recordProgress');
+    progressBarInner   = document.getElementById('progressBarInner');
+    progressLabel      = document.getElementById('progressLabel');
 
-    // Theme selector
-    document.getElementById('themeSelector').addEventListener('click', e => {
-      const btn = e.target.closest('.theme-btn');
-      if (!btn) return;
-      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentTheme = btn.dataset.theme;
-      updatePreviewFrame();
+    /* ── Build theme buttons from Renderer.THEME_LIST ── */
+    themeSelector.innerHTML = '';
+    Renderer.THEME_LIST.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'theme-btn' + (t.id === currentTheme ? ' active' : '');
+      btn.dataset.theme = t.id;
+      btn.textContent = `${t.emoji} ${t.label}`;
+      btn.addEventListener('click', () => {
+        currentTheme = t.id;
+        themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t.id));
+        renderPreviewFrame();
+      });
+      themeSelector.appendChild(btn);
     });
 
-    // Font size
-    document.getElementById('fontSizeSlider').addEventListener('input', e => {
-      document.getElementById('fontSizeVal').textContent = e.target.value + 'px';
-      updatePreviewFrame();
+    /* ── Build animation grid from Renderer.ANIMATION_LIST ── */
+    animGrid.innerHTML = '';
+    Renderer.ANIMATION_LIST.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'anim-card' + (a.id === currentAnimation ? ' active' : '');
+      card.dataset.anim = a.id;
+      card.innerHTML = `<span class="anim-emoji">${a.emoji}</span><span class="anim-label">${a.label}</span>`;
+      card.addEventListener('click', () => {
+        currentAnimation = a.id;
+        animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === a.id));
+        renderPreviewFrame();
+      });
+      animGrid.appendChild(card);
     });
 
-    // Color pickers
-    document.getElementById('activeColorPicker').addEventListener('input', updatePreviewFrame);
-    document.getElementById('inactiveColorPicker').addEventListener('input', updatePreviewFrame);
-
-    // Song title
-    document.getElementById('songTitleInput').addEventListener('input', updatePreviewFrame);
-
-    // Preview player
-    document.getElementById('exportPlayBtn').addEventListener('click', togglePreviewPlay);
-    document.getElementById('exportSeekBar').addEventListener('input', e => {
-      Audio.seek(parseFloat(e.target.value));
-      updatePreviewFrame();
+    /* ── Font size ── */
+    fontSizeSlider.addEventListener('input', () => {
+      fontSizeVal.textContent = fontSizeSlider.value + 'px';
+      renderPreviewFrame();
     });
 
-    // Buttons
-    document.getElementById('previewExportBtn').addEventListener('click', startPreviewPlayback);
-    document.getElementById('startRecordBtn').addEventListener('click', startRecording);
+    /* ── Color pickers ── */
+    activeColorPicker.addEventListener('input', renderPreviewFrame);
+    inactiveColorPicker.addEventListener('input', renderPreviewFrame);
+
+    /* ── Song title ── */
+    songTitleInput.addEventListener('input', debounce(renderPreviewFrame, 200));
+
+    /* ── Preview player ── */
+    exportPlayBtn.addEventListener('click', () => {
+      if (recording) return;
+      if (Audio.isPlaying) {
+        Audio.pause(); stopPreviewLoop();
+        exportPlayBtn.textContent = '▶';
+      } else {
+        startPreviewLoop();
+        Audio.play(Audio.getCurrentTime());
+        exportPlayBtn.textContent = '⏸';
+      }
+    });
+
+    exportSeekBar.addEventListener('input', () => {
+      const t = (exportSeekBar.value / 100) * Audio.duration;
+      Audio.seek(t);
+      renderPreviewAt(t);
+    });
+
+    Audio.onEnded = () => {
+      exportPlayBtn.textContent = '▶';
+      stopPreviewLoop();
+    };
+
+    /* —— Export / Record —— */
+    previewExportBtn.addEventListener('click', () => {
+      if (recording) return;
+      if (Audio.isPlaying) { Audio.pause(); stopPreviewLoop(); exportPlayBtn.textContent = '▶'; }
+      Audio.seek(0);
+      startPreviewLoop();
+      Audio.play(0);
+      exportPlayBtn.textContent = '⏸';
+    });
+
+    startRecordBtn.addEventListener('click', () => {
+      if (recording) return;
+      startRecording();
+    });
   }
 
-  /* ─── SETUP ─── */
+  /* ═══════════════════════════════════════════════════════
+     setup() — called whenever panel4 becomes active
+  ═══════════════════════════════════════════════════════ */
   function setup() {
-    init();
-    // Always reassign callbacks
-    Audio.onTimeUpdate = onPreviewTimeUpdate;
-    Audio.onEnded = () => { document.getElementById('exportPlayBtn').textContent = '▶'; };
+    if (Audio.isPlaying) { Audio.pause(); exportPlayBtn.textContent = '▶'; }
+    stopPreviewLoop();
+    Audio.seek(0);
 
-    sizePreviewCanvas();
-    updatePreviewFrame();
+    Audio.onTimeUpdate = t => {
+      if (!recording) {
+        const pct = Audio.duration > 0 ? (t / Audio.duration) * 100 : 0;
+        exportSeekBar.value = pct;
+        exportCurrentTime.textContent = formatTime(t);
+        renderPreviewAt(t);
+      }
+    };
 
-    const dur = Audio.duration;
-    document.getElementById('exportSeekBar').max = dur;
-    document.getElementById('exportSeekBar').value = Audio.getCurrentTime();
+    Audio.onEnded = () => {
+      exportPlayBtn.textContent = '▶';
+      stopPreviewLoop();
+    };
+
+    /* Fit canvas to container */
+    const [rW, rH] = (resolutionSelect.value || '1920x1080').split('x').map(Number);
+    previewCanvas.width  = rW;
+    previewCanvas.height = rH;
+
+    renderPreviewAt(0);
   }
 
-  function sizePreviewCanvas() {
-    const [W, H] = getResolution();
-    const canvas = document.getElementById('exportPreviewCanvas');
-    const wrap = canvas.parentElement;
-    const maxW = wrap.offsetWidth;
-    const maxH = 380;
-    const ar = W / H;
-    let dW = Math.min(maxW, W);
-    let dH = dW / ar;
-    if (dH > maxH) { dH = maxH; dW = dH * ar; }
-    canvas.width = W;
-    canvas.height = H;
-    canvas.style.width = dW + 'px';
-    canvas.style.height = dH + 'px';
-  }
-
-  /* ─── RENDER OPTIONS ─── */
+  /* ── Helpers ─────────────────────────────────────────── */
   function getRenderOpts(time) {
     return {
       time,
-      duration: Audio.duration,
-      lines: Lyrics.getSyncedLines(),
-      theme: currentTheme,
-      fontSize: parseInt(document.getElementById('fontSizeSlider').value),
-      songTitle: document.getElementById('songTitleInput').value,
-      activeColorOverride: document.getElementById('activeColorPicker').value,
-      inactiveColorOverride: document.getElementById('inactiveColorPicker').value,
+      duration:              Audio.duration,
+      lines:                 Lyrics.getSyncedLines(),
+      theme:                 currentTheme,
+      animation:             currentAnimation,
+      fontSize:              parseInt(fontSizeSlider.value, 10),
+      songTitle:             songTitleInput.value.trim(),
+      activeColorOverride:   activeColorPicker.value   !== '#FFD700' ? activeColorPicker.value   : null,
+      inactiveColorOverride: inactiveColorPicker.value !== '#FFFFFF' ? inactiveColorPicker.value : null,
     };
   }
 
-  /* ─── PREVIEW ─── */
-  function updatePreviewFrame() {
-    const canvas = document.getElementById('exportPreviewCanvas');
-    Renderer.drawFrame(canvas, getRenderOpts(Audio.getCurrentTime()));
+  function renderPreviewFrame() { renderPreviewAt(Audio.getCurrentTime()); }
+
+  function renderPreviewAt(t) {
+    const [rW, rH] = (resolutionSelect.value || '1920x1080').split('x').map(Number);
+    if (previewCanvas.width !== rW || previewCanvas.height !== rH) {
+      previewCanvas.width = rW; previewCanvas.height = rH;
+    }
+    Renderer.drawFrame(previewCanvas, getRenderOpts(t));
   }
 
-  function onPreviewTimeUpdate(t) {
-    document.getElementById('exportCurrentTime').textContent = formatTime(t);
-    document.getElementById('exportSeekBar').value = t;
-    updatePreviewFrame();
+  function startPreviewLoop() {
+    stopPreviewLoop();
+    function loop() {
+      renderPreviewAt(Audio.getCurrentTime());
+      previewRaf = requestAnimationFrame(loop);
+    }
+    previewRaf = requestAnimationFrame(loop);
   }
 
-  function togglePreviewPlay() {
-    Audio.toggle();
-    document.getElementById('exportPlayBtn').textContent = Audio.isPlaying ? '⏸' : '▶';
+  function stopPreviewLoop() {
+    if (previewRaf) { cancelAnimationFrame(previewRaf); previewRaf = null; }
   }
 
-  function startPreviewPlayback() {
-    Audio.seek(0);
-    Audio.play(0);
-    document.getElementById('exportPlayBtn').textContent = '⏸';
-  }
-
-  /* ─── RESOLUTION HELPER ─── */
-  function getResolution() {
-    const val = document.getElementById('resolutionSelect').value;
-    return val.split('x').map(Number);
-  }
-
-  /* ─── RECORDING ─── */
+  /* ═══════════════════════════════════════════════════════
+     startRecording()
+  ═══════════════════════════════════════════════════════ */
   async function startRecording() {
-    if (isRecording) return;
-
-    // Stop preview
-    if (Audio.isPlaying) { Audio.pause(); document.getElementById('exportPlayBtn').textContent = '▶'; }
-    cancelAnimationFrame(previewRaf);
-
-    const [W, H] = getResolution();
-    const fps = 30;
-
-    // Set up recording canvas (hidden, full resolution)
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = W;
-    recCanvas.height = H;
-
-    // Video stream from canvas
-    const videoStream = recCanvas.captureStream(fps);
-
-    // Audio stream — tap into existing AudioContext gain node
-    const recStream = Audio.createRecordingStream();
-    let combinedStream = videoStream;
-    try {
-      if (recStream && recStream.stream) {
-        recStream.stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
-      }
-    } catch (e) {
-      console.warn('No audio stream', e);
-    }
-
-    // Select codec
-    const mimeTypes = [
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm',
-      'video/mp4',
-    ];
-    const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
-
-    recordedChunks = [];
-    try {
-      mediaRecorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 8_000_000 });
-    } catch (e) {
-      toast('Tu navegador no soporta grabación de video. Usa Chrome o Edge.', 'error');
-      return;
-    }
-
-    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-    mediaRecorder.onstop = () => finishRecording(mimeType);
-
-    isRecording = true;
-    showRecordingUI(true);
-
-    // Start audio playback from beginning
+    if (recording) return;
+    recording = true;
+    stopPreviewLoop();
     Audio.seek(0);
-    Audio.play(0);
+    exportPlayBtn.textContent = '▶';
 
-    mediaRecorder.start(100);
+    /* Build recording canvas (full resolution) */
+    const [rW, rH] = (resolutionSelect.value || '1920x1080').split('x').map(Number);
+    const recCanvas = document.createElement('canvas');
+    recCanvas.width = rW; recCanvas.height = rH;
 
-    const opts = getRenderOpts(0);
-    const dur = Audio.duration;
+    /* Show progress */
+    document.querySelector('.status-idle').classList.add('hidden');
+    recordProgress.classList.remove('hidden');
+    progressBarInner.style.width = '0%';
+    progressLabel.textContent = 'Preparando...';
+    startRecordBtn.disabled = true;
+    previewExportBtn.disabled = true;
 
-    function recordLoop() {
-      const elapsed = Audio.getCurrentTime();
-      if (!isRecording) return;
+    /* Combine canvas stream + audio */
+    const videoStream = recCanvas.captureStream(30);
+    const audioInfo   = Audio.createRecordingStream();
+    const combined    = new MediaStream([
+      ...videoStream.getVideoTracks(),
+      ...audioInfo.stream.getAudioTracks(),
+    ]);
 
-      opts.time = elapsed;
-      Renderer.drawFrame(recCanvas, opts);
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+      ? 'video/webm;codecs=vp9,opus'
+      : 'video/webm';
+    const recorder = new MediaRecorder(combined, { mimeType });
+    const chunks   = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
-      const progress = Math.min(elapsed / dur * 100, 100);
-      document.getElementById('progressBarInner').style.width = progress + '%';
-      document.getElementById('progressLabel').textContent = `Grabando... ${Math.round(progress)}%`;
+    recorder.onstop = () => {
+      audioInfo.stop();
+      recording = false;
+      const blob = new Blob(chunks, { type: mimeType });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `makereoke_${Date.now()}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
 
-      previewRaf = requestAnimationFrame(recordLoop);
-    }
-
-    function finalize() {
-      isRecording = false;
-      cancelAnimationFrame(previewRaf);
-      Audio.stop();
-      recStream.stop();
-      if (mediaRecorder.state !== 'inactive') {
-        setTimeout(() => mediaRecorder.stop(), 200); // let last chunk flush
-      }
-    }
-
-    // Draw first frame immediately
-    Renderer.drawFrame(recCanvas, getRenderOpts(0));
-    previewRaf = requestAnimationFrame(recordLoop);
-
-    // Auto-stop when audio naturally ends
-    Audio.onEnded = () => {
-      setTimeout(finalize, 400);
-      document.getElementById('exportPlayBtn').textContent = '▶';
+      document.querySelector('.status-idle').classList.remove('hidden');
+      recordProgress.classList.add('hidden');
+      startRecordBtn.disabled = false;
+      previewExportBtn.disabled = false;
+      progressBarInner.style.width = '0%';
+      toast('✅ Video descargado correctamente', 'success');
     };
-  }
 
-  function finishRecording(mimeType) {
-    showRecordingUI(false);
-    if (recordedChunks.length === 0) {
-      toast('Error: no se grabaron datos.', 'error');
-      return;
+    recorder.onerror = err => {
+      recording = false;
+      audioInfo.stop();
+      document.querySelector('.status-idle').classList.remove('hidden');
+      recordProgress.classList.add('hidden');
+      startRecordBtn.disabled = false;
+      previewExportBtn.disabled = false;
+      toast('❌ Error al grabar el video: ' + err.error?.message, 'error');
+    };
+
+    recorder.start(200);
+    progressLabel.textContent = 'Grabando... 0%';
+
+    /* Render loop during recording */
+    let rafId;
+    function recLoop() {
+      const t   = Audio.getCurrentTime();
+      const dur = Audio.duration;
+      Renderer.drawFrame(recCanvas, getRenderOpts(t));
+
+      const pct = dur > 0 ? Math.round((t / dur) * 100) : 0;
+      progressBarInner.style.width = pct + '%';
+      progressLabel.textContent    = `Grabando... ${pct}%`;
+
+      const pctSk = dur > 0 ? (t / dur) * 100 : 0;
+      exportSeekBar.value = pctSk;
+      exportCurrentTime.textContent = formatTime(t);
+
+      rafId = requestAnimationFrame(recLoop);
     }
 
-    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-    const blob = new Blob(recordedChunks, { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const title = document.getElementById('songTitleInput').value.trim() || 'karaoke';
-    a.href = url;
-    a.download = `${title.replace(/[^a-zA-Z0-9_\- ]/g,'_')}.${ext}`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 5000);
+    Audio.onEnded = () => {
+      cancelAnimationFrame(rafId);
+      recorder.stop();
+    };
 
-    toast(`¡Video descargado exitosamente! (${ext.toUpperCase()})`, 'success');
-    document.getElementById('progressLabel').textContent = '✅ ¡Listo! Video descargado.';
-    document.getElementById('progressBarInner').style.width = '100%';
+    Audio.play(0);
+    rafId = requestAnimationFrame(recLoop);
   }
 
-  function showRecordingUI(show) {
-    document.getElementById('recordProgress').classList.toggle('hidden', !show);
-    document.getElementById('startRecordBtn').disabled = show;
-    document.getElementById('previewExportBtn').disabled = show;
-    document.getElementById('backToAdjustBtn').disabled = show;
-    if (!show) {
-      document.getElementById('progressBarInner').style.width = '0%';
-    }
-  }
-
-  return { setup };
+  return { init, setup };
 })();

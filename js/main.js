@@ -229,6 +229,7 @@
     initSyncNav();
     initAdjustNav();
     initExportNav();
+    Export.init();
     initResizeObserver();
     console.log(`%c🎤 Makereoke v${APP_VERSION}`, 'color:#b47aff;font-size:14px;font-weight:700');
   });

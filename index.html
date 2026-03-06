@@ -33,6 +33,12 @@
     <section class="step-panel active" id="panel1">
       <h2 class="panel-title">Carga tu canción y letra</h2>
 
+      <div class="how-to">
+        <div class="how-to-step"><span class="how-to-icon">🎵</span><span>Arrastra tu canción al área izquierda, o haz clic en ella para elegir un archivo <strong>MP3, WAV, OGG o M4A</strong>.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">📝</span><span>Pega la letra en el área derecha: <strong>una frase por línea</strong>. Las líneas vacías separan estrofas. También puedes abrir un <strong>.lrc</strong> con tiempos ya incluidos.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">▶</span><span>Cuando ambos estén listos, pulsa <strong>Continuar</strong>.</span></div>
+      </div>
+
       <div class="upload-grid">
         <!-- Audio upload -->
         <div class="upload-card" id="audioDropZone">
@@ -74,9 +80,12 @@
     <!-- STEP 2: SYNC -->
     <section class="step-panel" id="panel2">
       <h2 class="panel-title">Sincroniza la letra</h2>
-      <p class="panel-subtitle">
-        Presiona <kbd>Espacio</kbd> o toca el botón grande al inicio de cada frase.
-      </p>
+
+      <div class="how-to">
+        <div class="how-to-step"><span class="how-to-icon">▶</span><span>Pulsa <strong>Play</strong> para reproducir la canción.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">👆</span><span>Presiona <kbd>Espacio</kbd> o el botón <strong>TAP</strong> exactamente cuando comience cada frase.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">↩</span><span>Usa <strong>Deshacer</strong> si te equivocas, y <strong>Reiniciar</strong> para empezar de cero.</span></div>
+      </div>
 
       <div class="sync-layout">
         <!-- Waveform / player -->
@@ -128,7 +137,12 @@
     <!-- STEP 3: ADJUST -->
     <section class="step-panel" id="panel3">
       <h2 class="panel-title">Ajusta la sincronización</h2>
-      <p class="panel-subtitle">Arrastra los marcadores o edita los tiempos directamente.</p>
+
+      <div class="how-to">
+        <div class="how-to-step"><span class="how-to-icon">↔</span><span><strong>Arrastra</strong> los bloques de la línea de tiempo para mover cada frase.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">🔢</span><span>También puedes escribir directamente el tiempo de inicio en la <strong>tabla</strong> inferior.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">👁</span><span>La <strong>vista previa</strong> de karaoke en la parte inferior se actualiza en tiempo real.</span></div>
+      </div>
 
       <div class="adjust-layout">
         <!-- Mini player -->
@@ -182,19 +196,22 @@
     <section class="step-panel" id="panel4">
       <h2 class="panel-title">Exporta tu video karaoke</h2>
 
+      <div class="how-to">
+        <div class="how-to-step"><span class="how-to-icon">🎨</span><span>Elige un <strong>tema</strong> y una <strong>animación de fondo</strong> para tu video.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">▶</span><span>Usa <strong>Previsualizar</strong> para ver el resultado antes de grabar.</span></div>
+        <div class="how-to-step"><span class="how-to-icon">⏺</span><span>Pulsa <strong>Grabar y descargar</strong> para generar el video. Se reproducirá la canción completa en tiempo real y al terminar se descargará automáticamente.</span></div>
+      </div>
+
       <div class="export-layout">
         <!-- Settings -->
         <div class="export-settings card">
           <h3>Configuración del video</h3>
 
           <label class="field-label">Tema visual</label>
-          <div class="theme-selector" id="themeSelector">
-            <button class="theme-btn active" data-theme="classic">🌌 Clásico</button>
-            <button class="theme-btn" data-theme="neon">⚡ Neón</button>
-            <button class="theme-btn" data-theme="fire">🔥 Fuego</button>
-            <button class="theme-btn" data-theme="ocean">🌊 Océano</button>
-            <button class="theme-btn" data-theme="minimal">◻ Minimalista</button>
-          </div>
+          <div class="theme-selector" id="themeSelector"></div>
+
+          <label class="field-label">Animación de fondo</label>
+          <div class="anim-grid" id="animGrid"></div>
 
           <label class="field-label">Resolución</label>
           <select class="field-select" id="resolutionSelect">

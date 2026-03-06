@@ -35,7 +35,28 @@ body {
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  position: relative;
 }
+
+/* Animated ambient blobs — very subtle, do not distract */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 25% 25%, rgba(124,77,255,0.10), transparent 55%),
+    radial-gradient(ellipse at 75% 75%, rgba(255,100,150,0.06), transparent 55%);
+  animation: bodyBlob 18s ease-in-out infinite alternate;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 60% 20%, rgba(0,210,255,0.05), transparent 50%);
+  animation: bodyBlob2 24s ease-in-out infinite alternate;
+}
+@keyframes bodyBlob  { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(4%,6%) scale(1.08)} }
+@keyframes bodyBlob2 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-4%,-5%) scale(1.12)} }
+
+.app-header, .app-main { position: relative; z-index: 1; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -50,10 +71,11 @@ body {
   position: sticky; top: 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 24px;
-  background: rgba(13,13,26,0.95);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+  background: rgba(10,10,22,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(49,49,106,0.6);
+  box-shadow: 0 2px 28px rgba(0,0,0,0.5);
 }
 
 .logo {
@@ -199,10 +221,34 @@ body {
    CARDS
    ============================================================ */
 .card {
-  background: var(--surface);
+  background: rgba(30,30,58,0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+}
+
+/* ============================================================
+   HOW-TO INSTRUCTION STRIP
+   ============================================================ */
+.how-to {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 22px;
+  padding: 14px 18px;
+  background: rgba(124,77,255,0.07);
+  border: 1px solid rgba(124,77,255,0.2);
+  border-radius: var(--radius);
+}
+.how-to-step {
+  display: flex; align-items: flex-start; gap: 10px;
+  flex: 1; min-width: 200px;
+  font-size: 0.86rem; color: var(--text-dim); line-height: 1.5;
+}
+.how-to-step strong { color: var(--text); }
+.how-to-icon {
+  font-size: 1.1rem; flex-shrink: 0;
+  width: 28px; text-align: center; margin-top: 1px;
 }
 
 /* ============================================================
@@ -217,7 +263,8 @@ body {
 /* stacking handled in responsive section */
 
 .upload-card {
-  background: var(--surface);
+  background: rgba(28,28,56,0.9);
+  backdrop-filter: blur(6px);
   border: 2px dashed var(--border);
   border-radius: var(--radius);
   padding: 28px 20px;
@@ -226,9 +273,14 @@ body {
   transition: all var(--transition);
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
-.upload-card:hover { border-color: var(--primary); background: rgba(124,77,255,0.06); }
-.upload-card.drag-over { border-color: var(--accent); background: rgba(255,215,0,0.06); }
-.upload-card.has-file { border-color: var(--success); border-style: solid; }
+.upload-card:hover {
+  border-color: var(--primary);
+  background: rgba(124,77,255,0.1);
+  box-shadow: 0 0 20px rgba(124,77,255,0.15);
+  transform: translateY(-2px);
+}
+.upload-card.drag-over { border-color: var(--accent); background: rgba(255,215,0,0.07); box-shadow: 0 0 20px rgba(255,215,0,0.15); }
+.upload-card.has-file  { border-color: var(--success); border-style: solid; background: rgba(0,230,118,0.05); }
 
 .upload-icon { font-size: 3rem; line-height: 1; transition: transform 0.3s; }
 .upload-card:hover .upload-icon { transform: scale(1.15); }
@@ -532,8 +584,35 @@ kbd {
   color: var(--text-dim); padding: 6px 10px; border-radius: 8px;
   cursor: pointer; font-size: 0.8rem; transition: all var(--transition);
 }
-.theme-btn:hover { border-color: var(--primary); color: var(--text); }
-.theme-btn.active { border-color: var(--primary); background: rgba(124,77,255,0.2); color: var(--text); }
+.theme-btn:hover { border-color: var(--primary); color: var(--text); background: rgba(124,77,255,0.08); }
+.theme-btn.active { border-color: var(--primary); background: rgba(124,77,255,0.2); color: var(--text); box-shadow: 0 0 8px rgba(124,77,255,0.3); }
+
+/* Animation selector grid */
+.anim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 7px;
+}
+.anim-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 8px 4px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; cursor: pointer;
+  transition: all var(--transition); user-select: none;
+  text-align: center;
+}
+.anim-card:hover {
+  border-color: var(--primary); background: rgba(124,77,255,0.1);
+  transform: translateY(-2px);
+}
+.anim-card.active {
+  border-color: var(--primary-light);
+  background: rgba(124,77,255,0.22);
+  box-shadow: 0 0 10px rgba(124,77,255,0.35);
+}
+.anim-emoji { font-size: 1.35rem; line-height: 1; }
+.anim-label { font-size: 0.68rem; color: var(--text-dim); line-height: 1.2; word-break: break-word; }
+.anim-card.active .anim-label { color: var(--text); }
 
 .export-preview-wrap { display: flex; flex-direction: column; gap: 12px; }
 .export-preview-wrap h3 { font-size: 1rem; color: var(--text-dim); }

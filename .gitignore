@@ -48,3 +48,12 @@ uploads/
 *.m4a
 *.webm
 *.mp4
+
+# ── Certificados SSL locales ───────────────────────────
+.cert/
+
+# ── Datos de proyectos locales ─────────────────────────
+projects/
+
+# ── Artefactos de Windows ──────────────────────────────
+nul

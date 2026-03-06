@@ -1,0 +1,326 @@
+/* ============================================================
+   adjust.js — Timeline visualization and fine-tuning step (ES module)
+   ============================================================ */
+
+import Audio from './audio.js';
+import Lyrics from './lyrics.js';
+import { formatTime, parseTime, toast, clamp } from './utils.js';
+
+const Adjust = (() => {
+
+  let isInitialized = false;
+  let previewRaf = null;
+  let isDragging = false;
+  let dragIdx = -1;
+  let timelineScale = 80;
+
+  /* ─── INIT ─── */
+  function init() {
+    if (isInitialized) return;
+    isInitialized = true;
+
+    document.getElementById('adjPlayBtn').addEventListener('click', handlePlay);
+    document.getElementById('adjSeekBar').addEventListener('input', e => {
+      Audio.seek(parseFloat(e.target.value));
+      updatePreview();
+    });
+
+    initTimeline();
+  }
+
+  function initTimeline() {
+    const canvas = document.getElementById('timelineCanvas');
+    canvas.addEventListener('mousedown', onTimelineMouseDown);
+    canvas.addEventListener('touchstart', onTimelineTouchStart, { passive: false });
+    window.addEventListener('mousemove', onTimelineMouseMove);
+    window.addEventListener('mouseup', onTimelineMouseUp);
+    window.addEventListener('touchmove', onTimelineTouchMove, { passive: false });
+    window.addEventListener('touchend', onTimelineMouseUp);
+  }
+
+  /* ─── SETUP ─── */
+  function setup() {
+    init();
+    Audio.onTimeUpdate = onTimeUpdate;
+    Audio.onEnded = () => { document.getElementById('adjPlayBtn').textContent = '▶'; };
+
+    buildAdjustTable();
+    drawTimeline();
+    updatePreview();
+
+    const dur = Audio.duration;
+    document.getElementById('adjSeekBar').max = dur;
+    document.getElementById('adjTotalTime').textContent = formatTime(dur);
+    onTimeUpdate(Audio.getCurrentTime());
+  }
+
+  /* ─── PLAYER ─── */
+  function handlePlay() {
+    Audio.toggle();
+    document.getElementById('adjPlayBtn').textContent = Audio.isPlaying ? '⏸' : '▶';
+  }
+
+  function onTimeUpdate(t) {
+    document.getElementById('adjCurrentTime').textContent = formatTime(t);
+    document.getElementById('adjSeekBar').value = t;
+    updatePreview();
+    drawTimeline();
+    highlightTableRow();
+  }
+
+  /* ─── KARAOKE PREVIEW ─── */
+  function updatePreview() {
+    const t = Audio.getCurrentTime();
+    const lines = Lyrics.lines.filter(l => !l.isBlank && l.time !== null);
+    lines.sort((a, b) => a.time - b.time);
+
+    let activeIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].time <= t) activeIdx = i;
+    }
+
+    const prev = activeIdx > 0 ? lines[activeIdx - 1].text : '';
+    const curr = activeIdx >= 0 ? lines[activeIdx].text : '—';
+    const next = activeIdx >= 0 && activeIdx < lines.length - 1 ? lines[activeIdx + 1].text : '';
+
+    document.getElementById('kpPrev').textContent = prev;
+    document.getElementById('kpCurrent').textContent = curr;
+    document.getElementById('kpNext').textContent = next;
+  }
+
+  function highlightTableRow() {
+    const t = Audio.getCurrentTime();
+    const active = Lyrics.getActiveIndex(t);
+    document.querySelectorAll('#adjustTableBody tr').forEach(tr => {
+      const li = parseInt(tr.dataset.lineIdx);
+      tr.classList.toggle('row-current', li === active);
+    });
+  }
+
+  /* ─── ADJUST TABLE ─── */
+  function buildAdjustTable() {
+    const tbody = document.getElementById('adjustTableBody');
+    tbody.innerHTML = '';
+    const dur = Audio.duration;
+
+    const sorted = [];
+    Lyrics.lines.forEach((l, i) => {
+      if (!l.isBlank) sorted.push({ ...l, origIdx: i });
+    });
+    sorted.sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity));
+
+    sorted.forEach((line, rank) => {
+      const nextTime = sorted[rank + 1]?.time ?? dur;
+      const origDur = line.time !== null && nextTime ? (nextTime - line.time).toFixed(2) : '—';
+
+      const tr = document.createElement('tr');
+      tr.dataset.lineIdx = line.origIdx;
+      tr.innerHTML = `
+        <td><span class="line-num-badge">${rank + 1}</span></td>
+        <td><span class="lyric-text-cell" title="${escapeHtml(line.text)}">${escapeHtml(line.text)}</span></td>
+        <td>
+          <input type="text" class="time-input"
+            data-orig-idx="${line.origIdx}"
+            value="${line.time !== null ? formatTime(line.time, true) : ''}"
+            placeholder="0:00.00"
+          />
+        </td>
+        <td class="col-dur" style="color:var(--text-dim);font-size:0.8rem">${origDur}s</td>
+        <td class="row-actions">
+          <button class="icon-btn" data-action="set-now" data-idx="${line.origIdx}" title="Marcar en posición actual">📍</button>
+          <button class="icon-btn" data-action="seek" data-time="${line.time}" title="Saltar a esta frase">▶</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.time-input').forEach(inp => {
+      inp.addEventListener('change', e => {
+        const idx = parseInt(e.target.dataset.origIdx);
+        const t = parseTime(e.target.value);
+        Lyrics.setTime(idx, t);
+        e.target.value = formatTime(t, true);
+        drawTimeline();
+        updatePreview();
+      });
+    });
+
+    tbody.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action === 'set-now') {
+        const idx = parseInt(btn.dataset.idx);
+        const t = Audio.getCurrentTime();
+        Lyrics.setTime(idx, t);
+        buildAdjustTable();
+        drawTimeline();
+        toast('Tiempo actualizado', 'success');
+      }
+      if (action === 'seek') {
+        const t = parseFloat(btn.dataset.time);
+        if (!isNaN(t)) Audio.seek(t);
+      }
+    });
+  }
+
+  function escapeHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* ─── TIMELINE CANVAS ─── */
+  function drawTimeline() {
+    const canvas = document.getElementById('timelineCanvas');
+    const wrapper = canvas.parentElement;
+    const dur = Audio.duration;
+    const H = 120;
+
+    const W = Math.max(wrapper.offsetWidth, dur * timelineScale);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = '#141428';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#31316a';
+    ctx.fillRect(0, 30, W, 1);
+
+    const step = timelineScale >= 60 ? 5 : 10;
+    for (let s = 0; s <= dur; s += step) {
+      const x = (s / dur) * W;
+      ctx.fillStyle = '#31316a';
+      ctx.fillRect(x, 0, 1, 30);
+      ctx.fillStyle = '#8888bb';
+      ctx.font = '10px monospace';
+      ctx.fillText(formatTime(s), x + 3, 20);
+    }
+
+    const lines = Lyrics.lines.filter(l => !l.isBlank && l.time !== null)
+                               .sort((a, b) => a.time - b.time);
+    lines.forEach((line, i) => {
+      const x = (line.time / dur) * W;
+      const nextT = lines[i + 1]?.time ?? dur;
+      const blockW = Math.max(4, ((nextT - line.time) / dur) * W - 2);
+      const y = 36;
+      const bH = 72;
+
+      const isActive = line.time <= Audio.getCurrentTime() &&
+                        (lines[i + 1]?.time ?? Infinity) > Audio.getCurrentTime();
+      ctx.fillStyle = isActive ? 'rgba(124,77,255,0.5)' : 'rgba(124,77,255,0.22)';
+      roundRect(ctx, x, y, blockW, bH, 4);
+      ctx.fill();
+
+      ctx.strokeStyle = isActive ? '#b47aff' : '#31316a';
+      ctx.lineWidth = 1;
+      roundRect(ctx, x, y, blockW, bH, 4);
+      ctx.stroke();
+
+      ctx.fillStyle = '#7c4dff';
+      roundRect(ctx, x, y, 4, bH, 2);
+      ctx.fill();
+
+      if (blockW > 30) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px sans-serif';
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 6, y + 2, blockW - 10, bH - 4);
+        ctx.clip();
+        ctx.fillText(line.text, x + 6, y + 18);
+        ctx.restore();
+      }
+    });
+
+    const ph = (Audio.getCurrentTime() / dur) * W;
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(ph - 1, 0, 2, H);
+    ctx.beginPath();
+    ctx.moveTo(ph, 0);
+    ctx.lineTo(ph + 6, 8);
+    ctx.lineTo(ph - 6, 8);
+    ctx.closePath();
+    ctx.fillStyle = '#FFD700';
+    ctx.fill();
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  /* ─── TIMELINE DRAG ─── */
+  function timelineEventToTime(e) {
+    const canvas = document.getElementById('timelineCanvas');
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const x = clientX - rect.left;
+    const W = parseFloat(canvas.style.width);
+    return clamp((x / W) * Audio.duration, 0, Audio.duration);
+  }
+
+  function findDragTarget(e) {
+    const t = timelineEventToTime(e);
+    const lines = Lyrics.lines
+      .map((l, i) => ({ ...l, origIdx: i }))
+      .filter(l => !l.isBlank && l.time !== null);
+    const threshold = 0.5;
+    for (const l of lines) {
+      if (Math.abs(l.time - t) < threshold) return l.origIdx;
+    }
+    return -1;
+  }
+
+  function onTimelineMouseDown(e) {
+    dragIdx = findDragTarget(e);
+    if (dragIdx >= 0) {
+      isDragging = true;
+      e.preventDefault();
+    } else {
+      Audio.seek(timelineEventToTime(e));
+    }
+  }
+  function onTimelineTouchStart(e) {
+    e.preventDefault();
+    dragIdx = findDragTarget(e);
+    if (dragIdx >= 0) isDragging = true;
+    else Audio.seek(timelineEventToTime(e));
+  }
+  function onTimelineMouseMove(e) {
+    if (!isDragging || dragIdx < 0) return;
+    const t = timelineEventToTime(e);
+    Lyrics.setTime(dragIdx, t);
+    drawTimeline();
+    updatePreview();
+  }
+  function onTimelineTouchMove(e) {
+    if (!isDragging || dragIdx < 0) return;
+    e.preventDefault();
+    const t = timelineEventToTime(e);
+    Lyrics.setTime(dragIdx, t);
+    drawTimeline();
+    updatePreview();
+  }
+  function onTimelineMouseUp() {
+    if (isDragging) { isDragging = false; dragIdx = -1; buildAdjustTable(); }
+  }
+
+  return { setup };
+})();
+
+export default Adjust;

@@ -14,14 +14,21 @@ import { toast } from './utils.js';
 const Projects = (() => {
 
   /* ── Persistence via IndexedDB ───────────────────────────── */
-  const DB_NAME = 'makereoke-db', DB_VER = 1, STORE = 'handles';
+  const DB_NAME    = 'makereoke-db';
+  const DB_VER     = 2;          // v2 adds 'projects' store
+  const STORE      = 'handles';  // FileSystemDirectoryHandles
+  const STORE_PROJ = 'projects'; // client-side project storage (HTTP LAN)
 
   function _openDB() {
     return new Promise((res, rej) => {
       const req = indexedDB.open(DB_NAME, DB_VER);
-      req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
-      req.onsuccess  = e => res(e.target.result);
-      req.onerror    = e => rej(e.target.error);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE))      db.createObjectStore(STORE);
+        if (!db.objectStoreNames.contains(STORE_PROJ)) db.createObjectStore(STORE_PROJ);
+      };
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e.target.error);
     });
   }
   async function _putHandle(key, handle) {
@@ -44,14 +51,75 @@ const Projects = (() => {
     return result ?? null;
   }
 
-  /* ── State ─────────────────────────────────────────────────── */
-  let rootHandle          = null;
-  let _pendingHandle      = null;
-  let currentProjHandle   = null;
-  let currentProjData     = null;
-  let _pendingSettings    = null;
+  /* ── IDB project store (HTTP LAN — no File System Access API) ───────── */
+  async function idbSaveProject(name, data, audioFile) {
+    const db = await _openDB();
+    const entry = { data, audioName: audioFile?.name ?? data?.audioFileName ?? null };
+    // Store audio Blob — IndexedDB handles large Blobs natively
+    if (audioFile instanceof File || audioFile instanceof Blob) {
+      entry.audioBlob = audioFile;
+    }
+    await new Promise((res, rej) => {
+      const tx = db.transaction(STORE_PROJ, 'readwrite');
+      tx.objectStore(STORE_PROJ).put(entry, name);
+      tx.oncomplete = res; tx.onerror = rej;
+    });
+    db.close();
+  }
+
+  async function idbListProjects() {
+    const db = await _openDB();
+    const entries = await new Promise((res, rej) => {
+      const tx    = db.transaction(STORE_PROJ, 'readonly');
+      const store = tx.objectStore(STORE_PROJ);
+      let values = [], keys = [];
+      store.getAll().onsuccess    = e => { values = e.target.result; };
+      store.getAllKeys().onsuccess = e => { keys   = e.target.result; };
+      tx.oncomplete = () => res(keys.map((k, i) => ({ name: k, ...values[i] })));
+      tx.onerror    = rej;
+    });
+    db.close();
+    return entries.map(e => ({
+      name:      e.name,
+      data:      e.data,
+      audioFile: e.audioName ?? null,
+      videoFile: null, // videos are always downloaded
+      synced:    e.data?.lines?.filter(l => !l.isBlank && l.time !== null).length ?? 0,
+      total:     e.data?.lines?.filter(l => !l.isBlank).length ?? 0,
+    })).sort((a, b) => ((a.data?.updatedAt ?? '0') < (b.data?.updatedAt ?? '0') ? 1 : -1));
+  }
+
+  async function idbLoadProject(name) {
+    const db = await _openDB();
+    const entry = await new Promise((res, rej) => {
+      const tx  = db.transaction(STORE_PROJ, 'readonly');
+      const req = tx.objectStore(STORE_PROJ).get(name);
+      req.onsuccess = () => res(req.result ?? null);
+      req.onerror   = rej;
+    });
+    db.close();
+    return entry; // { data, audioBlob?, audioName }
+  }
+
+  async function idbDeleteProject(name) {
+    const db = await _openDB();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(STORE_PROJ, 'readwrite');
+      tx.objectStore(STORE_PROJ).delete(name);
+      tx.oncomplete = res; tx.onerror = rej;
+    });
+    db.close();
+  }
+
+  /* ── State ──────────────────────────────────────────────────── */
+  let rootHandle             = null;
+  let _pendingHandle         = null;
+  let currentProjHandle      = null;
+  let currentProjData        = null;
+  let _idbProjectName        = null; // active project name in IDB mode
+  let _pendingSettings       = null;
   let _projectChangeListener = null;
-  let _serverFolder       = '';
+  let _serverFolder          = '';
 
   /* ── FileSystem helpers ────────────────────────────────────── */
   async function _readJson(dirHandle) {
@@ -205,13 +273,37 @@ const Projects = (() => {
     const songTitle = document.getElementById('songTitleInput')?.value.trim()
                     || currentProjData?.songTitle || '';
 
-    /* Auto-create project subfolder if root selected but no project open yet */
-    if (!currentProjHandle) {
-      if (!rootHandle) {
-        /* No folder at all — fall back to download */
-        saveProjectAsDownload();
+    /* ─ No File System handle available ───────────────────────────── */
+    if (!currentProjHandle && !rootHandle) {
+      if (!window.isSecureContext) {
+        /* HTTP LAN: save everything to IndexedDB in this browser */
+        if (!songTitle) {
+          toast('Define el nombre del proyecto en el Paso 1 antes de guardar.', 'warn');
+          return false;
+        }
+        const safeName = songTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'Sin título';
+        const lines    = Lyrics.lines;
+        const settings = _readUISettings();
+        const audioFile = Audio.rawFile;
+        const data = _buildProjectData(
+          safeName, lines,
+          audioFile?.name ?? currentProjData?.audioFileName ?? null,
+          settings, currentProjData?.createdAt,
+        );
+        await idbSaveProject(safeName, data, audioFile ?? null);
+        currentProjData   = data;
+        _idbProjectName   = safeName;
+        toast(`💾 Proyecto guardado en este navegador: ${safeName}`, 'success');
+        _updateHeaderIndicator();
         return true;
       }
+      /* Secure context but no folder — fall back to download */
+      saveProjectAsDownload();
+      return true;
+    }
+
+    /* Auto-create project subfolder if root selected but no project open yet */
+    if (!currentProjHandle) {
       if (!songTitle) {
         toast('Define el nombre del proyecto en el Paso 1 antes de guardar.', 'warn');
         return false;
@@ -423,6 +515,10 @@ const Projects = (() => {
     setProjectChangeListener,
     restoreFromData,
     setPendingSettings,
+    idbSaveProject,
+    idbListProjects,
+    idbLoadProject,
+    idbDeleteProject,
     get hasFolder()        { return rootHandle !== null; },
     get hasPendingHandle() { return _pendingHandle !== null; },
     get rootFolderName()   { return rootHandle?.name ?? null; },

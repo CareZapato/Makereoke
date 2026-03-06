@@ -45,6 +45,17 @@ function express_json() {
 
 router.use(express_json());
 
+/* ── CORS ────────────────────────────────────────────────────────
+   Allow any origin so the API works from browsers on other devices
+   (LAN IP, phone, tablet) without CORS blocks.                  */
+router.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 /* GET /api/projects — list all projects */
 router.get('/projects', async (_req, res) => {
   try {
@@ -148,18 +159,37 @@ router.get('/folder', async (_req, res) => {
 });
 
 /* GET /api/browse-native — open real OS folder picker on the server machine */
-router.get('/browse-native', async (_req, res) => {
+router.get('/browse-native', async (req, res) => {
   try {
     const isWin = process.platform === 'win32';
-    if (!isWin) return res.json({ ok: false, error: 'native-unavailable' });
+    // Only open a GUI dialog when the request comes from localhost.
+    // Remote devices can't interact with the server's desktop UI.
+    // req.ip may be '127.0.0.1', '::1', or IPv4-mapped '::ffff:127.0.0.1'.
+    const ip = req.ip || '';
+    const isLocal = /^(127\.\d+\.\d+\.\d+|::1|::ffff:127\.)/.test(ip);
+    if (!isWin || !isLocal) return res.json({ ok: false, error: 'native-unavailable' });
 
+    // Use OpenFileDialog (the same dialog as "Import project") configured as a
+    // folder picker — more reliable than FolderBrowserDialog and always appears
+    // in the foreground thanks to the TopMost owner form.
     const script = [
       'Add-Type -AssemblyName System.Windows.Forms',
-      '$d = New-Object System.Windows.Forms.FolderBrowserDialog',
-      '$d.Description = "Seleccionar carpeta de proyectos Makereoke"',
-      '$d.ShowNewFolderButton = $true',
-      '$d.RootFolder = [System.Environment+SpecialFolder]::MyComputer',
-      'if ($d.ShowDialog() -eq "OK") { Write-Output $d.SelectedPath }',
+      '$owner = New-Object System.Windows.Forms.Form',
+      '$owner.TopMost = $true',
+      '$owner.ShowInTaskbar = $false',
+      '$owner.WindowState = "Minimized"',
+      '$owner.Show()',
+      '$d = New-Object System.Windows.Forms.OpenFileDialog',
+      '$d.Title = "Seleccionar carpeta de proyectos Makereoke"',
+      '$d.ValidateNames = $false',
+      '$d.CheckFileExists = $false',
+      '$d.CheckPathExists = $true',
+      '$d.FileName = "Seleccione esta carpeta"',
+      '$d.Filter = "Carpetas|*.none"',
+      'if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) {',
+      '    Write-Output ([System.IO.Path]::GetDirectoryName($d.FileName))',
+      '}',
+      '$owner.Dispose()',
     ].join('\n');
 
     const tmpFile = path.join(os.tmpdir(), 'mkr-folder-picker.ps1');

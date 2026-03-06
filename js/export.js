@@ -288,5 +288,26 @@ const Export = (() => {
     rafId = requestAnimationFrame(recLoop);
   }
 
-  return { init, setup };
+  /* ═══════════════════════════════════════════════════════
+     applySettings() — restore saved project settings into UI
+  ═══════════════════════════════════════════════════════ */
+  function applySettings(s) {
+    if (!s) return;
+    if (s.theme) {
+      currentTheme = s.theme;
+      if (themeSelector) themeSelector.querySelectorAll('.theme-btn')
+        .forEach(b => b.classList.toggle('active', b.dataset.theme === s.theme));
+    }
+    if (s.animation !== undefined) {
+      currentAnimation = s.animation;
+      if (animGrid) animGrid.querySelectorAll('.anim-card')
+        .forEach(c => c.classList.toggle('active', c.dataset.anim === s.animation));
+    }
+    if (s.fontSize    && fontSizeSlider)   { fontSizeSlider.value = s.fontSize; fontSizeVal.textContent = s.fontSize + 'px'; }
+    if (s.resolution  && resolutionSelect)   resolutionSelect.value   = s.resolution;
+    if (s.activeColor   && activeColorPicker)   activeColorPicker.value   = s.activeColor;
+    if (s.inactiveColor && inactiveColorPicker) inactiveColorPicker.value = s.inactiveColor;
+  }
+
+  return { init, setup, applySettings };
 })();

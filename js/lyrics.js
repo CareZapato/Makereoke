@@ -94,6 +94,18 @@ const Lyrics = (() => {
       .join('\n');
   }
 
+  /**
+   * Restore lines directly from a saved project JSON array.
+   * Each entry: { text, time, isBlank }
+   */
+  function restore(arr) {
+    lines = arr.map(l => ({
+      text:    String(l.text ?? ''),
+      time:    l.time ?? null,
+      isBlank: Boolean(l.isBlank),
+    }));
+  }
+
   /** Number of lines that have been synced */
   function syncedCount() {
     return lines.filter(l => !l.isBlank && l.time !== null).length;
@@ -105,7 +117,7 @@ const Lyrics = (() => {
   }
 
   return {
-    parse, parseLRC, autoLoad, setTime, resetTimes,
+    parse, parseLRC, autoLoad, restore, setTime, resetTimes,
     getActiveIndex, getSyncedLines, toLRC, syncedCount, lyricsCount,
     get lines() { return lines; },
   };

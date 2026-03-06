@@ -15,14 +15,29 @@
       <span class="logo-text">Makereoke</span>
       <span class="version-badge" id="versionBadge"></span>
     </div>
-    <div class="step-indicator" id="stepIndicator">
-      <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Subir</span></div>
-      <div class="step-line"></div>
-      <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Sincronizar</span></div>
-      <div class="step-line"></div>
-      <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Ajustar</span></div>
-      <div class="step-line"></div>
-      <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Exportar</span></div>
+
+    <!-- Current project indicator -->
+    <div class="project-indicator hidden" id="projectIndicator">
+      <span class="project-indicator-dot"></span>
+      <span class="project-indicator-name" id="currentProjectName"></span>
+      <button class="btn btn-ghost btn-sm proj-save-btn" id="saveProjectBtn" title="Guardar proyecto">
+        💾 Guardar
+      </button>
+    </div>
+
+    <div class="header-right">
+      <button class="btn btn-ghost btn-sm" id="openProjectsBtn">
+        📂 Proyectos
+      </button>
+      <div class="step-indicator" id="stepIndicator">
+        <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Subir</span></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Sincronizar</span></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Ajustar</span></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Exportar</span></div>
+      </div>
     </div>
   </header>
 
@@ -275,6 +290,62 @@
   <!-- ===== TOAST NOTIFICATIONS ===== -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- ===== PROJECTS OVERLAY ===== -->
+  <div class="projects-overlay hidden" id="projectsOverlay" role="dialog" aria-modal="true" aria-label="Biblioteca de proyectos">
+
+    <!-- Side panel -->
+    <div class="projects-panel">
+      <div class="projects-panel-header">
+        <h2 class="projects-panel-title">📂 Biblioteca de proyectos</h2>
+        <button class="icon-btn close-panel-btn" id="closeProjectsBtn" title="Cerrar">✕</button>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="projects-toolbar">
+        <div class="folder-info" id="folderInfo">
+          <span class="folder-icon">📁</span>
+          <span class="folder-name" id="rootFolderName">Sin carpeta seleccionada</span>
+        </div>
+        <div class="projects-actions">
+          <button class="btn btn-ghost btn-sm" id="openFolderBtn">📂 Abrir carpeta</button>
+          <button class="btn btn-ghost btn-sm hidden" id="reconnectFolderBtn">🔄 Reconectar</button>
+          <button class="btn btn-primary btn-sm" id="newProjectBtn" disabled>➕ Nuevo proyecto</button>
+        </div>
+      </div>
+
+      <!-- Project list -->
+      <div class="projects-body" id="projectsBody">
+        <!-- Empty state (shown when no folder) -->
+        <div class="projects-empty" id="projectsEmpty">
+          <div class="empty-icon">🎤</div>
+          <h3>Tu biblioteca de karaokes</h3>
+          <p>Selecciona una carpeta en tu equipo donde se guardarán todos tus proyectos. Cada canción tendrá su propia subcarpeta con la letra, tiempos y configuración.</p>
+          <button class="btn btn-primary" id="openFolderEmptyBtn">📂 Elegir carpeta de proyectos</button>
+        </div>
+        <!-- Grid of project cards (populated by JS) -->
+        <div class="projects-grid hidden" id="projectsGrid"></div>
+      </div>
+    </div>
+
+    <!-- Backdrop (click to close) -->
+    <div class="projects-backdrop" id="projectsBackdrop"></div>
+
+  </div>
+
+  <!-- ===== NEW PROJECT MODAL ===== -->
+  <div class="modal-overlay hidden" id="newProjectModal">
+    <div class="modal-box">
+      <h3>🎵 Nuevo proyecto</h3>
+      <p>Se creará una subcarpeta dentro de tu carpeta de proyectos.</p>
+      <label class="field-label" for="newProjectNameInput">Nombre de la canción</label>
+      <input type="text" id="newProjectNameInput" class="field-input" placeholder="Artista — Canción" autocomplete="off" />
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancelNewProjectBtn">Cancelar</button>
+        <button class="btn btn-primary" id="confirmNewProjectBtn">Crear proyecto</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SCRIPTS ===== -->
   <script src="js/utils.js"></script>
   <script src="js/audio.js"></script>
@@ -283,6 +354,7 @@
   <script src="js/sync.js"></script>
   <script src="js/adjust.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/projects.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

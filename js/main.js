@@ -43,6 +43,9 @@
     if (n === 4) {
       if (Audio.isPlaying) { Audio.pause(); }
       Audio.seek(0);
+      // Apply any pending project settings before setup()
+      const pending = Projects.consumePendingSettings();
+      if (pending) Export.applySettings(pending);
       Export.setup();
     }
   }
@@ -145,6 +148,8 @@
     });
     document.getElementById('goToAdjustBtn').addEventListener('click', () => {
       if (Audio.isPlaying) Audio.pause();
+      // Auto-save project when times have been set
+      if (Projects.isOpen) Projects.saveCurrentProject();
       goToStep(3);
     });
   }
@@ -159,6 +164,8 @@
     });
     document.getElementById('goToExportBtn').addEventListener('click', () => {
       if (Audio.isPlaying) Audio.pause();
+      // Auto-save project when moving to export step
+      if (Projects.isOpen) Projects.saveCurrentProject();
       goToStep(4);
     });
   }
@@ -179,12 +186,186 @@
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-    // Escape — stop audio
-    if (e.key === 'Escape' && Audio.isPlaying) {
-      Audio.pause();
-      document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
+    if (e.key === 'Escape') {
+      // Close projects overlay first
+      const overlay = document.getElementById('projectsOverlay');
+      const modal   = document.getElementById('newProjectModal');
+      if (modal && !modal.classList.contains('hidden'))   { modal.classList.add('hidden'); return; }
+      if (overlay && !overlay.classList.contains('hidden')) { overlay.classList.add('hidden'); document.body.style.overflow = ''; return; }
+      // Otherwise stop audio
+      if (Audio.isPlaying) {
+        Audio.pause();
+        document.querySelectorAll('.play-btn').forEach(b => b.textContent = '▶');
+      }
     }
   });
+
+  /* ══════════════════════════════════════════
+     PROJECTS PANEL
+  ══════════════════════════════════════════ */
+  function initProjects() {
+    const overlay          = document.getElementById('projectsOverlay');
+    const openBtn          = document.getElementById('openProjectsBtn');
+    const closeBtn         = document.getElementById('closeProjectsBtn');
+    const backdrop         = document.getElementById('projectsBackdrop');
+    const openFolderBtn    = document.getElementById('openFolderBtn');
+    const openFolderEmptyBtn = document.getElementById('openFolderEmptyBtn');
+    const reconnectBtn     = document.getElementById('reconnectFolderBtn');
+    const newProjectBtn    = document.getElementById('newProjectBtn');
+    const rootFolderNameEl = document.getElementById('rootFolderName');
+    const projectsBody     = document.getElementById('projectsBody');
+    const projectsEmpty    = document.getElementById('projectsEmpty');
+    const newProjectModal  = document.getElementById('newProjectModal');
+    const nameInput        = document.getElementById('newProjectNameInput');
+    const cancelNewBtn     = document.getElementById('cancelNewProjectBtn');
+    const confirmNewBtn    = document.getElementById('confirmNewProjectBtn');
+    const saveProjectBtn   = document.getElementById('saveProjectBtn');
+
+    function openOverlay() {
+      overlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      updateFolderUI();
+      if (Projects.hasFolder) refreshProjectsList();
+    }
+    function closeOverlay() {
+      overlay.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    openBtn.addEventListener('click', async () => {
+      // If we have a pending handle, try to request permission first (this is a user gesture)
+      if (!Projects.hasFolder && Projects.hasPendingHandle) {
+        const ok = await Projects.requestStoredPermission();
+        if (ok) updateFolderUI();
+      }
+      openOverlay();
+    });
+    closeBtn.addEventListener('click', closeOverlay);
+    backdrop.addEventListener('click', closeOverlay);
+
+    async function doOpenFolder() {
+      const list = await Projects.openFolder();
+      if (list !== null) { updateFolderUI(); renderList(list); }
+    }
+    openFolderBtn.addEventListener('click', doOpenFolder);
+    openFolderEmptyBtn.addEventListener('click', doOpenFolder);
+    reconnectBtn.addEventListener('click', async () => {
+      const ok = await Projects.requestStoredPermission();
+      if (ok) { updateFolderUI(); refreshProjectsList(); }
+    });
+
+    /* New project modal */
+    newProjectBtn.addEventListener('click', () => {
+      newProjectModal.classList.remove('hidden');
+      nameInput.value = ''; nameInput.focus();
+    });
+    cancelNewBtn.addEventListener('click', () => newProjectModal.classList.add('hidden'));
+    async function doCreateProject() {
+      const name = nameInput.value.trim();
+      if (!name) { toast('Escribe un nombre para el proyecto.', 'warn'); return; }
+      newProjectModal.classList.add('hidden');
+      const proj = await Projects.createProject(name);
+      if (proj) {
+        const ti = document.getElementById('songTitleInput');
+        if (ti) ti.value = name;
+        Projects.updateHeaderIndicator();
+        closeOverlay();
+        checkUploadReady();
+        toast(`Proyecto creado: “${name}”`, 'success');
+      }
+      refreshProjectsList();
+    }
+    confirmNewBtn.addEventListener('click', doCreateProject);
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') doCreateProject(); });
+
+    /* Save button in header */
+    saveProjectBtn.addEventListener('click', () => Projects.saveCurrentProject());
+
+    /* Helpers */
+    function updateFolderUI() {
+      const name = Projects.rootFolderName;
+      if (name) {
+        rootFolderNameEl.textContent = name;
+        rootFolderNameEl.classList.add('has-folder');
+        newProjectBtn.disabled = false;
+        reconnectBtn.classList.add('hidden');
+      } else {
+        rootFolderNameEl.textContent = Projects.hasPendingHandle ? '(requiere permiso)' : 'Sin carpeta seleccionada';
+        rootFolderNameEl.classList.remove('has-folder');
+        newProjectBtn.disabled = true;
+        if (Projects.hasPendingHandle) reconnectBtn.classList.remove('hidden');
+      }
+    }
+
+    async function refreshProjectsList() {
+      projectsBody.innerHTML = '<div class="projects-loading"><div class="spinner"></div><span>Cargando…</span></div>';
+      const list = await Projects.scanProjects();
+      renderList(list);
+    }
+
+    function renderList(list) {
+      projectsBody.innerHTML = '';
+      if (!Projects.hasFolder) {
+        projectsBody.appendChild(projectsEmpty);
+        projectsEmpty.classList.remove('hidden');
+        return;
+      }
+      if (list.length === 0) {
+        projectsBody.innerHTML = `
+          <div class="projects-empty">
+            <div class="empty-icon">🎵</div>
+            <h3>Carpeta vacía</h3>
+            <p>No hay proyectos todavía. Crea uno nuevo con el botón de arriba.</p>
+          </div>`;
+        return;
+      }
+      const grid = document.createElement('div');
+      grid.className = 'projects-grid';
+      list.forEach(proj => {
+        const syncCls  = proj.synced === proj.total && proj.total > 0 ? 'synced' : proj.synced > 0 ? 'partial' : '';
+        const syncTxt  = proj.total > 0 ? `${proj.synced}/${proj.total} frases` : 'Sin letra';
+        const dateStr  = proj.data?.updatedAt ? new Date(proj.data.updatedAt).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' }) : '';
+        const card = document.createElement('div');
+        card.className = 'project-card';
+        card.innerHTML = `
+          <div class="project-card-title">${proj.name}</div>
+          <div class="project-card-meta">
+            <span class="project-card-badge ${syncCls}">♪ ${syncTxt}</span>
+            ${proj.audioFile ? '<span class="project-card-badge audio">🎵 Audio</span>' : ''}
+            ${dateStr ? `<span class="project-card-date">${dateStr}</span>` : ''}
+          </div>
+          <div class="project-card-actions">
+            <button class="project-load-btn">Cargar →</button>
+          </div>`;
+
+        card.querySelector('.project-load-btn').addEventListener('click', async () => {
+          const data = await Projects.loadProject(proj.handle, loadAudioFile);
+          if (!data) return;
+          // Restore song title field
+          const ti = document.getElementById('songTitleInput');
+          if (ti && data.songTitle) ti.value = data.songTitle;
+          Projects.updateHeaderIndicator();
+          closeOverlay();
+          const hasTimes = data.lines?.some(l => !l.isBlank && l.time !== null);
+          checkUploadReady();
+          goToStep(hasTimes ? 3 : 1);
+          toast(`💼 Proyecto cargado: “${proj.name}”`, 'success');
+        });
+        grid.appendChild(card);
+      });
+      projectsBody.appendChild(grid);
+    }
+
+    /* Restore folder on load (non-user-gesture — only query permission) */
+    Projects.tryRestoreFolder().then(restored => {
+      if (restored) {
+        updateFolderUI();
+        // Silently ready — no toast, just update UI state
+      } else if (Projects.hasPendingHandle) {
+        updateFolderUI(); // show reconnect button state
+      }
+    });
+  }
 
   /* ══════════════════════════════════════════
      CANVAS RESIZE OBSERVER
@@ -230,6 +411,7 @@
     initAdjustNav();
     initExportNav();
     Export.init();
+    initProjects();
     initResizeObserver();
     console.log(`%c🎤 Makereoke v${APP_VERSION}`, 'color:#b47aff;font-size:14px;font-weight:700');
   });

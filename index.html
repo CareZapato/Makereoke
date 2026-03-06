@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Makereoke — Crea tu Video Karaoke</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-icon">🎤</span>
+      <span class="logo-text">Makereoke</span>
+      <span class="version-badge" id="versionBadge"></span>
+    </div>
+    <div class="step-indicator" id="stepIndicator">
+      <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Subir</span></div>
+      <div class="step-line"></div>
+      <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Sincronizar</span></div>
+      <div class="step-line"></div>
+      <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Ajustar</span></div>
+      <div class="step-line"></div>
+      <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Exportar</span></div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="app-main">
+
+    <!-- STEP 1: UPLOAD -->
+    <section class="step-panel active" id="panel1">
+      <h2 class="panel-title">Carga tu canción y letra</h2>
+
+      <div class="upload-grid">
+        <!-- Audio upload -->
+        <div class="upload-card" id="audioDropZone">
+          <div class="upload-icon">🎵</div>
+          <h3>Canción</h3>
+          <p>Arrastra tu archivo de audio aquí<br/>o haz clic para seleccionar</p>
+          <input type="file" id="audioInput" accept="audio/*" hidden />
+          <span class="file-formats">MP3 · WAV · OGG · M4A</span>
+          <div class="upload-status" id="audioStatus"></div>
+        </div>
+
+        <!-- Lyrics -->
+        <div class="upload-card lyrics-card">
+          <div class="upload-icon">📝</div>
+          <h3>Letra</h3>
+          <p>Pega la letra aquí, una frase por línea</p>
+          <textarea
+            id="lyricsInput"
+            placeholder="Escribe o pega la letra...&#10;&#10;Cada línea será una frase del karaoke.&#10;Deja una línea vacía para separar estrofas."
+            spellcheck="false"
+          ></textarea>
+          <div class="lyrics-actions">
+            <label class="btn btn-ghost btn-sm">
+              📂 Cargar .txt
+              <input type="file" id="lyricsFileInput" accept=".txt,.lrc" hidden />
+            </label>
+            <button class="btn btn-ghost btn-sm" id="clearLyricsBtn">🗑 Limpiar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <button class="btn btn-primary btn-lg" id="goToSyncBtn" disabled>
+          Continuar → Sincronizar
+        </button>
+      </div>
+    </section>
+
+    <!-- STEP 2: SYNC -->
+    <section class="step-panel" id="panel2">
+      <h2 class="panel-title">Sincroniza la letra</h2>
+      <p class="panel-subtitle">
+        Presiona <kbd>Espacio</kbd> o toca el botón grande al inicio de cada frase.
+      </p>
+
+      <div class="sync-layout">
+        <!-- Waveform / player -->
+        <div class="sync-player">
+          <div class="waveform-container">
+            <canvas id="waveformCanvas"></canvas>
+            <div class="playhead" id="playhead"></div>
+          </div>
+          <div class="player-controls">
+            <button class="ctrl-btn" id="syncRewindBtn" title="Retroceder 5s">⏪</button>
+            <button class="ctrl-btn play-btn" id="syncPlayBtn" title="Play/Pause">▶</button>
+            <div class="time-display">
+              <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+            </div>
+            <input type="range" id="seekBar" min="0" max="100" value="0" class="seek-bar" />
+            <div class="volume-wrap">
+              <span>🔊</span>
+              <input type="range" id="volumeBar" min="0" max="1" step="0.01" value="1" class="volume-bar" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Lyrics list -->
+        <div class="sync-lyrics-panel">
+          <div class="sync-instructions">
+            <span class="sync-badge sync-done" id="syncProgress">0/0 marcados</span>
+            <button class="btn btn-ghost btn-sm" id="undoLastSync">↩ Deshacer último</button>
+            <button class="btn btn-ghost btn-sm" id="resetSyncBtn">🔄 Reiniciar marcas</button>
+          </div>
+          <ul class="sync-lyrics-list" id="syncLyricsList"></ul>
+        </div>
+      </div>
+
+      <!-- Big tap button for mobile -->
+      <button class="tap-btn" id="tapBtn" aria-label="Marcar tiempo">
+        <span class="tap-icon">👆</span>
+        <span class="tap-label">TAP</span>
+        <span class="tap-hint">o presiona ESPACIO</span>
+      </button>
+
+      <div class="panel-footer">
+        <button class="btn btn-ghost" id="backToUploadBtn">← Volver</button>
+        <button class="btn btn-primary btn-lg" id="goToAdjustBtn" disabled>
+          Continuar → Ajustar
+        </button>
+      </div>
+    </section>
+
+    <!-- STEP 3: ADJUST -->
+    <section class="step-panel" id="panel3">
+      <h2 class="panel-title">Ajusta la sincronización</h2>
+      <p class="panel-subtitle">Arrastra los marcadores o edita los tiempos directamente.</p>
+
+      <div class="adjust-layout">
+        <!-- Mini player -->
+        <div class="adjust-player">
+          <button class="ctrl-btn play-btn" id="adjPlayBtn">▶</button>
+          <input type="range" id="adjSeekBar" min="0" max="100" value="0" class="seek-bar" />
+          <span id="adjCurrentTime">0:00</span> / <span id="adjTotalTime">0:00</span>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-wrapper">
+          <canvas id="timelineCanvas" class="timeline-canvas"></canvas>
+        </div>
+
+        <!-- Adjust list -->
+        <div class="adjust-list-wrap">
+          <table class="adjust-table" id="adjustTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Frase</th>
+                <th>Inicio</th>
+                <th class="col-dur">Duración</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="adjustTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Preview karaoke -->
+      <div class="preview-section">
+        <h3>Vista previa</h3>
+        <div class="karaoke-preview" id="karaokePreview">
+          <div class="kp-prev" id="kpPrev"></div>
+          <div class="kp-current" id="kpCurrent">—</div>
+          <div class="kp-next" id="kpNext"></div>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <button class="btn btn-ghost" id="backToSyncBtn">← Volver</button>
+        <button class="btn btn-primary btn-lg" id="goToExportBtn">
+          Continuar → Exportar
+        </button>
+      </div>
+    </section>
+
+    <!-- STEP 4: EXPORT -->
+    <section class="step-panel" id="panel4">
+      <h2 class="panel-title">Exporta tu video karaoke</h2>
+
+      <div class="export-layout">
+        <!-- Settings -->
+        <div class="export-settings card">
+          <h3>Configuración del video</h3>
+
+          <label class="field-label">Tema visual</label>
+          <div class="theme-selector" id="themeSelector">
+            <button class="theme-btn active" data-theme="classic">🌌 Clásico</button>
+            <button class="theme-btn" data-theme="neon">⚡ Neón</button>
+            <button class="theme-btn" data-theme="fire">🔥 Fuego</button>
+            <button class="theme-btn" data-theme="ocean">🌊 Océano</button>
+            <button class="theme-btn" data-theme="minimal">◻ Minimalista</button>
+          </div>
+
+          <label class="field-label">Resolución</label>
+          <select class="field-select" id="resolutionSelect">
+            <option value="1280x720">1280×720 (HD)</option>
+            <option value="1920x1080" selected>1920×1080 (Full HD)</option>
+            <option value="3840x2160">3840×2160 (4K)</option>
+          </select>
+
+          <label class="field-label">Tamaño de fuente</label>
+          <input type="range" id="fontSizeSlider" min="24" max="96" value="56" class="slider" />
+          <span id="fontSizeVal">56px</span>
+
+          <label class="field-label">Título de la canción</label>
+          <input type="text" id="songTitleInput" class="field-input" placeholder="Artista — Canción" />
+
+          <label class="field-label">Color del texto activo</label>
+          <input type="color" id="activeColorPicker" value="#FFD700" class="color-picker" />
+
+          <label class="field-label">Color del texto inactivo</label>
+          <input type="color" id="inactiveColorPicker" value="#FFFFFF" class="color-picker" />
+        </div>
+
+        <!-- Canvas preview -->
+        <div class="export-preview-wrap">
+          <h3>Vista previa del video</h3>
+          <canvas id="exportPreviewCanvas" class="export-canvas"></canvas>
+          <div class="export-player">
+            <button class="ctrl-btn play-btn" id="exportPlayBtn">▶</button>
+            <input type="range" id="exportSeekBar" min="0" max="100" value="0" class="seek-bar" />
+            <span id="exportCurrentTime">0:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export actions -->
+      <div class="export-actions card">
+        <div class="record-status" id="recordStatus">
+          <div class="status-idle">
+            <p>El video se grabará en tiempo real reproduciendo la canción completa.</p>
+          </div>
+          <div class="progress-wrap hidden" id="recordProgress">
+            <div class="progress-bar-outer">
+              <div class="progress-bar-inner" id="progressBarInner"></div>
+            </div>
+            <span id="progressLabel">Grabando... 0%</span>
+          </div>
+        </div>
+        <div class="export-btns">
+          <button class="btn btn-ghost" id="backToAdjustBtn">← Volver</button>
+          <button class="btn btn-secondary btn-lg" id="previewExportBtn">▶ Previsualizar</button>
+          <button class="btn btn-success btn-lg" id="startRecordBtn">
+            ⏺ Grabar y descargar video
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ===== TOAST NOTIFICATIONS ===== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="js/utils.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/lyrics.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/adjust.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

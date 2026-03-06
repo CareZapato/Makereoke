@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: makereoke
+    runtime: python
+    # Sin dependencias externas: solo stdlib de Python
+    buildCommand: "echo 'No build step required'"
+    startCommand: "python server.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+    # Render asigna la variable PORT automáticamente
+    # El servidor la lee desde os.environ.get("PORT")

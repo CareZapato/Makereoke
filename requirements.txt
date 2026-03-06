@@ -1,0 +1,3 @@
+# Makereoke no requiere dependencias externas.
+# El servidor usa únicamente módulos de la stdlib de Python 3.
+# (http.server, socketserver, socket, sys, os)

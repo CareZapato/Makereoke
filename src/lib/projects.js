@@ -159,7 +159,66 @@ const Projects = (() => {
     } catch (e) {}
     return result;
   }
+  /* ── Workspace index (workspace.json in workspace root) ─── */
+  async function _readWorkspaceIndex() {
+    if (!rootHandle) return null;
+    try {
+      const fh   = await rootHandle.getFileHandle('workspace.json');
+      const file = await fh.getFile();
+      return JSON.parse(await file.text());
+    } catch (e) { return null; }
+  }
 
+  async function _writeWorkspaceIndex(list) {
+    if (!rootHandle) return;
+    try {
+      const index = {
+        version:   '1',
+        updatedAt: new Date().toISOString(),
+        projects:  list.map(p => ({
+          name:          p.name,
+          songTitle:     p.data?.songTitle      ?? p.name,
+          updatedAt:     p.data?.updatedAt      ?? null,
+          createdAt:     p.data?.createdAt      ?? null,
+          audioFileName: p.data?.audioFileName  ?? p.audioFile ?? null,
+          synced:        p.synced  ?? 0,
+          total:         p.total   ?? 0,
+          hasVideo:      !!p.videoFile,
+        })),
+      };
+      const fh = await rootHandle.getFileHandle('workspace.json', { create: true });
+      const wr = await fh.createWritable();
+      await wr.write(JSON.stringify(index, null, 2));
+      await wr.close();
+    } catch (e) { console.warn('[workspace] write failed:', e); }
+  }
+
+  async function _updateWorkspaceEntry(name, data, hasVideo = false) {
+    if (!rootHandle || !name) return;
+    let idx = null;
+    let existing = await _readWorkspaceIndex();
+    if (!existing) existing = { version: '1', updatedAt: '', projects: [] };
+    const synced = data?.lines?.filter(l => !l.isBlank && l.time !== null).length ?? 0;
+    const total  = data?.lines?.filter(l => !l.isBlank).length ?? 0;
+    const entry  = {
+      name,
+      songTitle:     data?.songTitle      ?? name,
+      updatedAt:     data?.updatedAt      ?? new Date().toISOString(),
+      createdAt:     data?.createdAt      ?? null,
+      audioFileName: data?.audioFileName  ?? null,
+      synced, total, hasVideo,
+    };
+    idx = existing.projects.findIndex(p => p.name === name);
+    if (idx >= 0) existing.projects[idx] = { ...existing.projects[idx], ...entry, hasVideo: existing.projects[idx].hasVideo || hasVideo };
+    else existing.projects.push(entry);
+    existing.updatedAt = new Date().toISOString();
+    try {
+      const fh = await rootHandle.getFileHandle('workspace.json', { create: true });
+      const wr = await fh.createWritable();
+      await wr.write(JSON.stringify(existing, null, 2));
+      await wr.close();
+    } catch (e) { console.warn('[workspace] update failed:', e); }
+  }
   /* ── Scanning ──────────────────────────────────────────── */
   async function scanProjects() {
     if (!rootHandle) return [];
@@ -177,6 +236,7 @@ const Projects = (() => {
       const db = b.data?.updatedAt ?? '0';
       return da < db ? 1 : -1;
     });
+    _writeWorkspaceIndex(list).catch(() => {});
     return list;
   }
 
@@ -269,7 +329,8 @@ const Projects = (() => {
   }
 
   /* ── Save project ───────────────────────────────────────────── */
-  async function saveCurrentProject() {
+  // silent=true → no warning toasts, no download fallback (used for auto-save on step advance)
+  async function saveCurrentProject(silent = false) {
     const songTitle = document.getElementById('songTitleInput')?.value.trim()
                     || currentProjData?.songTitle || '';
 
@@ -278,7 +339,7 @@ const Projects = (() => {
       if (!window.isSecureContext) {
         /* HTTP LAN: save everything to IndexedDB in this browser */
         if (!songTitle) {
-          toast('Define el nombre del proyecto en el Paso 1 antes de guardar.', 'warn');
+          if (!silent) toast('Define el nombre del proyecto en el Paso 1 antes de guardar.', 'warn');
           return false;
         }
         const safeName = songTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'Sin título';
@@ -293,19 +354,19 @@ const Projects = (() => {
         await idbSaveProject(safeName, data, audioFile ?? null);
         currentProjData   = data;
         _idbProjectName   = safeName;
-        toast(`💾 Proyecto guardado en este navegador: ${safeName}`, 'success');
+        if (!silent) toast(`💾 Proyecto guardado en este navegador: ${safeName}`, 'success');
         _updateHeaderIndicator();
         return true;
       }
-      /* Secure context but no folder — fall back to download */
-      saveProjectAsDownload();
-      return true;
+      /* Secure context but no folder — fall back to download only on explicit save */
+      if (!silent) saveProjectAsDownload();
+      return false;
     }
 
     /* Auto-create project subfolder if root selected but no project open yet */
     if (!currentProjHandle) {
       if (!songTitle) {
-        toast('Define el nombre del proyecto en el Paso 1 antes de guardar.', 'warn');
+        if (!silent) toast('Define el nombre del proyecto en el Paso 1 antes de guardar.', 'warn');
         return false;
       }
       const safeName    = songTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'Sin título';
@@ -340,8 +401,9 @@ const Projects = (() => {
     }
 
     currentProjData = data;
-    toast(`💾 Proyecto guardado: ${currentProjHandle.name}`, 'success');
+    if (!silent) toast(`💾 Proyecto guardado: ${currentProjHandle.name}`, 'success');
     _updateHeaderIndicator();
+    _updateWorkspaceEntry(currentProjHandle.name, data).catch(() => {});
     return true;
   }
 
@@ -355,6 +417,7 @@ const Projects = (() => {
       await wr.write(blob);
       await wr.close();
       toast(`🎬 Video guardado en carpeta del proyecto`, 'success');
+      _updateWorkspaceEntry(currentProjHandle.name, currentProjData, true).catch(() => {});
       return true;
     } catch (e) {
       console.warn('No se pudo guardar el video en el proyecto:', e);
@@ -498,6 +561,15 @@ const Projects = (() => {
     _pendingSettings = { ...settings };
   }
 
+  /* ── Clear current project (keep workspace, start fresh) ────── */
+  function clearCurrentProject() {
+    currentProjHandle = null;
+    currentProjData   = null;
+    _idbProjectName   = null;
+    _pendingSettings  = null;
+    _updateHeaderIndicator();
+  }
+
   /* ── Public ─────────────────────────────────────────────────── */
   return {
     openFolder,
@@ -519,8 +591,11 @@ const Projects = (() => {
     idbListProjects,
     idbLoadProject,
     idbDeleteProject,
+    clearCurrentProject,
+    readWorkspaceIndex: _readWorkspaceIndex,
     get hasFolder()        { return rootHandle !== null; },
     get hasPendingHandle() { return _pendingHandle !== null; },
+    get pendingFolderName(){ return _pendingHandle?.name ?? null; },
     get rootFolderName()   { return rootHandle?.name ?? null; },
     get currentName()      { return currentProjHandle?.name ?? null; },
     get isOpen()           { return currentProjHandle !== null; },

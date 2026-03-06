@@ -24,7 +24,10 @@ accediendo desde cualquier dispositivo de la red vía `http://<ip>:5500`.
 - El usuario da Play y presiona **Space (o TAP)** al inicio de cada frase
 - La letra se va marcando en verde con su timestamp
 - Botones de Deshacer y Reiniciar
-- Se puede guardar el proyecto desde aquí (genera `.lrc` automáticamente)
+- Botón **"💾 Guardar proyecto"** (mismo botón en el Paso 3)
+  - Si aún no hay workspace definido → abre el selector de carpeta primero, luego guarda
+  - Si ya hay workspace → crea la subcarpeta de la canción y guarda los archivos
+- **Auto-guardado silencioso** al avanzar a cualquier paso siguiente (solo si el workspace ya está configurado o en modo IDB)
 
 ### Paso 3 — Ajuste
 - Canvas de línea de tiempo: cada frase es un bloque arrastrable
@@ -98,9 +101,10 @@ Los proyectos se guardan en el **equipo de cada usuario**, NO en el servidor.
 
 | Contexto | API disponible | Cómo se guarda |
 |---|---|---|
-| `localhost` / HTTPS | File System Access API ✓ | Carpeta real en el disco del usuario vía browser dialog |
-| HTTP por IP (LAN) | File System Access API ✗ | **IndexedDB** en el navegador del cliente + descarga de archivos |
-| Sin carpeta seleccionada | — | Descarga `.mkproject` (JSON) + `.txt` |
+| `localhost` / HTTPS | File System Access API ✓ | Carpeta real en disco vía browser dialog; si no hay workspace definido, se abre el selector al guardar |
+| HTTP por IP (LAN) | File System Access API ✗ | **IndexedDB** en el navegador del cliente; el usuario puede leer proyectos del disco con `<input webkitdirectory>` |
+
+> **Nota**: ya no existe un fallback de descarga automática `.mkproject`. Si el usuario está en localhost y no tiene workspace definido, la app muestra el selector de carpeta antes de guardar.
 
 ### File System Access API (localhost / HTTPS)
 
@@ -112,10 +116,11 @@ Los proyectos se guardan en el **equipo de cada usuario**, NO en el servidor.
 ### IndexedDB fallback (HTTP por IP)
 
 Cuando File System Access API no está disponible (HTTP en otro equipo):
-- El `project.json` + el ArrayBuffer del audio se almacenan en **IndexedDB del navegador**
+- El `project.json` + el Blob del audio se almacenan en **IndexedDB del navegador**
 - Los videos se descargan automáticamente al terminar la grabación
 - El panel Proyectos lista los proyectos guardados en IndexedDB del propio navegador
-- El usuario puede exportar manualmente un `.mkproject` (JSON) para hacer backup
+- El usuario puede también leer proyectos ya guardados en disco usando el botón 📂 (abre `<input webkitdirectory>`, solo lectura desde el navegador)
+- Para hacer backup, se puede exportar un `.mkproject` (JSON) importable desde el panel Proyectos
 
 ---
 

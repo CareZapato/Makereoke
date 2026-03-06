@@ -24,6 +24,10 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
   const [diskFolderName, setDiskFolderName] = useState('');
   const [diskFilesMap, setDiskFilesMap]   = useState({});
 
+  // Pending folder handle: saved in IDB but needs permission re-grant
+  const [hasPending, setHasPending]   = useState(false);
+  const [pendingName, setPendingName] = useState('');
+
   // File System Access API is only available in a secure context (localhost / HTTPS)
   const canUseFileSystem = typeof window !== 'undefined'
     && window.isSecureContext
@@ -41,11 +45,22 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
     setIsLoading(true);
     try {
       if (canUseFileSystem) {
+        // Try to silently restore workspace handle saved in a previous session
+        if (!Projects.hasFolder && !Projects.hasPendingHandle) {
+          await Projects.tryRestoreFolder();
+        }
         if (Projects.hasFolder) {
+          setHasPending(false);
           const list = await Projects.scanProjects();
           setProjects(list);
           setFolderName(Projects.rootFolderName ?? '');
+        } else if (Projects.hasPendingHandle) {
+          setHasPending(true);
+          setPendingName(Projects.pendingFolderName ?? 'carpeta guardada');
+          setProjects([]);
+          setFolderName('');
         } else {
+          setHasPending(false);
           setProjects([]);
           setFolderName('');
         }
@@ -67,10 +82,23 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
     }
   }
 
-  // Secure context: open native folder picker
+  // Secure context: open native folder picker (or reconnect stored handle)
   async function handleBrowse() {
+    // If a handle was stored but lost permission, try to re-request it first
+    if (Projects.hasPendingHandle) {
+      const ok = await Projects.requestStoredPermission();
+      if (ok) {
+        setHasPending(false);
+        setFolderName(Projects.rootFolderName ?? '');
+        const list = await Projects.scanProjects();
+        setProjects(list);
+        return;
+      }
+      // Permission still denied — fall through to open a new picker
+    }
     const result = await Projects.openFolder();
     if (result !== null) {
+      setHasPending(false);
       setFolderName(Projects.rootFolderName ?? '');
       setProjects(result);
     }
@@ -86,7 +114,10 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
   async function handleFolderSelect(e) {
     const files = Array.from(e.target.files);
     e.target.value = '';
-    if (!files.length) return;
+    if (!files.length) {
+      toast('No se leyeron archivos. Selecciona la carpeta de workspace (que contiene subcarpetas de proyectos).', 'warn');
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -94,19 +125,34 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
       const rootFolder = files[0].webkitRelativePath.split('/')[0];
       setDiskFolderName(rootFolder);
 
-      // Group files by project subfolder
-      // Expected layout: <rootFolder>/<projectName>/<files>
+      // Detect structure: depth-2 = user selected a project folder directly;
+      //                   depth-3+ = user selected the workspace root folder
+      const maxDepth = Math.max(...files.map(f => f.webkitRelativePath.split('/').length));
       const byProject = {};
-      for (const file of files) {
-        const parts = file.webkitRelativePath.split('/');
-        if (parts.length < 3) continue; // skip files directly in root
-        const projName = parts[1];
-        if (!byProject[projName]) byProject[projName] = {};
-        const fileName = parts[parts.length - 1];
-        if (fileName === 'project.json') {
-          byProject[projName].jsonFile = file;
-        } else if (/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(fileName)) {
-          if (!byProject[projName].audioFile) byProject[projName].audioFile = file;
+
+      if (maxDepth <= 2) {
+        // User opened the project subfolder itself — treat it as a single project
+        const projName = rootFolder;
+        byProject[projName] = {};
+        for (const file of files) {
+          const fileName = file.name;
+          if (fileName === 'project.json') byProject[projName].jsonFile = file;
+          else if (/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(fileName)) {
+            if (!byProject[projName].audioFile) byProject[projName].audioFile = file;
+          }
+        }
+      } else {
+        // User opened the workspace root — subfolders are individual projects
+        for (const file of files) {
+          const parts = file.webkitRelativePath.split('/');
+          if (parts.length < 3) continue;
+          const projName = parts[1];
+          if (!byProject[projName]) byProject[projName] = {};
+          const fileName = parts[parts.length - 1];
+          if (fileName === 'project.json') byProject[projName].jsonFile = file;
+          else if (/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(fileName)) {
+            if (!byProject[projName].audioFile) byProject[projName].audioFile = file;
+          }
         }
       }
 
@@ -139,7 +185,11 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
         ...idbList.map(p => ({ ...p, source: 'idb' })),
       ]);
 
-      toast(`${parsed.length} proyecto(s) encontrado(s) en "${rootFolder}"`, 'success');
+      if (parsed.length === 0) {
+        toast(`No se encontraron proyectos en "${rootFolder}". ¿Abriste la carpeta correcta?`, 'warn');
+      } else {
+        toast(`${parsed.length} proyecto(s) cargado(s) desde "${rootFolder}"`, 'success');
+      }
     } catch (e) {
       toast('No se pudo leer la carpeta.', 'error');
       console.error('[handleFolderSelect]', e);
@@ -211,6 +261,12 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
     }
   }
 
+  function handleNewProject() {
+    Projects.clearCurrentProject();
+    onClose();
+    goToStep(1);
+  }
+
   if (!isOpen) return null;
 
   return (
@@ -220,6 +276,13 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
 
         <div className="projects-panel-header">
           <span className="projects-panel-title">📁 Proyectos</span>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleNewProject}
+            title="Empezar un proyecto nuevo (mantiene la carpeta de workspace)"
+          >
+            ➕ Nuevo proyecto
+          </button>
           <button className="btn btn-ghost close-panel-btn" onClick={onClose}>✕</button>
         </div>
 
@@ -267,9 +330,22 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
                   type="text"
                   className="path-input"
                   readOnly
-                  value={folderName}
-                  placeholder="Selecciona una carpeta…"
-                  title={folderName}
+                  value={
+                    hasPending
+                      ? `📁 ${pendingName} — clic para reconectar`
+                      : folderName
+                        ? `📁 ${folderName}${projects.length > 0 ? `  (${projects.length} proyecto${projects.length !== 1 ? 's' : ''})` : ''}`
+                        : ''
+                  }
+                  placeholder="Selecciona carpeta de workspace…"
+                  title={
+                    hasPending
+                      ? 'Haz clic en el botón 📂 para reconectar el acceso'
+                      : folderName
+                        ? `Workspace: ${folderName}\n⚠️ El navegador solo muestra el nombre de carpeta (no la ruta completa) por seguridad.`
+                        : 'Haz clic en 📂 para seleccionar la carpeta donde guardarás tus proyectos'
+                  }
+                  style={hasPending ? { color: 'var(--text-dim)', fontStyle: 'italic' } : {}}
                 />
 
                 {folderName && (
@@ -330,17 +406,31 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
               <span className="empty-icon">⏳</span>
               <p>Cargando proyectos…</p>
             </div>
+          ) : canUseFileSystem && !folderName && hasPending ? (
+            <div className="projects-empty">
+              <span className="empty-icon">🔑</span>
+              <h3>Acceso pendiente</h3>
+              <p>Carpeta guardada: <strong>{pendingName}</strong><br/>
+                Haz clic en el botón 📂 para reconectar el acceso al workspace.</p>
+            </div>
           ) : canUseFileSystem && !folderName ? (
             <div className="projects-empty">
               <span className="empty-icon">📁</span>
-              <h3>Sin carpeta raíz</h3>
-              <p>Usa el botón 📂 para vincular la carpeta donde están tus proyectos.</p>
+              <h3>Define tu workspace</h3>
+              <p>
+                Haz clic en 📂 para seleccionar la carpeta donde se guardarán todos tus proyectos.<br/>
+                <small style={{color:'var(--text-dim)'}}>Se recordará entre sesiones. Cada canción es una subcarpeta dentro de ella.</small>
+              </p>
             </div>
           ) : !canUseFileSystem && projects.length === 0 ? (
             <div className="projects-empty">
               <span className="empty-icon">📁</span>
               <h3>Sin proyectos</h3>
-              <p>Usa el botón 📂 para abrir tu carpeta de proyectos,<br/>o guarda uno nuevo desde el Paso 2.</p>
+              <p>
+                Haz clic en 📂 para leer proyectos desde tu disco (esta sesión).<br/>
+                O guarda uno nuevo desde el Paso 2.<br/>
+                <small style={{color:'var(--text-dim)'}}>En modo LAN los proyectos se guardan en este navegador. Para acceder a carpetas del sistema, abre la app desde <strong>localhost</strong>.</small>
+              </p>
             </div>
           ) : projects.length === 0 ? (
             <div className="projects-empty">

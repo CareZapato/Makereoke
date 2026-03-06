@@ -5,7 +5,6 @@
 import Audio from './audio.js';
 import Lyrics from './lyrics.js';
 import Renderer from './renderer.js';
-import Projects from './projects.js';
 import { formatTime, debounce } from './utils.js';
 
 const ExportEngine = (() => {
@@ -302,10 +301,6 @@ const ExportEngine = (() => {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-
-      if (Projects.isOpen) {
-        await Projects.saveVideoToProject(blob, filename);
-      }
 
       document.querySelector('.status-idle').classList.remove('hidden');
       recordProgress.classList.add('hidden');

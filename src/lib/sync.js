@@ -11,6 +11,7 @@ const Sync = (() => {
   let currentSyncIdx = 0;
   let waveformPainted = false;
   let isInitialized = false;
+  let _syncProgressListener = null;
 
   const els = {
     playBtn:    () => document.getElementById('syncPlayBtn'),
@@ -264,11 +265,17 @@ const Sync = (() => {
   }
 
   function updateGoButton() {
+    const count = Lyrics.syncedCount();
     const btn = els.goAdjust();
-    btn.disabled = Lyrics.syncedCount() < 1;
+    if (btn) btn.disabled = count < 1;
+    if (_syncProgressListener) _syncProgressListener(count);
   }
 
-  return { setup, drawWaveform };
+  return {
+    setup,
+    drawWaveform,
+    setSyncProgressListener(cb) { _syncProgressListener = cb; },
+  };
 })();
 
 export default Sync;

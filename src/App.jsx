@@ -19,11 +19,13 @@ export default function App() {
   const [hasLyrics, setHasLyrics]   = useState(false);
   const [projectName, setProjectName] = useState(null);
   const [projectsOpen, setProjectsOpen] = useState(false);
+  const [syncDone, setSyncDone]         = useState(false);
 
   /* ── Boot: init ExportEngine, bridge Projects → React, restore folder ── */
   useEffect(() => {
     ExportEngine.init();
     Projects.setProjectChangeListener(name => setProjectName(name));
+    Sync.setSyncProgressListener(count => setSyncDone(count > 0));
     Projects.tryRestoreFolder(); // silent background – no await needed for UI
   }, []);
 
@@ -103,6 +105,7 @@ export default function App() {
         <Panel2Sync
           isActive={step === 2}
           goToStep={goToStep}
+          syncDone={syncDone}
         />
         <Panel3Adjust
           isActive={step === 3}

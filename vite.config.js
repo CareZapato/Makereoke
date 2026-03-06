@@ -6,6 +6,6 @@ export default defineConfig({
   server: {
     port: 5500,
     host: true,        // listen on all interfaces (LAN access like the Python server)
-    strictPort: true,
+    strictPort: false,
   },
 });

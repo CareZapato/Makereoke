@@ -94,9 +94,17 @@ const Audio = (() => {
 
   function seek(secs) {
     const wasPlaying = isPlaying;
-    if (wasPlaying) { if (sourceNode) { try { sourceNode.stop(); } catch(e){} sourceNode = null; } isPlaying = false; }
+    if (wasPlaying) {
+      if (sourceNode) {
+        sourceNode.onended = null; // prevent stale callback from resetting state after restart
+        try { sourceNode.stop(); } catch(e){}
+        sourceNode = null;
+      }
+      isPlaying = false;
+    }
     pausedAt = clamp(secs, 0, duration);
     if (wasPlaying) play(pausedAt);
+    else if (onTimeUpdate) onTimeUpdate(pausedAt); // update playhead/time even when paused
   }
 
   function getCurrentTime() {

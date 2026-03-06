@@ -300,6 +300,16 @@
         <button class="icon-btn close-panel-btn" id="closeProjectsBtn" title="Cerrar">✕</button>
       </div>
 
+      <!-- Secure-context warning (shown when not on localhost/HTTPS) -->
+      <div class="secure-warn hidden" id="secureWarn">
+        <span class="secure-warn-icon">⚠️</span>
+        <div>
+          <strong>Acceso a archivos no disponible</strong><br/>
+          La API de archivos requiere <code>localhost</code> o HTTPS.<br/>
+          Abre la app en <code>http://localhost:5500</code> en vez de por IP de red.
+        </div>
+      </div>
+
       <!-- Toolbar -->
       <div class="projects-toolbar">
         <div class="folder-info" id="folderInfo">

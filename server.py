@@ -29,17 +29,16 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def _add_cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin",  CORS_ORIGINS)
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
+        self.send_header("Access-Control-Allow-Origin",   CORS_ORIGINS)
+        self.send_header("Access-Control-Allow-Methods",  "GET, POST, OPTIONS, HEAD")
         self.send_header(
             "Access-Control-Allow-Headers",
             "Content-Type, Authorization, X-Requested-With, Range"
         )
         self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range")
-        self.send_header("Access-Control-Max-Age", "86400")     # cache preflight 24 h
-        # Necesario para SharedArrayBuffer / MediaRecorder en Chrome (algunos casos)
-        self.send_header("Cross-Origin-Opener-Policy",   "same-origin")
-        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        self.send_header("Access-Control-Max-Age",        "86400")  # cache preflight 24 h
+        # Allows the page to be embedded / used cross-origin without restriction
+        self.send_header("Cross-Origin-Resource-Policy",  "cross-origin")
 
     # ── Responder a preflight OPTIONS ────────────────────────────────────────
     def do_OPTIONS(self):

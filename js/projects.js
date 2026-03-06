@@ -109,6 +109,10 @@ const Projects = (() => {
 
   /* ── Folder picker ─────────────────────────────────────────── */
   async function openFolder() {
+    if (!window.isSecureContext) {
+      toast('La API de archivos requiere HTTPS o localhost. Accede vía http://localhost:5500', 'error');
+      return null;
+    }
     if (!window.showDirectoryPicker) {
       toast('Tu navegador no soporta la API de archivos. Usa Chrome o Edge.', 'error');
       return null;

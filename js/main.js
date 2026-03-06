@@ -224,6 +224,11 @@
     function openOverlay() {
       overlay.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
+      // Show secure-context warning if File System API unavailable
+      const secureWarn = document.getElementById('secureWarn');
+      if (secureWarn) {
+        secureWarn.classList.toggle('hidden', window.isSecureContext && !!window.showDirectoryPicker);
+      }
       updateFolderUI();
       if (Projects.hasFolder) refreshProjectsList();
     }

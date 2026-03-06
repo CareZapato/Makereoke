@@ -3,26 +3,20 @@ import Projects from '../../lib/projects.js';
 import { toast } from '../../lib/utils.js';
 
 export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToStep, onLyricsRestore }) {
-  const [folderName, setFolderName]   = useState(Projects.rootFolderName);
-  const [projects, setProjects]       = useState([]);
-  const [isLoading, setIsLoading]     = useState(false);
-  const [showModal, setShowModal]     = useState(false);
-  const [newName, setNewName]         = useState('');
+  const [folderPath, setFolderPath] = useState('');
+  const [projects, setProjects]     = useState([]);
+  const [isLoading, setIsLoading]   = useState(false);
 
-  /* ── Load projects when overlay opens ── */
   useEffect(() => {
     if (!isOpen) return;
-    setFolderName(Projects.rootFolderName);
-    if (Projects.hasFolder) {
+    setFolderPath(Projects.rootFolderName ?? '');
+    if (Projects.isServerMode) {
       refreshList();
-    }
-    // If there's a pending handle, prompt for permission on open
-    if (Projects.hasPendingHandle) {
+    } else if (Projects.hasFolder) {
+      refreshList();
+    } else if (Projects.hasPendingHandle) {
       Projects.requestStoredPermission().then(ok => {
-        if (ok) {
-          setFolderName(Projects.rootFolderName);
-          refreshList();
-        }
+        if (ok) { setFolderPath(Projects.rootFolderName ?? ''); refreshList(); }
       });
     }
   }, [isOpen]);
@@ -31,22 +25,23 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
     setIsLoading(true);
     const list = await Projects.scanProjects();
     setProjects(list || []);
-    setFolderName(Projects.rootFolderName);
+    setFolderPath(Projects.rootFolderName ?? '');
     setIsLoading(false);
   }
 
-  async function handleOpenFolder() {
+  async function handleBrowse() {
+    if (Projects.isServerMode) return;
     const list = await Projects.openFolder();
     if (list !== null) {
       setProjects(list);
-      setFolderName(Projects.rootFolderName);
-      toast('Carpeta vinculada correctamente.', 'success');
+      setFolderPath(Projects.rootFolderName ?? '');
+      toast('Carpeta vinculada.', 'success');
     }
   }
 
   async function handleLoadProject(proj) {
     onClose();
-    const data = await Projects.loadProject(proj.handle, loadAudioFile);
+    const data = await Projects.loadProject(proj, loadAudioFile);
     if (data) {
       onLyricsRestore();
       goToStep(1);
@@ -54,122 +49,96 @@ export default function ProjectsOverlay({ isOpen, onClose, loadAudioFile, goToSt
     }
   }
 
-  async function handleCreateProject() {
-    if (!newName.trim()) return;
-    const proj = await Projects.createProject(newName.trim());
-    setShowModal(false);
-    setNewName('');
-    if (proj) {
-      toast(`Proyecto creado: ${proj.name}`, 'success');
-      await refreshList();
-    }
-  }
-
   if (!isOpen) return null;
 
+  const canBrowse = !Projects.isServerMode;
+
   return (
-    <>
-      <div className="projects-overlay">
-        <div className="projects-backdrop" onClick={onClose} />
+    <div className="projects-overlay">
+      <div className="projects-backdrop" onClick={onClose} />
+      <div className="projects-panel">
 
-        <div className="projects-panel">
-          <div className="projects-panel-header">
-            <span className="projects-panel-title">📁 Proyectos</span>
-            <button className="btn btn-ghost close-panel-btn" onClick={onClose}>✕</button>
-          </div>
-
-          <div className="projects-toolbar">
-            <div className="folder-info">
-              <span className="folder-icon">📂</span>
-              <span className={`folder-name${folderName ? ' has-folder' : ''}`}>
-                {folderName || 'Sin carpeta seleccionada'}
-              </span>
-            </div>
-            <div className="projects-actions">
-              <button className="btn btn-primary" style={{ fontSize: '0.82rem' }} onClick={handleOpenFolder}>
-                {folderName ? 'Cambiar carpeta' : '📂 Seleccionar carpeta'}
-              </button>
-              {folderName && (
-                <>
-                  <button className="btn btn-ghost" style={{ fontSize: '0.82rem' }} onClick={refreshList}>
-                    🔄 Actualizar
-                  </button>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.82rem' }} onClick={() => setShowModal(true)}>
-                    ➕ Nuevo proyecto
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="projects-body">
-            {isLoading ? (
-              <div className="projects-empty">
-                <span className="empty-icon">⏳</span>
-                <p>Cargando proyectos…</p>
-              </div>
-            ) : !folderName ? (
-              <div className="projects-empty">
-                <span className="empty-icon">📁</span>
-                <h3>Sin carpeta raíz</h3>
-                <p>Selecciona una carpeta para guardar y cargar tus proyectos de karaoke.</p>
-              </div>
-            ) : projects.length === 0 ? (
-              <div className="projects-empty">
-                <span className="empty-icon">🎵</span>
-                <h3>Sin proyectos</h3>
-                <p>No hay proyectos en esta carpeta. Crea uno nuevo para empezar.</p>
-              </div>
-            ) : (
-              <div className="projects-grid">
-                {projects.map(proj => (
-                  <div key={proj.name} className="project-card" onClick={() => handleLoadProject(proj)}>
-                    <span className="project-card-title">{proj.name}</span>
-                    <div className="project-card-meta">
-                      <span className="project-card-badge">{proj.synced}/{proj.total} frases</span>
-                      {proj.audioFile && <span className="project-card-badge">🎵 audio</span>}
-                      {proj.videoFile && (
-                        <span className="project-card-badge" style={{ color: 'var(--success)' }}>🎬 video</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="projects-panel-header">
+          <span className="projects-panel-title">📁 Proyectos</span>
+          <button className="btn btn-ghost close-panel-btn" onClick={onClose}>✕</button>
         </div>
-      </div>
 
-      {/* New project modal */}
-      {showModal && (
-        <div className="modal-overlay"
-          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setNewName(''); } }}>
-          <div className="modal-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>Nuevo proyecto</h3>
-              <button className="btn btn-ghost close-panel-btn"
-                onClick={() => { setShowModal(false); setNewName(''); }}>✕</button>
-            </div>
-            <label className="field-label">Nombre del proyecto (= nombre de la carpeta)</label>
+        {/* ── Path row ── */}
+        <div className="projects-toolbar">
+          <div className="path-input-wrap">
             <input
               type="text"
-              className="field-input"
-              style={{ width: '100%' }}
-              placeholder="Artista - Canción"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleCreateProject(); }}
-              autoFocus
+              className="path-input"
+              readOnly
+              value={folderPath}
+              placeholder={canBrowse ? 'Selecciona una carpeta…' : 'Cargando ruta del servidor…'}
+              title={folderPath}
             />
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => { setShowModal(false); setNewName(''); }}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleCreateProject} disabled={!newName.trim()}>
-                Crear
+            {canBrowse && (
+              <button
+                className="path-btn-icon"
+                title="Seleccionar carpeta"
+                onClick={handleBrowse}
+              >
+                {/* folder open icon */}
+                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
+                </svg>
               </button>
-            </div>
+            )}
+            <button
+              className="path-btn-icon"
+              title="Actualizar lista"
+              onClick={refreshList}
+              disabled={isLoading}
+            >
+              {/* refresh icon */}
+              <svg
+                viewBox="0 0 20 20" fill="currentColor" width="16" height="16"
+                style={isLoading ? { animation: 'spin 0.8s linear infinite' } : {}}
+              >
+                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd"/>
+              </svg>
+            </button>
           </div>
         </div>
-      )}
-    </>
+
+        {/* ── Project list ── */}
+        <div className="projects-body">
+          {isLoading ? (
+            <div className="projects-empty">
+              <span className="empty-icon">⏳</span>
+              <p>Cargando proyectos…</p>
+            </div>
+          ) : !folderPath ? (
+            <div className="projects-empty">
+              <span className="empty-icon">📁</span>
+              <h3>Sin carpeta raíz</h3>
+              <p>Usa el botón 📂 para vincular la carpeta donde se guardan tus proyectos.</p>
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="projects-empty">
+              <span className="empty-icon">🎵</span>
+              <h3>Sin proyectos</h3>
+              <p>No hay proyectos aquí. Se crean automáticamente al guardar desde el Paso 2.</p>
+            </div>
+          ) : (
+            <div className="projects-grid">
+              {projects.map(proj => (
+                <div key={proj.name} className="project-card" onClick={() => handleLoadProject(proj)}>
+                  <span className="project-card-title">{proj.name}</span>
+                  <div className="project-card-meta">
+                    <span className="project-card-badge">{proj.synced}/{proj.total} frases</span>
+                    {proj.audioFile && <span className="project-card-badge audio">🎵 audio</span>}
+                    {proj.videoFile && <span className="project-card-badge video">🎬 video</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
   );
 }

@@ -106,6 +106,7 @@ export default function App() {
           isActive={step === 2}
           goToStep={goToStep}
           syncDone={syncDone}
+          onSaveProject={handleSaveProject}
         />
         <Panel3Adjust
           isActive={step === 3}

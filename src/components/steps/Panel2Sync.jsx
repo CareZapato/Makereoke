@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Panel2Sync({ isActive, goToStep, syncDone }) {
+export default function Panel2Sync({ isActive, goToStep, syncDone, onSaveProject }) {
   return (
     <section id="panel2" className={`step-panel${isActive ? ' active' : ''}`}>
       <h2 className="panel-title">🥁 Sincronizar letra</h2>
@@ -68,6 +68,9 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
       {/* Navigation */}
       <div className="panel-footer">
         <button className="btn btn-ghost" onClick={() => goToStep(1)}>← Volver</button>
+        <button className="btn btn-secondary" onClick={onSaveProject} title="Guardar proyecto">
+          💾 Guardar
+        </button>
         <button
           id="goToAdjustBtn"
           className="btn btn-primary"

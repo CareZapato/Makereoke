@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Lyrics from '../../lib/lyrics.js';
 import { toast } from '../../lib/utils.js';
 
 export default function Panel1Upload({ isActive, hasAudio, hasLyrics, setHasLyrics, loadAudioFile, goToStep }) {
   const fileInputRef = useRef(null);
-  const canGoToSync = hasAudio && hasLyrics;
+  const [hasName, setHasName] = useState(false);
+  const canGoToSync = hasAudio && hasLyrics && hasName;
 
   /* ── Audio drop zone ── */
   function onDrop(e) {
@@ -58,7 +59,19 @@ export default function Panel1Upload({ isActive, hasAudio, hasLyrics, setHasLyri
   return (
     <section id="panel1" className={`step-panel${isActive ? ' active' : ''}`}>
       <h2 className="panel-title">🎵 Carga tu canción</h2>
-      <p className="panel-subtitle">Sube un archivo de audio y escribe o pega la letra.</p>
+      <p className="panel-subtitle">Define el nombre del proyecto, sube el audio y escribe la letra.</p>
+
+      {/* Project name — defines the subfolder name when saving */}
+      <div className="project-name-row">
+        <label className="field-label" htmlFor="songTitleInput">Nombre del proyecto (Artista — Título)</label>
+        <input
+          id="songTitleInput"
+          type="text"
+          className="field-input project-name-input"
+          placeholder="Ej: Los Bukis — Me Volviste a Enamorar"
+          onChange={e => setHasName(e.target.value.trim().length > 0)}
+        />
+      </div>
 
       <div className="upload-grid">
         {/* Audio upload card */}
@@ -109,6 +122,7 @@ También puedes pegar un archivo .lrc con marcas de tiempo."
           id="goToSyncBtn"
           className="btn btn-primary"
           disabled={!canGoToSync}
+          title={!hasName ? 'Escribe el nombre del proyecto primero' : (!hasAudio ? 'Carga un audio primero' : (!hasLyrics ? 'Escribe la letra primero' : ''))}
           onClick={() => goToStep(2)}
         >
           Sincronizar →

@@ -77,7 +77,8 @@ body::after {
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(49,49,106,0.6);
   box-shadow: 0 2px 28px rgba(0,0,0,0.5);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-height: 56px;
 }
 
 .logo {
@@ -107,6 +108,7 @@ body::after {
 /* Header right side: projects button + steps */
 .header-right {
   display: flex; align-items: center; gap: 12px;
+  flex-shrink: 0;
 }
 
 /* Current project indicator in header */
@@ -116,9 +118,10 @@ body::after {
   border: 1px solid rgba(0,200,83,0.3);
   border-radius: 20px;
   padding: 4px 12px 4px 10px;
-  max-width: 260px;
+  max-width: 240px;
   flex-shrink: 1;
   min-width: 0;
+  overflow: hidden;
 }
 .project-indicator-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -134,12 +137,17 @@ body::after {
   max-width: 150px;
 }
 .proj-save-btn {
-  padding: 3px 8px !important; font-size: 0.75rem !important;
-  border-color: rgba(0,200,83,0.4) !important;
-  color: var(--success) !important;
+  padding: 3px 8px; font-size: 0.75rem;
   white-space: nowrap;
 }
-.proj-save-btn:hover { background: rgba(0,200,83,0.15) !important; }
+/* Higher specificity so it wins over .btn/.btn-ghost without !important */
+.project-indicator .btn {
+  border-color: rgba(0,200,83,0.4);
+  color: var(--success);
+}
+.project-indicator .btn:hover { background: rgba(0,200,83,0.15); }
+
+.step-indicator {
   display: flex; align-items: center; gap: 0;
 }
 .step {
@@ -769,7 +777,7 @@ kbd {
 
 /* ── ≤ 600px: phones ── */
 @media (max-width: 600px) {
-  .app-header { padding: 8px 12px; }
+  .app-header { padding: 8px 12px; flex-wrap: nowrap; }
 
   /* Logo: hide text, keep icon + version */
   .logo-text { display: none; }

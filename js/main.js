@@ -346,9 +346,14 @@
           if (ti && data.songTitle) ti.value = data.songTitle;
           Projects.updateHeaderIndicator();
           closeOverlay();
-          const hasTimes = data.lines?.some(l => !l.isBlank && l.time !== null);
+          const hasTimes  = data.lines?.some(l => !l.isBlank && l.time !== null);
+          const hasAudioLoaded = Audio.duration > 0;
+          const hasLyricsLoaded = data.lines?.some(l => !l.isBlank) ?? false;
           checkUploadReady();
-          goToStep(hasTimes ? 3 : 1);
+          // Navigate to the most advanced applicable step
+          if (hasTimes)                         goToStep(3);
+          else if (hasAudioLoaded && hasLyricsLoaded) goToStep(2);
+          else                                  goToStep(1);
           toast(`💼 Proyecto cargado: “${proj.name}”`, 'success');
         });
         grid.appendChild(card);

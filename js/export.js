@@ -229,23 +229,35 @@ const Export = (() => {
     const chunks   = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       audioInfo.stop();
       recording = false;
       const blob = new Blob(chunks, { type: mimeType });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
+
+      /* Build a clean filename from the song title */
+      const rawTitle  = songTitleInput.value.trim() || 'karaoke';
+      const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
+      const filename  = safeTitle + '.webm';
+
+      /* Always trigger browser download */
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
       a.href     = url;
-      a.download = `makereoke_${Date.now()}.webm`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+
+      /* Also save into the project folder if one is open */
+      if (typeof Projects !== 'undefined' && Projects.isOpen) {
+        await Projects.saveVideoToProject(blob, filename);
+      }
 
       document.querySelector('.status-idle').classList.remove('hidden');
       recordProgress.classList.add('hidden');
       startRecordBtn.disabled = false;
       previewExportBtn.disabled = false;
       progressBarInner.style.width = '0%';
-      toast('✅ Video descargado correctamente', 'success');
+      toast('✅ Video listo', 'success');
     };
 
     recorder.onerror = err => {

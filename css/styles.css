@@ -987,6 +987,7 @@ kbd {
 .project-card-badge.synced  { background: rgba(0,200,83,0.12);  color: var(--success);        border-color: rgba(0,200,83,0.3); }
 .project-card-badge.partial { background: rgba(255,165,0,0.1);  color: #ffaa00;               border-color: rgba(255,165,0,0.3); }
 .project-card-badge.audio   { background: rgba(124,77,255,0.1); color: var(--primary-light);  border-color: rgba(124,77,255,0.3); }
+.project-card-badge.video   { background: rgba(0,180,255,0.1);  color: #40c8ff;               border-color: rgba(0,180,255,0.3); }
 .project-card-date { font-size: 0.72rem; color: var(--text-dim); }
 .project-card-actions {
   display: flex; gap: 6px; align-items: center;

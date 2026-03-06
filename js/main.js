@@ -332,6 +332,7 @@
           <div class="project-card-meta">
             <span class="project-card-badge ${syncCls}">♪ ${syncTxt}</span>
             ${proj.audioFile ? '<span class="project-card-badge audio">🎵 Audio</span>' : ''}
+            ${proj.videoFile ? '<span class="project-card-badge video">🎬 Video</span>' : ''}
             ${dateStr ? `<span class="project-card-date">${dateStr}</span>` : ''}
           </div>
           <div class="project-card-actions">

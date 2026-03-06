@@ -62,13 +62,29 @@ const Projects = (() => {
     await writable.close();
   }
 
-  async function _findAudioFile(dirHandle) {
+  /* Write an LRC file next to project.json — only if there are synced lines */
+  async function _writeLrc(dirHandle, title) {
+    const lrcText = Lyrics.toLRC();
+    if (!lrcText) return;
+    const safeName = (title || 'lyrics').replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'lyrics';
+    try {
+      const fh       = await dirHandle.getFileHandle(safeName + '.lrc', { create: true });
+      const writable = await fh.createWritable();
+      await writable.write(lrcText);
+      await writable.close();
+    } catch (e) { console.warn('No se pudo escribir el LRC:', e); }
+  }
+
+  /* Scan a project subfolder in a single pass — returns audio + video filenames */
+  async function _scanDirFiles(dirHandle) {
+    const result = { audio: null, video: null };
     try {
       for await (const [name] of dirHandle.entries()) {
-        if (/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(name)) return name;
+        if (!result.audio && /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(name)) result.audio = name;
+        if (!result.video && /\.(webm|mp4|mkv)$/i.test(name)) result.video = name;
       }
     } catch (e) {}
-    return null;
+    return result;
   }
 
   /* ── Scanning ──────────────────────────────────────────────── */
@@ -78,10 +94,10 @@ const Projects = (() => {
     for await (const [name, handle] of rootHandle.entries()) {
       if (handle.kind !== 'directory') continue;
       const data     = await _readJson(handle);
-      const audio    = await _findAudioFile(handle);
+      const files    = await _scanDirFiles(handle);
       const synced   = data?.lines ? data.lines.filter(l => !l.isBlank && l.time !== null).length : 0;
       const total    = data?.lines ? data.lines.filter(l => !l.isBlank).length : 0;
-      list.push({ name, handle, data, audioFile: audio, synced, total });
+      list.push({ name, handle, data, audioFile: files.audio, videoFile: files.video, synced, total });
     }
     list.sort((a, b) => {
       const da = a.data?.updatedAt ?? '0';
@@ -164,7 +180,7 @@ const Projects = (() => {
     }
 
     /* Restore audio */
-    const audioName = await _findAudioFile(handle);
+    const { audio: audioName } = await _scanDirFiles(handle);
     if (audioName && typeof audioLoaderFn === 'function') {
       try {
         const fh   = await handle.getFileHandle(audioName);
@@ -209,10 +225,34 @@ const Projects = (() => {
     }
 
     await _writeJson(currentProjHandle, data);
+
+    /* Write / update the LRC file if there are synced lines */
+    if (Lyrics.syncedCount() > 0) {
+      await _writeLrc(currentProjHandle, songTitle || currentProjHandle.name);
+    }
+
     currentProjData = data;
     toast(`💾 Proyecto guardado: ${currentProjHandle.name}`, 'success');
     _updateHeaderIndicator();
     return true;
+  }
+
+  /* ── Save video blob to project folder ──────────────────────── */
+  async function saveVideoToProject(blob, filename) {
+    if (!currentProjHandle) return false;
+    try {
+      const safe = (filename || 'video.webm').replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim();
+      const fh   = await currentProjHandle.getFileHandle(safe, { create: true });
+      const wr   = await fh.createWritable();
+      await wr.write(blob);
+      await wr.close();
+      toast(`🎬 Video guardado en carpeta del proyecto`, 'success');
+      return true;
+    } catch (e) {
+      console.warn('No se pudo guardar el video en el proyecto:', e);
+      toast('No se pudo guardar el video en la carpeta.', 'warn');
+      return false;
+    }
   }
 
   /* ── Settings helpers ────────────────────────────────────────── */
@@ -271,6 +311,7 @@ const Projects = (() => {
     createProject,
     loadProject,
     saveCurrentProject,
+    saveVideoToProject,
     consumePendingSettings,
     updateHeaderIndicator: _updateHeaderIndicator,
     get hasFolder()        { return rootHandle !== null; },

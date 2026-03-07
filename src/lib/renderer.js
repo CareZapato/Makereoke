@@ -1647,120 +1647,360 @@ const Renderer = (() => {
       showLogo = true, duration: introDur = 4,
     } = introConfig;
     const T = THEMES[theme] || THEMES.classic;
-    // ── Background ──
+
+    // ── 1. Theme background + animations ──
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, T.base[0]); bg.addColorStop(1, T.base[1]);
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     ctx.save(); (ANIMATIONS[animation] || ANIMATIONS.none)(ctx, W, H, time); ctx.restore();
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, 0, W, H);
-    // ── Style-specific overlays ──
-    if (style === 'cinematic') {
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, W, H * 0.14);
-      ctx.fillRect(0, H * 0.86, W, H * 0.14);
+
+    // ── 2. Style-specific background overlays ──
+    if (style === 'aurora') {
+      ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      for (let band = 0; band < 8; band++) {
+        const hue = (band * 42 + time * 14 + 180) % 360;
+        const yCenter = H * (0.04 + band * 0.13);
+        const amp = H * 0.055;
+        const grd = ctx.createLinearGradient(0, yCenter - amp * 2.5, 0, yCenter + amp * 2.5);
+        grd.addColorStop(0, `hsla(${hue},88%,62%,0)`);
+        grd.addColorStop(0.5, `hsla(${hue},88%,62%,0.26)`);
+        grd.addColorStop(1, `hsla(${hue},88%,62%,0)`);
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.moveTo(0, yCenter);
+        for (let x = 0; x <= W; x += 18)
+          ctx.lineTo(x, yCenter + Math.sin(x / W * Math.PI * 3.5 + time * 1.8 + band) * amp);
+        ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(0,0,10,0.35)'; ctx.fillRect(0, 0, W, H);
+
+    } else if (style === 'glitch') {
+      ctx.fillStyle = 'rgba(0,4,8,0.68)'; ctx.fillRect(0, 0, W, H);
+      ctx.save(); ctx.globalAlpha = 0.1;
+      for (let sl = 0; sl < H; sl += 4) { ctx.fillStyle = '#000'; ctx.fillRect(0, sl, W, 2); }
+      ctx.restore();
+      const nSeed = Math.floor(time * 7);
+      const npr = s => Math.abs((s * 1664525 + 1013904223) & 0x7FFFFFFF) / 0x7FFFFFFF;
+      ctx.save();
+      for (let n = 0; n < 7; n++) {
+        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = `hsl(${npr(nSeed * 97 + n * 4 + 4) * 180 + 160},100%,67%)`;
+        ctx.fillRect(npr(nSeed * 97 + n * 4) * W, npr(nSeed * 97 + n * 4 + 1) * H,
+                     npr(nSeed * 97 + n * 4 + 2) * W * 0.3, npr(nSeed * 97 + n * 4 + 3) * 5 + 1);
+      }
+      ctx.restore();
+
+    } else if (style === 'luxury') {
+      ctx.fillStyle = 'rgba(8,6,12,0.92)'; ctx.fillRect(0, 0, W, H);
+      const sweepPos = ((time * 0.35) % 2.8) - 0.4;
+      const sx = sweepPos * W * 1.2;
+      const glare = ctx.createLinearGradient(sx - W * 0.12, 0, sx + W * 0.12, H);
+      glare.addColorStop(0, 'rgba(255,215,80,0)');
+      glare.addColorStop(0.5, 'rgba(255,215,80,0.065)');
+      glare.addColorStop(1, 'rgba(255,215,80,0)');
+      ctx.fillStyle = glare; ctx.fillRect(0, 0, W, H);
+
+    } else if (style === 'magazine') {
+      ctx.fillStyle = 'rgba(0,0,0,0.48)'; ctx.fillRect(0, 0, W, H);
+      const panelH = H * 0.52;
+      const panelGrd = ctx.createLinearGradient(0, H - panelH - 20, 0, H);
+      panelGrd.addColorStop(0, 'rgba(0,0,0,0)');
+      panelGrd.addColorStop(0.3, 'rgba(0,0,0,0.82)');
+      panelGrd.addColorStop(1, 'rgba(0,0,0,0.96)');
+      ctx.fillStyle = panelGrd; ctx.fillRect(0, H - panelH - 20, W, panelH + 20);
+
+    } else if (style === 'frame_gold' || style === 'cinematic') {
+      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H * 0.13); ctx.fillRect(0, H * 0.87, W, H * 0.13);
+
     } else if (style === 'vintage') {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = 'rgba(90,60,10,0.18)'; ctx.fillRect(0, 0, W, H);
-      const vign = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.75);
+      const vign = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.75);
       vign.addColorStop(0, 'rgba(0,0,0,0)'); vign.addColorStop(1, 'rgba(0,0,0,0.5)');
       ctx.fillStyle = vign; ctx.fillRect(0, 0, W, H);
-    } else if (style === 'neon') {
-      ctx.globalAlpha = 0.025; ctx.fillStyle = '#000';
+
+    } else if (style === 'neon' || style === 'frame_neon') {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
+      ctx.save(); ctx.globalAlpha = 0.025; ctx.fillStyle = '#000';
       for (let sy = 0; sy < H; sy += 4) ctx.fillRect(0, sy, W, 2);
-      ctx.globalAlpha = 1;
+      ctx.restore();
+
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, 0, W, H);
     }
-    // ── Transition state ──
+
+    // ── 3. Transition state ──
     const transInDur  = Math.min(0.7, introDur * 0.22);
     const transOutDur = Math.min(0.6, introDur * 0.15);
     const inPct  = transInDur  > 0 ? clampN(time / transInDur, 0, 1) : 1;
     const outPct = transOutDur > 0 ? clampN((time - (introDur - transOutDur)) / transOutDur, 0, 1) : 0;
     const alpha  = clampN(Math.min(inPct, 1 - outPct), 0, 1);
-    const eased  = 1 - Math.pow(1 - inPct, 3); // cubic ease-out
-    let offY = 0;
-    if (transition === 'slide-up') offY = (1 - eased) * H * 0.08;
-    // ── Font sizes & layout ──
+    const eased  = 1 - Math.pow(1 - inPct, 3);
+    let offY = 0, offX = 0;
+    if (transition === 'slide-up') {
+      offY = (1 - eased) * H * 0.08;
+    } else if (transition === 'bounce') {
+      const sp = inPct >= 1 ? 1 : 1 - Math.pow(Math.E, -8 * inPct) * Math.cos(12 * inPct);
+      offY = (1 - sp) * H * 0.12;
+    } else if (transition === 'glitch-in' && inPct < 0.9) {
+      const gis = Math.floor(time * 18);
+      const gipr = s => Math.abs((s * 1664525 + 1013904223) & 0x7FFFFFFF) / 0x7FFFFFFF;
+      offX = (gipr(gis) - 0.5) * (1 - inPct) * W * 0.04;
+    }
+
+    // ── 4. Layout ──
     const fsBase   = Math.max(24, Math.round(fontSize * W / 1920));
     const fsTitle  = Math.round(fsBase * 1.8 * clampN(titleSize, 0.5, 2.0));
     const fsArtist = Math.round(fsTitle * clampN(artistRatio, 0.2, 1.0));
     const cx = W / 2, cy = H / 2;
     const hasArtist = artist.trim().length > 0;
     const gap = Math.round(fsTitle * 0.5);
-    const totalH = hasArtist ? fsTitle + gap + fsArtist : fsTitle;
-    const titleY  = cy - totalH / 2 + fsTitle / 2;
-    const artistY = titleY + gap + fsArtist * 0.5 + fsTitle * 0.5;
+    let titleY, artistY;
+    if (style === 'magazine') {
+      titleY  = H * 0.785;
+      artistY = titleY - fsTitle * 0.6 - gap;
+    } else {
+      const totalH = hasArtist ? fsTitle + gap + fsArtist : fsTitle;
+      titleY  = cy - totalH / 2 + fsTitle / 2;
+      artistY = titleY + gap + fsArtist * 0.5 + fsTitle * 0.5;
+    }
+
+    // ── 5. Content block (alpha + transitions + styles) ──
     ctx.save();
     ctx.globalAlpha = alpha;
+
+    // Transition: clip
+    if (transition === 'swipe-left') {
+      ctx.beginPath(); ctx.rect(0, 0, W * eased, H); ctx.clip();
+    }
+    // Transition: transforms
     if (transition === 'zoom') {
       const sc = 0.82 + eased * 0.18;
       ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy);
+    } else if (transition === 'spin-in') {
+      const ang = (1 - eased) * 0.32;
+      ctx.translate(cx, cy); ctx.rotate(ang); ctx.translate(-cx, -cy);
     }
-    // Pre-measure text
+    // Transition: blur filter (reset after text block)
+    if (transition === 'blur-in') {
+      const blurPx = (1 - eased) * 22;
+      if (blurPx > 0.5) ctx.filter = `blur(${blurPx.toFixed(1)}px)`;
+    }
+
+    // ── Frame decorations ──
+    if (style === 'frame_gold') {
+      const fs2 = Math.min(W, H) * 0.09;
+      const pad = Math.max(16, W * 0.013);
+      const lw = Math.max(1.5, W / 800);
+      ctx.save();
+      ctx.strokeStyle = '#ffd580'; ctx.shadowColor = '#ffd580'; ctx.shadowBlur = 18;
+      ctx.lineWidth = lw; ctx.lineCap = 'square';
+      // Corners
+      ctx.beginPath(); ctx.moveTo(pad, pad + fs2); ctx.lineTo(pad, pad); ctx.lineTo(pad + fs2, pad); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W - pad - fs2, pad); ctx.lineTo(W - pad, pad); ctx.lineTo(W - pad, pad + fs2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pad, H - pad - fs2); ctx.lineTo(pad, H - pad); ctx.lineTo(pad + fs2, H - pad); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W - pad - fs2, H - pad); ctx.lineTo(W - pad, H - pad); ctx.lineTo(W - pad, H - pad - fs2); ctx.stroke();
+      // Thin inner rect
+      const ip = pad + lw * 4;
+      ctx.lineWidth = 1; ctx.globalAlpha *= 0.28; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.rect(ip, ip, W - ip * 2, H - ip * 2); ctx.stroke();
+      ctx.restore();
+    } else if (style === 'frame_neon') {
+      const pulse = 0.65 + 0.35 * Math.sin(time * 4.2);
+      const pad = Math.max(16, W * 0.013);
+      const lw = Math.max(1.5, W / 700);
+      ctx.save();
+      ctx.strokeStyle = titleColor; ctx.lineWidth = lw;
+      ctx.shadowColor = titleColor; ctx.shadowBlur = 26 * pulse;
+      ctx.beginPath(); ctx.rect(pad, pad, W - pad * 2, H - pad * 2); ctx.stroke();
+      // Corner dots
+      const cs = Math.max(6, lw * 3);
+      ctx.fillStyle = titleColor;
+      [[pad, pad], [W - pad, pad], [pad, H - pad], [W - pad, H - pad]].forEach(([cx2, cy2]) => {
+        ctx.beginPath(); ctx.arc(cx2, cy2, cs * 0.7, 0, Math.PI * 2); ctx.fill();
+      });
+      // Inner thin rect
+      const ip2 = pad + lw * 4 + 4;
+      ctx.lineWidth = 1; ctx.globalAlpha *= 0.28; ctx.shadowBlur = 9 * pulse;
+      ctx.beginPath(); ctx.rect(ip2, ip2, W - ip2 * 2, H - ip2 * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Pre-measure
     ctx.font = `800 ${fsTitle}px ${fontFamily}`;
     const titleDisplay = _fit(ctx, title || '\u266b', W - 160);
     ctx.font = `400 ${fsArtist}px ${fontFamily}`;
     const artistDisplay = hasArtist ? _fit(ctx, artist, W - 200) : '';
     const tY = titleY + offY, aY = artistY + offY;
+    const tX = cx + offX, aX = cx + offX;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    // ── Inner helper: draw text with typewriter clip ──
+
+    // Text helper — handles typewriter + glitch-in
     function _drawTxt(text, x, y, fs, weight) {
       ctx.font = `${weight} ${fs}px ${fontFamily}`;
       if (transition === 'typewriter' && inPct < 1) {
         const tw = ctx.measureText(text).width;
         ctx.save();
         ctx.beginPath(); ctx.rect(x - tw * 0.52, y - fs, tw * inPct + 4, fs * 2.1); ctx.clip();
-        ctx.fillText(text, x, y);
-        ctx.restore();
+        ctx.fillText(text, x, y); ctx.restore();
+      } else if (transition === 'glitch-in' && inPct < 0.9) {
+        const gis2 = Math.floor(time * 18);
+        const gipr2 = s => Math.abs((s * 1664525 + 1013904223) & 0x7FFFFFFF) / 0x7FFFFFFF;
+        const ox = (gipr2(gis2 + 11) - 0.5) * (1 - inPct) * 14;
+        const oy = (gipr2(gis2 + 12) - 0.5) * (1 - inPct) * 8;
+        ctx.save(); ctx.globalAlpha *= 0.45;
+        ctx.fillStyle = '#ff0055'; ctx.fillText(text, x + ox * 2, y + oy);
+        ctx.fillStyle = '#00eeff'; ctx.fillText(text, x - ox, y - oy * 0.5);
+        ctx.restore(); ctx.fillText(text, x, y);
       } else {
         ctx.fillText(text, x, y);
       }
       ctx.shadowBlur = 0;
     }
-    // ── Title by style ──
+
+    // ── Per-style title ──
     if (style === 'minimal') {
       ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
-      _drawTxt(titleDisplay, cx, tY, fsTitle, '300');
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '300');
+
     } else if (style === 'bold') {
       ctx.shadowColor = titleColor; ctx.shadowBlur = 32; ctx.fillStyle = titleColor;
-      _drawTxt(titleDisplay, cx, tY, fsTitle, '800');
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '800');
+
     } else if (style === 'neon') {
-      ctx.save(); ctx.globalAlpha = alpha * 0.4;
+      ctx.save(); ctx.globalAlpha *= 0.4;
       ctx.font = `700 ${fsTitle}px ${fontFamily}`;
       ctx.shadowColor = titleColor; ctx.shadowBlur = 70; ctx.fillStyle = titleColor;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(titleDisplay, cx, tY);
-      ctx.restore(); ctx.globalAlpha = alpha;
+      ctx.fillText(titleDisplay, tX, tY);
+      ctx.restore();
       ctx.fillStyle = '#fff'; ctx.shadowColor = titleColor; ctx.shadowBlur = 18;
-      _drawTxt(titleDisplay, cx, tY, fsTitle, '700');
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '700');
+
     } else if (style === 'cinematic') {
       const cinTitle = (title || '\u266b').toUpperCase();
       ctx.font = `200 ${Math.round(fsTitle * 0.9)}px ${fontFamily}`;
       const cinDisplay = _fit(ctx, cinTitle, W - 160);
       ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
-      _drawTxt(cinDisplay, cx, tY, Math.round(fsTitle * 0.9), '200');
+      _drawTxt(cinDisplay, tX, tY, Math.round(fsTitle * 0.9), '200');
       const lineLen = Math.min(W * 0.22, 300);
-      ctx.save(); ctx.globalAlpha = alpha * 0.4; ctx.fillStyle = titleColor;
-      ctx.fillRect(cx - lineLen / 2, tY + Math.round(fsTitle * 0.62), lineLen, 1);
+      ctx.save(); ctx.globalAlpha *= 0.4; ctx.fillStyle = titleColor;
+      ctx.fillRect(tX - lineLen / 2, tY + Math.round(fsTitle * 0.62), lineLen, 1);
       ctx.restore();
+
     } else if (style === 'vintage') {
       ctx.shadowColor = 'rgba(180,140,60,0.6)'; ctx.shadowBlur = 14; ctx.fillStyle = titleColor;
-      _drawTxt(titleDisplay, cx, tY, Math.round(fsTitle * 0.88), '600');
-      ctx.save(); ctx.globalAlpha = alpha * 0.5;
+      _drawTxt(titleDisplay, tX, tY, Math.round(fsTitle * 0.88), '600');
+      ctx.save(); ctx.globalAlpha *= 0.5;
       ctx.font = `300 ${Math.round(fsArtist * 0.85)}px ${fontFamily}`;
       ctx.fillStyle = titleColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('\u2500\u2500\u2500 \u2736 \u2500\u2500\u2500', cx, tY + Math.round(fsTitle * 0.58));
+      ctx.fillText('\u2500\u2500\u2500 \u2736 \u2500\u2500\u2500', tX, tY + Math.round(fsTitle * 0.58));
+      ctx.restore();
+
+    } else if (style === 'frame_gold') {
+      ctx.shadowColor = '#ffd580'; ctx.shadowBlur = 30; ctx.fillStyle = titleColor;
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '700');
+      const lineLen2 = Math.min(W * 0.28, 360);
+      ctx.save(); ctx.globalAlpha *= 0.45;
+      ctx.strokeStyle = '#ffd580'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(tX - lineLen2 / 2, tY + fsTitle * 0.6); ctx.lineTo(tX + lineLen2 / 2, tY + fsTitle * 0.6); ctx.stroke();
+      ctx.restore();
+
+    } else if (style === 'frame_neon') {
+      ctx.save(); ctx.globalAlpha *= 0.45;
+      ctx.font = `700 ${fsTitle}px ${fontFamily}`;
+      ctx.shadowColor = titleColor; ctx.shadowBlur = 80; ctx.fillStyle = titleColor;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(titleDisplay, tX, tY);
+      ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.shadowColor = titleColor; ctx.shadowBlur = 22;
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '700');
+
+    } else if (style === 'luxury') {
+      const luxTitle = (title || '\u266b').toUpperCase();
+      ctx.font = `200 ${Math.round(fsTitle * 0.9)}px ${fontFamily}`;
+      const luxDisplay = _fit(ctx, luxTitle, W - 160);
+      ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
+      _drawTxt(luxDisplay, tX, tY, Math.round(fsTitle * 0.9), '200');
+      // Side lines with diamond center
+      const sepLen = Math.min(W * 0.18, 240);
+      const sepY = tY + Math.round(fsTitle * 0.58);
+      ctx.save(); ctx.globalAlpha *= 0.5;
+      ctx.strokeStyle = '#c8971f'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(tX - sepLen / 2 - 30, sepY); ctx.lineTo(tX - 10, sepY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tX + 10, sepY); ctx.lineTo(tX + sepLen / 2 + 30, sepY); ctx.stroke();
+      ctx.fillStyle = '#c8971f';
+      ctx.save(); ctx.translate(tX, sepY); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+      ctx.restore();
+
+    } else if (style === 'glitch') {
+      const gSeed = Math.floor(time * 7);
+      const gpr = s => Math.abs((s * 1664525 + 1013904223) & 0x7FFFFFFF) / 0x7FFFFFFF;
+      ctx.save(); ctx.globalAlpha *= 0.5;
+      ctx.font = `800 ${fsTitle}px ${fontFamily}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ff0055'; ctx.fillText(titleDisplay, tX + gpr(gSeed) * 12 - 6, tY + gpr(gSeed + 1) * 8 - 4);
+      ctx.fillStyle = '#00eeff'; ctx.fillText(titleDisplay, tX - gpr(gSeed + 2) * 10 + 5, tY - gpr(gSeed + 3) * 6 + 3);
+      ctx.restore();
+      ctx.fillStyle = titleColor; ctx.shadowColor = '#fff'; ctx.shadowBlur = 8;
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '800');
+
+    } else if (style === 'aurora') {
+      // Frosted glass panel behind text
+      ctx.save(); ctx.globalAlpha *= 0.28;
+      const pw = Math.min(W * 0.78, 900), ph = fsTitle * 2.4;
+      const px_ = cx - pw / 2, py_ = tY - ph / 2;
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      if (ctx.roundRect) ctx.roundRect(px_, py_, pw, ph, 14);
+      else ctx.rect(px_, py_, pw, ph);
+      ctx.fill(); ctx.restore();
+      ctx.shadowColor = 'rgba(255,255,255,0.55)'; ctx.shadowBlur = 28; ctx.fillStyle = titleColor;
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '700');
+
+    } else if (style === 'magazine') {
+      ctx.shadowBlur = 0; ctx.fillStyle = titleColor;
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '900');
+      // Colored accent bar above title text
+      ctx.font = `900 ${fsTitle}px ${fontFamily}`;
+      const tw_ = ctx.measureText(titleDisplay).width;
+      ctx.save(); ctx.globalAlpha *= 0.85; ctx.fillStyle = artistColor;
+      ctx.fillRect(cx - tw_ / 2, tY - Math.round(fsTitle * 0.72), Math.min(W * 0.18, 240), Math.max(3, Math.round(fsTitle * 0.05)));
       ctx.restore();
     }
+
     // ── Artist ──
     if (hasArtist) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = artistColor;
-      ctx.shadowBlur = style === 'neon' ? 18 : 0;
-      if (style === 'neon') ctx.shadowColor = artistColor;
-      _drawTxt(
-        style === 'cinematic' ? artist.toUpperCase() : artistDisplay,
-        cx, aY, fsArtist, style === 'cinematic' ? '300' : '400'
-      );
+      const _neonStyles = ['neon', 'frame_neon'];
+      ctx.shadowBlur = _neonStyles.includes(style) ? 18 : 0;
+      if (_neonStyles.includes(style)) ctx.shadowColor = artistColor;
+      let artText = artistDisplay;
+      let artWeight = '400';
+      if (['cinematic', 'luxury', 'magazine'].includes(style)) { artText = (artist || '').toUpperCase(); artWeight = '300'; }
+      if (style === 'magazine') {
+        // Pill badge above title
+        ctx.font = `500 ${fsArtist}px ${fontFamily}`;
+        const aw = ctx.measureText(artText).width;
+        const pillPad = fsArtist * 0.45;
+        ctx.save(); ctx.globalAlpha *= 0.75; ctx.fillStyle = artistColor;
+        const pillX = aX - aw / 2 - pillPad, pillY = aY - fsArtist * 0.7;
+        const pillW = aw + pillPad * 2, pillH = fsArtist * 1.5;
+        if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+        else ctx.rect(pillX, pillY, pillW, pillH);
+        ctx.fill(); ctx.restore();
+        ctx.fillStyle = '#000'; ctx.shadowBlur = 0;
+        _drawTxt(artText, aX, aY, fsArtist, '500');
+      } else {
+        _drawTxt(artText, aX, aY, fsArtist, artWeight);
+      }
     }
+
+    if (transition === 'blur-in') ctx.filter = 'none';
     ctx.restore();
+
     // ── Logo watermark ──
     if (showLogo) {
       ctx.save(); ctx.globalAlpha = alpha * 0.55;

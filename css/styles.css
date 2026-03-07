@@ -1916,10 +1916,10 @@ kbd {
    INTRO TITLE CARD — Step 4 settings section
 ══════════════════════════════════════════════════════════════ */
 
-/* Style preset grid (5 cards: 3 + 2) */
+/* Style preset grid (11 cards, 4 per row) */
 .intro-style-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   margin-bottom: 4px;
 }
@@ -1943,10 +1943,10 @@ kbd {
 .intro-style-label { font-size: 0.66rem; color: var(--text-dim); line-height: 1.2; }
 .intro-style-card.active .intro-style-label { color: var(--text); }
 
-/* Transition picker */
+/* Transition picker (9 options, 3 per row) */
 .intro-trans-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-bottom: 4px;
 }
@@ -1968,7 +1968,7 @@ kbd {
 /* Responsive: stack style grid to 3+2 on smaller screens */
 @media (max-width: 480px) {
   .intro-style-grid { grid-template-columns: repeat(3, 1fr); }
-  .intro-trans-grid { grid-template-columns: repeat(2, 1fr); }
+  .intro-trans-grid { grid-template-columns: repeat(3, 1fr); }
   .intro-timeline-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
   .intro-tl-duration { width: 100%; }
 }

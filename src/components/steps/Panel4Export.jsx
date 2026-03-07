@@ -55,11 +55,17 @@ export default function Panel4Export({ isActive, goToStep }) {
               <label className="field-label">Estilo visual</label>
               <div id="introStyleGrid" className="intro-style-grid">
                 {[
-                  { id: 'minimal',   icon: '☁️',  label: 'Minimal'   },
-                  { id: 'bold',      icon: '★',   label: 'Bold'       },
-                  { id: 'neon',      icon: '⚡',  label: 'Neon'       },
-                  { id: 'cinematic', icon: '🎞️', label: 'Cinematic'  },
-                  { id: 'vintage',   icon: '🎭',  label: 'Vintage'    },
+                  { id: 'minimal',    icon: '☁️',  label: 'Minimal'    },
+                  { id: 'bold',       icon: '★',   label: 'Bold'        },
+                  { id: 'neon',       icon: '⚡',  label: 'Neon'        },
+                  { id: 'cinematic',  icon: '🎞️', label: 'Cinematic'   },
+                  { id: 'vintage',    icon: '🎭',  label: 'Vintage'     },
+                  { id: 'frame_gold', icon: '🏆',  label: 'Frame Oro'   },
+                  { id: 'frame_neon', icon: '🔲',  label: 'Frame Neón'  },
+                  { id: 'luxury',     icon: '💎',  label: 'Luxury'      },
+                  { id: 'glitch',     icon: '📺',  label: 'Glitch'      },
+                  { id: 'aurora',     icon: '🌈',  label: 'Aurora'      },
+                  { id: 'magazine',   icon: '📰',  label: 'Magazine'    },
                 ].map(s => (
                   <button key={s.id} className={`intro-style-card${s.id === 'bold' ? ' active' : ''}`} data-style={s.id}>
                     <span className="intro-style-icon">{s.icon}</span>
@@ -74,7 +80,12 @@ export default function Panel4Export({ isActive, goToStep }) {
                   { id: 'fade',       label: '✨ Fade'      },
                   { id: 'slide-up',   label: '↑ Slide'     },
                   { id: 'zoom',       label: '🔍 Zoom'     },
-                  { id: 'typewriter', label: '⌨️ Typer'    },
+                  { id: 'typewriter', label: '⌨️ Type'     },
+                  { id: 'blur-in',    label: '🔵 Blur'     },
+                  { id: 'bounce',     label: '🏀 Bounce'   },
+                  { id: 'glitch-in',  label: '📺 Glitch'   },
+                  { id: 'swipe-left', label: '← Swipe'     },
+                  { id: 'spin-in',    label: '🔄 Spin'     },
                 ].map((t, i) => (
                   <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition={t.id}>
                     {t.label}

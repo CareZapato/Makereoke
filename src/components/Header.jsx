@@ -13,7 +13,7 @@ export default function Header({ step }) {
     <header className="app-header">
       <div className="logo">
         <span className="logo-icon">🎤</span>
-        Makereoke
+        <span className="logo-text">Makereoke</span>
         <span className="version-badge">v{APP_VERSION}</span>
       </div>
 

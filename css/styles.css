@@ -216,6 +216,7 @@ body::after {
   font-family: var(--font); font-size: 0.9rem; font-weight: 600;
   cursor: pointer; transition: all var(--transition);
   white-space: nowrap; text-decoration: none; user-select: none;
+  touch-action: manipulation;
 }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
@@ -646,12 +647,12 @@ kbd {
 .timeline-canvas { display: block; cursor: pointer; }
 
 .adjust-list-wrap {
-  max-height: 360px; overflow-y: auto;
+  max-height: 360px; overflow-y: auto; overflow-x: auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.adjust-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.adjust-table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 0.88rem; }
 .adjust-table thead th {
   background: var(--bg3); padding: 10px 12px;
   text-align: left; color: var(--text-dim); font-weight: 600;
@@ -1097,6 +1098,8 @@ kbd {
   }
   .export-layout { grid-template-columns: 1fr; }
   .export-settings { max-height: 60vh; }
+  /* Canvas de preview primero, después los ajustes */
+  .export-preview-wrap { order: -1; }
 }
 
 /* ── ≤ 768px: large phones / tablets ── */
@@ -1136,6 +1139,10 @@ kbd {
   .export-btns .btn { justify-content: center; }
   .theme-btn { padding: 5px 8px; font-size: 0.72rem; min-width: 54px; }
   .anim-grid-row { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+
+  /* Seek bar: línea completa para facilitar scrubbing */
+  .player-controls { flex-wrap: wrap; }
+  .seek-bar { width: 100%; order: 10; margin-top: 2px; }
 }
 
 /* ── ≤ 600px: phones ── */
@@ -1173,7 +1180,9 @@ kbd {
   .waveform-container { height: 60px; }
   .sync-lyrics-panel { max-height: 220px; }
   .time-display { font-size: 0.78rem; min-width: 64px; }
-  .volume-wrap { display: none; }     /* ocultar volumen en pantallas pequeñas */
+  /* Volumen: compacto, siempre encima de la seek bar */
+  .volume-wrap { order: 9; width: auto; padding: 0; }
+  .volume-bar  { width: 80px; flex: none; }
   .sync-instructions { gap: 6px; }
   .sync-lyric-item { padding: 6px 8px; font-size: 0.85rem; }
 
@@ -1193,11 +1202,36 @@ kbd {
   .kp-prev, .kp-next { font-size: 0.9rem; }
   .karaoke-preview { padding: 14px 10px; min-height: 110px; }
 
-  /* Step 4 – Export */
+  /* Step 4 – Export: canvas fijo arriba, ajustes se desplazan */
+  .export-preview-wrap {
+    position: sticky;
+    top: 56px;           /* pega justo debajo del header */
+    z-index: 20;
+    align-self: start;   /* necesario para sticky en grid */
+    background: var(--bg);
+    padding-bottom: 6px;
+  }
   .export-canvas { aspect-ratio: 16 / 9; }
   .export-settings { max-height: none; }
   .color-picker { width: 40px; height: 28px; }
   .record-status p { font-size: 0.85rem; }
+  /* Ocultar Preview completo; solo mostrar Grabar (más pequeño) */
+  #previewExportBtn { display: none; }
+  #startRecordBtn { font-size: 0.88rem; padding: 10px 18px; }
+  .export-btns { justify-content: center; }
+  /* UI de ajustes más compacta */
+  .settings-section-header { padding: 8px 12px; }
+  .settings-section-title { font-size: 0.72rem; }
+  .sec-body { padding: 0 12px 10px; gap: 5px; }
+  .export-player { gap: 6px; }
+  .export-player-meta { gap: 10px; }
+  .ep-mini-slider { width: 70px; }
+  .ep-speed-select { font-size: 0.78rem; padding: 2px 6px; }
+  .theme-btn { min-width: 44px; padding: 4px 6px; font-size: 0.66rem; }
+  .anim-emoji { font-size: 1.1rem; }
+  .anim-label { font-size: 0.6rem; }
+  .export-settings-toolbar { padding: 6px 10px; }
+  .toolbar-btn { font-size: 0.68rem; padding: 2px 7px; }
 
   /* Footer buttons */
   .panel-footer { justify-content: stretch; gap: 10px; }
@@ -1206,6 +1240,16 @@ kbd {
   /* Toasts */
   .toast-container { bottom: 12px; right: 10px; left: 10px; }
   .toast { min-width: unset; }
+
+  /* Botones vmini de voz: área de toque más grande */
+  .vmini { width: 28px; height: 28px; font-size: 0.72rem; }
+  .voice-count-btn { width: 36px; height: 32px; }
+
+  /* How-to: permitir columnas más estrechas */
+  .how-to-step { min-width: 140px; }
+
+  /* Tabla de adjust: anchura mínima reducida para pantallas pequeñas */
+  .adjust-table { min-width: 400px; }
 }
 
 /* ── ≤ 480px: very small phones ── */
@@ -1219,9 +1263,17 @@ kbd {
   .play-btn { width: 42px; height: 42px; font-size: 1.1rem; }
   .waveform-container { height: 52px; }
 
+  /* Ocultar columna Voz (el borde de color de fila ya indica la voz) */
+  .col-voice-th, .adjust-table td.col-voice { display: none; }
+  .adjust-table { min-width: 300px; }
+
   /* Projects overlay full width on small phones */
   .projects-panel { width: 100vw; }
   .project-indicator { display: none; }
+
+  /* iOS safe-area (notch / home bar) */
+  .app-main { padding-bottom: max(80px, calc(60px + env(safe-area-inset-bottom))); }
+  .toast-container { bottom: max(12px, env(safe-area-inset-bottom)); right: 10px; left: 10px; }
 }
 
 /* ============================================================

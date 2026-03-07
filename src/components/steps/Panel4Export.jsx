@@ -69,87 +69,103 @@ export default function Panel4Export({ isActive, goToStep }) {
             </div>
           </div>
 
-          {/* Fuente */}
-          <div className="settings-section collapsed" id="sec-font">
+          {/* Texto y tipografía (fuente + efectos + parámetros) */}
+          <div className="settings-section collapsed" id="sec-typo">
             <div className="settings-section-header">
-              <div className="settings-section-title">💬 Fuente de texto</div>
-              <button className="sec-collapse-btn" data-sec="sec-font" title="Colapsar">▸</button>
+              <div className="settings-section-title">✍️ Texto y tipografía</div>
+              <button className="sec-collapse-btn" data-sec="sec-typo" title="Colapsar">▸</button>
             </div>
             <div className="sec-body">
+
+              {/* ─── Fuente ─── */}
+              <div className="typo-subgroup-label">💬 Fuente</div>
               <div className="sec-search-wrap">
                 <input type="text" id="fontSearch" className="sec-search" placeholder="Buscar fuente..." />
               </div>
               <div id="fontSelector" className="font-selector" />
-            </div>
-          </div>
 
-          {/* Efectos de texto */}
-          <div className="settings-section collapsed" id="sec-textfx">
-            <div className="settings-section-header">
-              <div className="settings-section-title">✨ Efectos de texto activo</div>
-              <button className="sec-collapse-btn" data-sec="sec-textfx" title="Colapsar">▸</button>
-            </div>
-            <div className="sec-body">
+              {/* ─── Efectos de texto ─── */}
+              <div className="typo-subgroup-label">✨ Efectos</div>
               <div className="sec-search-wrap">
                 <input type="text" id="textFxSearch" className="sec-search" placeholder="Buscar efecto..." />
               </div>
               <div id="textEffectGrid" className="anim-grid-row" />
+
+              {/* ─── Parámetros ─── */}
+              <div className="typo-subgroup-label">⚙️ Parámetros</div>
+
+              <label className="field-label">Tamaño de fuente</label>
+              <div className="slider-row">
+                <input id="fontSizeSlider" type="range" className="slider" min="28" max="120" defaultValue="56" />
+                <span id="fontSizeVal" className="slider-val">56px</span>
+              </div>
+
+              <label className="field-label">Zoom al texto activo</label>
+              <div className="slider-row">
+                <input id="zoomSlider" type="range" className="slider" min="1" max="1.4" step="0.01" defaultValue="1" />
+                <span id="zoomVal" className="slider-val">1.00×</span>
+              </div>
+
+              <label className="field-label">Intensidad de brillo</label>
+              <div className="slider-row">
+                <input id="glowSlider" type="range" className="slider" min="0" max="3" step="0.1" defaultValue="1" />
+                <span id="glowVal" className="slider-val">1.0×</span>
+              </div>
+
+              <label className="field-label" htmlFor="textPositionSelect">Posición del texto</label>
+              <select id="textPositionSelect" className="field-select">
+                <option value="center">Centro</option>
+                <option value="lower">Tercio inferior</option>
+                <option value="upper">Tercio superior</option>
+              </select>
+
+              <div className="color-row">
+                <div className="color-item">
+                  <label className="field-label">Color activo</label>
+                  <input id="activeColorPicker" type="color" className="color-picker" defaultValue="#FFD700" />
+                </div>
+                <div className="color-item">
+                  <label className="field-label">Color inactivo</label>
+                  <input id="inactiveColorPicker" type="color" className="color-picker" defaultValue="#FFFFFF" />
+                </div>
+              </div>
+
+              <label className="field-label" htmlFor="songTitleInput">Título de la canción</label>
+              <input id="songTitleInput" type="text" className="field-input" placeholder="Artista — Título" />
+
+              <div className="toggle-row">
+                <label className="toggle-label">
+                  <input id="showTitleToggle" type="checkbox" defaultChecked />
+                  <span>Mostrar título en video</span>
+                </label>
+              </div>
+
             </div>
           </div>
 
-          {/* Texto */}
-          <div className="settings-section collapsed" id="sec-text">
+          {/* Barra de progreso */}
+          <div className="settings-section collapsed" id="sec-progress">
             <div className="settings-section-header">
-              <div className="settings-section-title">✍️ Texto y posición</div>
-              <button className="sec-collapse-btn" data-sec="sec-text" title="Colapsar">▸</button>
+              <div className="settings-section-title">📊 Barra de progreso</div>
+              <button className="sec-collapse-btn" data-sec="sec-progress" title="Colapsar">▸</button>
             </div>
             <div className="sec-body">
 
-            <label className="field-label">Tamaño de fuente</label>
-            <div className="slider-row">
-              <input id="fontSizeSlider" type="range" className="slider" min="28" max="120" defaultValue="56" />
-              <span id="fontSizeVal" className="slider-val">56px</span>
-            </div>
-
-            <label className="field-label">Intensidad de brillo</label>
-            <div className="slider-row">
-              <input id="glowSlider" type="range" className="slider" min="0" max="3" step="0.1" defaultValue="1" />
-              <span id="glowVal" className="slider-val">1.0×</span>
-            </div>
-
-            <label className="field-label">Zoom al texto activo</label>
-            <div className="slider-row">
-              <input id="zoomSlider" type="range" className="slider" min="1" max="1.4" step="0.01" defaultValue="1" />
-              <span id="zoomVal" className="slider-val">1.00×</span>
-            </div>
-
-            <label className="field-label" htmlFor="textPositionSelect">Posición del texto</label>
-            <select id="textPositionSelect" className="field-select">
-              <option value="center">Centro</option>
-              <option value="lower">Tercio inferior</option>
-              <option value="upper">Tercio superior</option>
-            </select>
-
-            <label className="field-label" htmlFor="songTitleInput">Título de la canción</label>
-            <input id="songTitleInput" type="text" className="field-input" placeholder="Artista — Título" />
-
-            <div className="color-row">
-              <div className="color-item">
-                <label className="field-label">Color activo</label>
-                <input id="activeColorPicker" type="color" className="color-picker" defaultValue="#FFD700" />
-              </div>
-              <div className="color-item">
-                <label className="field-label">Color inactivo</label>
-                <input id="inactiveColorPicker" type="color" className="color-picker" defaultValue="#FFFFFF" />
-              </div>
-            </div>
-
             <div className="toggle-row">
               <label className="toggle-label">
-                <input id="showTitleToggle" type="checkbox" defaultChecked />
-                <span>Mostrar título en video</span>
+                <input id="showProgressToggle" type="checkbox" defaultChecked />
+                <span>Mostrar barra de progreso</span>
               </label>
             </div>
+
+            <label className="field-label">Opacidad</label>
+            <div className="slider-row">
+              <input id="progressOpacitySlider" type="range" className="slider" min="0.1" max="1" step="0.05" defaultValue="1" />
+              <span id="progressOpacityVal" className="slider-val">100%</span>
+            </div>
+
+            <label className="field-label">Estilo</label>
+            <div id="progressStyleGrid" className="prog-style-row" />
 
             </div>
           </div>
@@ -176,16 +192,6 @@ export default function Panel4Export({ isActive, goToStep }) {
               <option value="24">24 fps cinematográfico</option>
             </select>
 
-            <div className="toggle-row">
-              <label className="toggle-label">
-                <input id="showProgressToggle" type="checkbox" defaultChecked />
-                <span>Mostrar barra de progreso</span>
-              </label>
-            </div>
-
-            <label className="field-label">Estilo de progreso</label>
-            <div id="progressStyleGrid" className="anim-grid" />
-
             </div>
           </div>
 
@@ -197,12 +203,34 @@ export default function Panel4Export({ isActive, goToStep }) {
             ══════════════════════════════ */}
         <div className="export-preview-wrap">
 
-          <canvas id="exportPreviewCanvas" className="export-canvas" />
+          <div id="exportCanvasWrap" className="export-canvas-wrap">
+            <canvas id="exportPreviewCanvas" className="export-canvas" />
+            <button id="exportFullscreenBtn" className="export-fullscreen-btn" title="Pantalla completa">⛶</button>
+          </div>
 
           <div className="export-player">
             <button id="exportPlayBtn" className="btn btn-primary" style={{ minWidth: '44px' }}>▶</button>
             <span id="exportCurrentTime" style={{ fontFamily: 'monospace', minWidth: '50px', color: 'var(--text-dim)' }}>0:00</span>
             <input id="exportSeekBar" type="range" className="seek-bar" min="0" max="100" step="0.1" defaultValue="0" style={{ flex: 1 }} />
+          </div>
+
+          <div className="export-player-meta">
+            <div className="ep-meta-group">
+              <span id="exportVolIcon" className="ep-meta-icon" title="Volumen">🔊</span>
+              <input id="exportVolumeSlider" type="range" className="ep-mini-slider" min="0" max="1" step="0.05" defaultValue="1" />
+            </div>
+            <div className="ep-meta-group">
+              <span className="ep-meta-icon">⏩</span>
+              <select id="exportSpeedSelect" className="ep-speed-select" defaultValue="1">
+                <option value="0.25">0.25×</option>
+                <option value="0.5">0.5×</option>
+                <option value="0.75">0.75×</option>
+                <option value="1">1×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2">2×</option>
+              </select>
+            </div>
           </div>
 
           <div className="export-actions">

@@ -20,17 +20,20 @@ const ExportEngine = (() => {
   let currentZoom      = 1;
   let currentTextEffect= 'none';
   let currentProgressStyle = 'bottom';
+  let currentProgressOpacity = 1;
   let previewRaf       = null;
   let recording        = false;
 
   /* ── DOM refs (set in init) ────────────────────────────────────── */
   let themeSelector, animGrid, overlayGrid;
   let fontSelector, textEffectGrid, progressStyleGrid, zoomSlider, zoomVal;
+  let progressOpacitySlider, progressOpacityVal;
   let resolutionSelect, fontSizeSlider, fontSizeVal;
   let glowSlider, glowVal, textPositionSelect, fpsSelect;
   let showProgressToggle, showTitleToggle;
   let songTitleInput, activeColorPicker, inactiveColorPicker;
   let previewCanvas, exportPlayBtn, exportSeekBar, exportCurrentTime;
+  let exportVolumeSlider, exportSpeedSelect, exportFullscreenBtn;
   let startRecordBtn, previewExportBtn;
   let recordProgress, progressBarInner, progressLabel;
 
@@ -129,6 +132,9 @@ const ExportEngine = (() => {
     exportPlayBtn      = document.getElementById('exportPlayBtn');
     exportSeekBar      = document.getElementById('exportSeekBar');
     exportCurrentTime  = document.getElementById('exportCurrentTime');
+    exportVolumeSlider = document.getElementById('exportVolumeSlider');
+    exportSpeedSelect  = document.getElementById('exportSpeedSelect');
+    exportFullscreenBtn= document.getElementById('exportFullscreenBtn');
     startRecordBtn     = document.getElementById('startRecordBtn');
     previewExportBtn   = document.getElementById('previewExportBtn');
     recordProgress     = document.getElementById('recordProgress');
@@ -315,6 +321,17 @@ const ExportEngine = (() => {
       });
     }
 
+    /* ── Progress opacity slider ── */
+    progressOpacitySlider = document.getElementById('progressOpacitySlider');
+    progressOpacityVal    = document.getElementById('progressOpacityVal');
+    if (progressOpacitySlider) {
+      progressOpacitySlider.addEventListener('input', () => {
+        currentProgressOpacity = parseFloat(progressOpacitySlider.value);
+        if (progressOpacityVal) progressOpacityVal.textContent = Math.round(currentProgressOpacity * 100) + '%';
+        renderPreviewFrame();
+      });
+    }
+
     /* ── Zoom slider ── */
     zoomSlider = document.getElementById('zoomSlider');
     zoomVal    = document.getElementById('zoomVal');
@@ -375,6 +392,40 @@ const ExportEngine = (() => {
       stopPreviewLoop();
     };
 
+    /* ── Volume ── */
+    if (exportVolumeSlider) {
+      exportVolumeSlider.addEventListener('input', () => {
+        const v = parseFloat(exportVolumeSlider.value);
+        Audio.setVolume(v);
+        const icon = document.getElementById('exportVolIcon');
+        if (icon) icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+      });
+    }
+
+    /* ── Playback speed ── */
+    if (exportSpeedSelect) {
+      exportSpeedSelect.addEventListener('change', () => {
+        Audio.setPlaybackRate(parseFloat(exportSpeedSelect.value));
+      });
+    }
+
+    /* ── Fullscreen ── */
+    if (exportFullscreenBtn) {
+      exportFullscreenBtn.addEventListener('click', () => {
+        const wrap = document.getElementById('exportCanvasWrap');
+        if (!document.fullscreenElement) {
+          wrap?.requestFullscreen?.();
+        } else {
+          document.exitFullscreen?.();
+        }
+      });
+      document.addEventListener('fullscreenchange', () => {
+        if (!exportFullscreenBtn) return;
+        exportFullscreenBtn.textContent = document.fullscreenElement ? '✕' : '⛶';
+        exportFullscreenBtn.title = document.fullscreenElement ? 'Salir de pantalla completa' : 'Pantalla completa';
+      });
+    }
+
     /* ── Export / Record ── */
     previewExportBtn.addEventListener('click', () => {
       if (recording) return;
@@ -427,6 +478,8 @@ const ExportEngine = (() => {
         currentFont      = 'segoe';
         currentTextEffect= 'none';
         currentProgressStyle = 'bottom';
+        currentProgressOpacity = 1;
+        if (progressOpacitySlider) { progressOpacitySlider.value = '1'; if (progressOpacityVal) progressOpacityVal.textContent = '100%'; }
         if (animGrid)      animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === 'none'));
         if (overlayGrid)   overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === 'none'));
         if (themeSelector) themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === 'classic'));
@@ -503,6 +556,7 @@ const ExportEngine = (() => {
       activeZoom:            currentZoom,
       textEffect:            currentTextEffect,
       progressBarStyle:      currentProgressStyle,
+      progressBarOpacity:    currentProgressOpacity,
     };
   }
 
@@ -537,6 +591,8 @@ const ExportEngine = (() => {
     recording = true;
     stopPreviewLoop();
     Audio.seek(0);
+    Audio.setPlaybackRate(1);
+    if (exportSpeedSelect) exportSpeedSelect.value = '1';
     exportPlayBtn.textContent = '▶';
 
     const [rW, rH] = (resolutionSelect.value || '1920x1080').split('x').map(Number);

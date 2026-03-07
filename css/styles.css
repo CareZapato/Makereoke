@@ -3,14 +3,14 @@
    ============================================================ */
 
 :root {
-  --bg: #0d0d1a;
-  --bg2: #141428;
-  --bg3: #1c1c38;
-  --surface: #1e1e3a;
-  --surface2: #252550;
-  --border: #31316a;
-  --text: #e8e8ff;
-  --text-dim: #8888bb;
+  --bg: #0d0d1c;
+  --bg2: #161630;
+  --bg3: #22223e;
+  --surface: #232342;
+  --surface2: #2a2a56;
+  --border: #3e3e7c;
+  --text: #eeeeff;
+  --text-dim: #9999cc;
   --primary: #7c4dff;
   --primary-light: #b47aff;
   --primary-dark: #5500dd;
@@ -780,8 +780,18 @@ kbd {
 /* Section header row (title + collapse button) */
 .settings-section-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 11px 16px 11px 16px;
+  padding: 11px 16px 11px 14px;
   cursor: default;
+  border-left: 3px solid transparent;
+  transition: background var(--transition), border-color var(--transition);
+}
+.settings-section-header:hover {
+  background: rgba(124,77,255,0.07);
+  border-left-color: var(--primary);
+}
+.settings-section:not(.collapsed) > .settings-section-header {
+  border-left-color: var(--primary);
+  background: rgba(124,77,255,0.06);
 }
 .settings-section-title {
   font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
@@ -833,7 +843,7 @@ kbd {
 .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .slider-val {
   min-width: 46px; text-align: right; font-family: monospace;
-  font-size: 0.82rem; color: var(--text-dim);
+  font-size: 0.82rem; color: #aaaacc;
 }
 
 .color-row { display: flex; gap: 16px; margin-top: 6px; margin-bottom: 6px; }
@@ -842,12 +852,21 @@ kbd {
 .toggle-row { margin-top: 8px; }
 .toggle-label {
   display: flex; align-items: center; gap: 8px;
-  cursor: pointer; font-size: 0.88rem; color: var(--text-dim);
+  cursor: pointer; font-size: 0.88rem; color: #aaaacc;
   user-select: none;
 }
 .toggle-label input[type=checkbox] { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; }
 
-.field-label { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.field-label { font-size: 0.8rem; color: #aaaacf; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Typography sub-group divider inside sec-typo */
+.typo-subgroup-label {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--primary-light);
+  border-top: 1px solid var(--border); margin: 4px -16px 2px;
+  padding: 8px 16px 0;
+}
+.typo-subgroup-label:first-child { border-top: none; margin-top: 0; padding-top: 0; }
 .field-input, .field-select {
   width: 100%; background: var(--bg2); color: var(--text);
   border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -926,6 +945,17 @@ kbd {
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: 6px;
 }
+/* Compact 4-col grid for progress bar styles */
+.prog-style-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.prog-style-row .anim-card {
+  padding: 7px 2px; gap: 3px;
+}
+.prog-style-row .anim-emoji { font-size: 1.05rem; }
+.prog-style-row .anim-label { font-size: 0.58rem; line-height: 1.15; }
 .anim-card {
   display: flex; flex-direction: column; align-items: center;
   gap: 4px; padding: 8px 4px;
@@ -948,12 +978,56 @@ kbd {
 .anim-card.active .anim-label { color: var(--text); }
 
 .export-preview-wrap { display: flex; flex-direction: column; gap: 12px; }
+
+/* Canvas wrapper (for fullscreen button overlay) */
+.export-canvas-wrap {
+  position: relative; border-radius: var(--radius); overflow: hidden;
+  line-height: 0;
+}
 .export-canvas {
   width: 100%; aspect-ratio: 16 / 9; object-fit: contain;
   border-radius: var(--radius); border: 1px solid var(--border);
   background: #000; display: block;
 }
+.export-canvas-wrap:fullscreen { background: #000; display: flex; align-items: center; justify-content: center; }
+.export-canvas-wrap:fullscreen .export-canvas { width: 100%; height: 100%; border-radius: 0; border: none; aspect-ratio: unset; }
+
+/* Fullscreen toggle button overlaid on canvas */
+.export-fullscreen-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.18);
+  color: #fff; padding: 3px 8px; border-radius: 6px;
+  cursor: pointer; font-size: 1rem; opacity: 0.65; transition: opacity 0.2s;
+  line-height: 1.4;
+}
+.export-fullscreen-btn:hover { opacity: 1; }
+
 .export-player { display: flex; align-items: center; gap: 10px; }
+
+/* Volume + speed meta row */
+.export-player-meta {
+  display: flex; align-items: center; gap: 18px;
+  padding: 2px 0;
+}
+.ep-meta-group {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+}
+.ep-meta-icon { font-size: 1rem; user-select: none; cursor: default; }
+.ep-mini-slider {
+  -webkit-appearance: none; height: 4px; border-radius: 2px;
+  background: var(--border); cursor: pointer; width: 90px;
+}
+.ep-mini-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--primary); cursor: pointer;
+  box-shadow: 0 0 6px var(--primary);
+}
+.ep-speed-select {
+  background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 8px; font-size: 0.85rem;
+  cursor: pointer;
+}
+.ep-speed-select:focus { outline: none; border-color: var(--primary); }
 
 .export-actions { display: flex; flex-direction: column; gap: 16px; margin-bottom: 0; }
 .export-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }

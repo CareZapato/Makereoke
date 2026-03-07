@@ -94,6 +94,7 @@ const Adjust = (() => {
   /* ─── KARAOKE PREVIEW ─── */
   function updatePreview() {
     const t = Audio.getCurrentTime();
+    const cfg = Sync.getVoiceConfig();
     const lines = Lyrics.lines.filter(l => !l.isBlank && l.time !== null);
     lines.sort((a, b) => a.time - b.time);
 
@@ -102,13 +103,45 @@ const Adjust = (() => {
       if (lines[i].time <= t) activeIdx = i;
     }
 
-    const prev = activeIdx > 0 ? lines[activeIdx - 1].text : '';
-    const curr = activeIdx >= 0 ? lines[activeIdx].text : '—';
-    const next = activeIdx >= 0 && activeIdx < lines.length - 1 ? lines[activeIdx + 1].text : '';
+    const prevLine = activeIdx > 0 ? lines[activeIdx - 1] : null;
+    const currLine = activeIdx >= 0 ? lines[activeIdx] : null;
+    const nextLine = (activeIdx >= 0 && activeIdx < lines.length - 1) ? lines[activeIdx + 1] : null;
 
-    document.getElementById('kpPrev').textContent = prev;
-    document.getElementById('kpCurrent').textContent = curr;
-    document.getElementById('kpNext').textContent = next;
+    document.getElementById('kpPrev').textContent    = prevLine ? prevLine.text : '';
+    document.getElementById('kpCurrent').textContent = currLine ? currLine.text : '—';
+    document.getElementById('kpNext').textContent    = nextLine ? nextLine.text : '';
+
+    applyKpColor('kpCurrent', currLine, cfg, 1.0);
+    applyKpColor('kpPrev',    prevLine, cfg, 0.28);
+    applyKpColor('kpNext',    nextLine, cfg, 0.55);
+  }
+
+  function applyKpColor(elId, line, cfg, alpha) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!line || line.voice === null) {
+      el.style.color = '';
+      el.style.textShadow = '';
+      return;
+    }
+    let hex = null;
+    if (line.voice === 0) hex = cfg.allColor;
+    else if (line.voice >= 1 && cfg.voices[line.voice - 1]) hex = cfg.voices[line.voice - 1].color;
+    if (!hex) { el.style.color = ''; el.style.textShadow = ''; return; }
+    const [r, g, b] = hexToRgb(hex);
+    el.style.color = `rgba(${r},${g},${b},${alpha})`;
+    if (elId === 'kpCurrent') {
+      el.style.textShadow = `0 0 20px rgba(${r},${g},${b},0.85), 0 0 40px rgba(${r},${g},${b},0.35)`;
+    } else {
+      el.style.textShadow = '';
+    }
+  }
+
+  function hexToRgb(hex) {
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const n = parseInt(hex, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
   function highlightTableRow() {
@@ -234,6 +267,7 @@ const Adjust = (() => {
     const wrapper = canvas.parentElement;
     const dur = Audio.duration;
     const H = 120;
+    const cfg = Sync.getVoiceConfig();
 
     const W = Math.max(wrapper.offsetWidth, dur * timelineScale);
     const dpr = window.devicePixelRatio || 1;
@@ -273,16 +307,26 @@ const Adjust = (() => {
 
       const isActive = line.time <= Audio.getCurrentTime() &&
                         (lines[i + 1]?.time ?? Infinity) > Audio.getCurrentTime();
-      ctx.fillStyle = isActive ? 'rgba(124,77,255,0.5)' : 'rgba(124,77,255,0.22)';
+
+      // Voice color
+      const vn = line.voice;
+      let baseHex = '#7c4dff';
+      if (vn === 0) baseHex = cfg.allColor;
+      else if (vn !== null && vn >= 1 && cfg.voices[vn - 1]) baseHex = cfg.voices[vn - 1].color;
+      const [vr, vg, vb] = hexToRgb(baseHex);
+
+      ctx.fillStyle = isActive
+        ? `rgba(${vr},${vg},${vb},0.55)`
+        : `rgba(${vr},${vg},${vb},0.22)`;
       roundRect(ctx, x, y, blockW, bH, 4);
       ctx.fill();
 
-      ctx.strokeStyle = isActive ? '#b47aff' : '#31316a';
+      ctx.strokeStyle = isActive ? baseHex : `rgba(${vr},${vg},${vb},0.4)`;
       ctx.lineWidth = 1;
       roundRect(ctx, x, y, blockW, bH, 4);
       ctx.stroke();
 
-      ctx.fillStyle = '#7c4dff';
+      ctx.fillStyle = baseHex;
       roundRect(ctx, x, y, 4, bH, 2);
       ctx.fill();
 

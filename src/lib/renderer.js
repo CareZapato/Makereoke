@@ -1340,177 +1340,299 @@ const Renderer = (() => {
 
   function _drawProgress(ctx, W, H, time, duration, style, T, activeColor, fsSm) {
     const pPct = duration > 0 ? clampN(time / duration, 0, 1) : 0;
+    const timeStr = `${formatTime(time)}  /  ${formatTime(duration)}`;
 
     if (style === 'bottom' || style === 'top') {
-      const pbH = Math.max(4, Math.round(H * 0.007));
-      const pbY = style === 'top' ? 10 : H - pbH - 18;
-      ctx.fillStyle = T.progressBg; ctx.beginPath(); ctx.roundRect(28, pbY, W - 56, pbH, pbH / 2); ctx.fill();
+      const pbH = Math.max(6, Math.round(H * 0.009));
+      const pbY = style === 'top' ? 14 : H - pbH - 20;
+      const bx = 28, bw = W - 56;
+      // Shadow under track
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 12;
+      ctx.fillStyle = T.progressBg; ctx.beginPath(); ctx.roundRect(bx, pbY, bw, pbH, pbH / 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.restore();
       if (pPct > 0) {
-        const pg = ctx.createLinearGradient(28, 0, W - 56, 0); pg.addColorStop(0, T.progressFg); pg.addColorStop(1, activeColor);
-        ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(28, pbY, (W - 56) * pPct, pbH, pbH / 2); ctx.fill();
+        const pg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+        pg.addColorStop(0, T.progressFg); pg.addColorStop(0.8, activeColor); pg.addColorStop(1, '#ffffff88');
+        ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 14;
+        ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(bx, pbY, bw * pPct, pbH, pbH / 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
+        // Glowing dot at fill endpoint
+        const ex = bx + bw * pPct, ey = pbY + pbH / 2;
+        ctx.save(); ctx.shadowColor = activeColor; ctx.shadowBlur = 22;
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, pbH * 0.75, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
       }
-      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
-      ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-      const timeY = style === 'top' ? pbY + pbH + fsSm + 4 : pbY - 8;
-      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, timeY);
+      // Frosted time label
+      ctx.font = `400 ${fsSm}px monospace`;
+      const tw = ctx.measureText(timeStr).width;
+      const lx = W - 30, ly = style === 'top' ? pbY + pbH + fsSm + 6 : pbY - 9;
+      ctx.save(); ctx.globalAlpha *= 0.45; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.roundRect(lx - tw - 12, ly - fsSm - 2, tw + 14, fsSm + 6, 4); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(timeStr, lx, ly);
 
     } else if (style === 'left' || style === 'right') {
-      const pbW = Math.max(6, Math.round(W * 0.008));
+      const pbW = Math.max(8, Math.round(W * 0.009));
       const pbX = style === 'left' ? 14 : W - 14 - pbW;
-      const barH = H - 56, barY = 28;
+      const barH = H - 60, barY = 30;
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10;
       ctx.fillStyle = T.progressBg; ctx.beginPath(); ctx.roundRect(pbX, barY, pbW, barH, pbW / 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.restore();
       if (pPct > 0) {
-        const pg = ctx.createLinearGradient(0, barY + barH, 0, barY); pg.addColorStop(0, T.progressFg); pg.addColorStop(1, activeColor);
-        ctx.fillStyle = pg;
         const fillH = barH * pPct;
-        ctx.beginPath(); ctx.roundRect(pbX, barY + barH - fillH, pbW, fillH, pbW / 2); ctx.fill();
+        const pg = ctx.createLinearGradient(0, barY + barH, 0, barY);
+        pg.addColorStop(0, T.progressFg); pg.addColorStop(0.8, activeColor); pg.addColorStop(1, '#ffffff88');
+        ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 12;
+        ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(pbX, barY + barH - fillH, pbW, fillH, pbW / 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
+        // Glowing dot at top of fill
+        const dotY = barY + barH - fillH;
+        ctx.save(); ctx.shadowColor = activeColor; ctx.shadowBlur = 20;
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(pbX + pbW / 2, dotY, pbW * 0.75, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
       }
-      const labelX = style === 'left' ? pbX + pbW + fsSm * 0.6 : pbX - fsSm * 0.6;
+      const labelX = style === 'left' ? pbX + pbW + 8 : pbX - 8;
       ctx.save();
       ctx.translate(labelX, barY + barH / 2);
       ctx.rotate(style === 'left' ? -Math.PI / 2 : Math.PI / 2);
-      ctx.font = `300 ${Math.round(fsSm * 0.78)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.font = `400 ${Math.round(fsSm * 0.8)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, 0, 0);
+      ctx.fillText(timeStr, 0, 0);
       ctx.restore();
 
     } else if (style === 'clock_digital') {
-      const fs2 = Math.max(18, Math.round(fsSm * 1.35));
+      const fs2 = Math.max(20, Math.round(fsSm * 1.4));
       ctx.font = `bold ${fs2}px monospace`;
       const elapsed = formatTime(time), total = formatTime(duration);
       const tw1 = ctx.measureText(elapsed).width, tw2 = ctx.measureText(` / ${total}`).width;
-      const tw = tw1 + tw2, pad = fs2 * 0.55;
-      const bx = W - 16, by = H - 16;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.strokeStyle = T.progressFg; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.roundRect(bx - tw - pad * 2, by - fs2 - pad, tw + pad * 2, fs2 + pad * 1.5, 8); ctx.fill(); ctx.stroke(); ctx.lineWidth = 1;
+      const tw = tw1 + tw2, padX = fs2 * 0.65, padY = fs2 * 0.5;
+      const bx = W - 24, by = H - 24;
+      const boxW = tw + padX * 2, boxH = fs2 + padY * 2;
+      // Glass backdrop
+      ctx.save(); ctx.globalAlpha *= 0.7; ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.beginPath(); ctx.roundRect(bx - boxW, by - boxH, boxW, boxH, 10); ctx.fill(); ctx.restore();
+      // Gradient top highlight
+      const hi = ctx.createLinearGradient(bx - boxW, by - boxH, bx - boxW, by - boxH + boxH * 0.5);
+      hi.addColorStop(0, 'rgba(255,255,255,0.09)'); hi.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.save(); ctx.globalAlpha *= 0.6; ctx.fillStyle = hi;
+      ctx.beginPath(); ctx.roundRect(bx - boxW, by - boxH, boxW, boxH * 0.5, [10, 10, 0, 0]); ctx.fill(); ctx.restore();
+      // Border glow
+      ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 12;
+      ctx.strokeStyle = T.progressFg; ctx.lineWidth = 1.5; ctx.globalAlpha *= 0.6;
+      ctx.beginPath(); ctx.roundRect(bx - boxW, by - boxH, boxW, boxH, 10); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.restore();
+      // Progress strip at bottom of panel
+      if (pPct > 0) {
+        ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 8;
+        const pg = ctx.createLinearGradient(bx - boxW, 0, bx, 0);
+        pg.addColorStop(0, T.progressFg); pg.addColorStop(1, activeColor);
+        ctx.fillStyle = pg; ctx.beginPath();
+        ctx.roundRect(bx - boxW + 2, by - 6, (boxW - 4) * pPct, 3, 1.5); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
+      }
+      // Text
+      const ty = by - padY;
+      ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 10;
       ctx.fillStyle = T.progressFg; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText(elapsed, bx - tw2 - pad, by - pad * 0.4);
-      ctx.fillStyle = 'rgba(255,255,255,0.48)';
-      ctx.fillText(` / ${total}`, bx - pad, by - pad * 0.4);
+      ctx.fillText(elapsed, bx - tw2 - padX * 0.6, ty); ctx.shadowBlur = 0; ctx.restore();
+      ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(` / ${total}`, bx - padX * 0.6, ty);
 
     } else if (style === 'clock_analog') {
-      const r = Math.round(Math.min(W, H) * 0.065);
+      const r = Math.round(Math.min(W, H) * 0.068);
       const ocx = W - r - 22, ocy = H - r - 22;
       const pAngle = pPct * Math.PI * 2 - Math.PI / 2;
+      // Backdrop circle
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 16;
       ctx.beginPath(); ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.58)'; ctx.fill();
-      ctx.strokeStyle = T.progressFg; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+      ctx.fillStyle = 'rgba(0,0,0,0.68)'; ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
+      // Outer ring
+      ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 10; ctx.globalAlpha *= 0.8;
+      ctx.strokeStyle = T.progressFg; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ocx, ocy, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.restore();
+      // Tick marks
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
-        const r1 = r * 0.8, r2 = r * 0.95;
-        ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = i % 3 === 0 ? 2 : 1;
-        ctx.beginPath(); ctx.moveTo(ocx + Math.cos(a) * r1, ocy + Math.sin(a) * r1);
-        ctx.lineTo(ocx + Math.cos(a) * r2, ocy + Math.sin(a) * r2); ctx.stroke();
+        const isMaj = i % 3 === 0;
+        ctx.strokeStyle = isMaj ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = isMaj ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(ocx + Math.cos(a) * r * 0.78, ocy + Math.sin(a) * r * 0.78);
+        ctx.lineTo(ocx + Math.cos(a) * r * 0.94, ocy + Math.sin(a) * r * 0.94); ctx.stroke();
       }
       ctx.lineWidth = 1;
+      // Filled arc (progress sector)
       if (pPct > 0) {
-        ctx.globalAlpha = 0.22;
+        ctx.save(); ctx.globalAlpha *= 0.25;
         ctx.beginPath(); ctx.moveTo(ocx, ocy); ctx.arc(ocx, ocy, r * 0.88, -Math.PI / 2, pAngle); ctx.closePath();
-        ctx.fillStyle = T.progressFg; ctx.fill();
-        ctx.globalAlpha = 1;
+        ctx.fillStyle = T.progressFg; ctx.fill(); ctx.restore();
+        // Arc ring on top
+        ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 12;
+        ctx.strokeStyle = T.progressFg; ctx.lineWidth = Math.max(3, r * 0.1); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(ocx, ocy, r * 0.72, -Math.PI / 2, pAngle); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.lineCap = 'butt'; ctx.restore();
       }
-      const handLen = r * 0.66;
-      ctx.strokeStyle = T.progressFg; ctx.lineWidth = Math.max(2, r * 0.08); ctx.lineCap = 'round';
+      // Center dot + hand
+      const handLen = r * 0.54;
+      ctx.save(); ctx.shadowColor = activeColor; ctx.shadowBlur = 14;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(2, r * 0.07); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(ocx, ocy); ctx.lineTo(ocx + Math.cos(pAngle) * handLen, ocy + Math.sin(pAngle) * handLen); ctx.stroke();
-      ctx.lineWidth = 1; ctx.lineCap = 'butt';
-      ctx.beginPath(); ctx.arc(ocx, ocy, Math.max(3, r * 0.1), 0, Math.PI * 2); ctx.fillStyle = activeColor; ctx.fill();
-      ctx.font = `300 ${Math.round(fsSm * 0.78)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.shadowBlur = 0; ctx.lineCap = 'butt'; ctx.restore();
+      ctx.beginPath(); ctx.arc(ocx, ocy, Math.max(3, r * 0.09), 0, Math.PI * 2); ctx.fillStyle = activeColor; ctx.fill();
+      // Time label
+      ctx.font = `300 ${Math.round(fsSm * 0.76)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText(formatTime(time), ocx, ocy + r + 6);
+      ctx.fillText(formatTime(time), ocx, ocy + r + 7);
       ctx.textBaseline = 'alphabetic';
 
     } else if (style === 'countdown') {
-      const r = Math.round(Math.min(W, H) * 0.065);
+      const r = Math.round(Math.min(W, H) * 0.068);
       const ocx = W - r - 22, ocy = H - r - 22;
       const remaining = Math.max(0, duration - time);
       const endA = -Math.PI / 2 + (1 - pPct) * Math.PI * 2;
+      // Backdrop
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 16;
       ctx.beginPath(); ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.58)'; ctx.fill();
-      const ringR = r * 0.82, ringW = Math.max(4, r * 0.18);
-      ctx.beginPath(); ctx.arc(ocx, ocy, ringR, 0, Math.PI * 2);
-      ctx.strokeStyle = T.progressBg; ctx.lineWidth = ringW; ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.68)'; ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
+      // Outer thin glow ring
+      ctx.save(); ctx.globalAlpha *= 0.35; ctx.shadowColor = T.progressFg; ctx.shadowBlur = 18;
+      ctx.strokeStyle = T.progressFg; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(ocx, ocy, r - 1, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.restore();
+      // Track ring
+      const ringR = r * 0.8, ringW = Math.max(5, r * 0.19);
+      ctx.strokeStyle = T.progressBg; ctx.lineWidth = ringW;
+      ctx.beginPath(); ctx.arc(ocx, ocy, ringR, 0, Math.PI * 2); ctx.stroke();
+      // Fill ring (countdown = remaining portion)
       if (1 - pPct > 0.002) {
-        ctx.beginPath(); ctx.arc(ocx, ocy, ringR, -Math.PI / 2, endA);
-        ctx.strokeStyle = T.progressFg; ctx.lineWidth = ringW; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+        const urgency = 1 - (1 - pPct);  // pPct goes 0→1 so remaining goes 1→0
+        const fillColor = urgency < 0.25 ? '#ff3300' : urgency < 0.5 ? '#ffcc00' : T.progressFg;
+        ctx.save(); ctx.shadowColor = fillColor; ctx.shadowBlur = 14;
+        ctx.strokeStyle = fillColor; ctx.lineWidth = ringW; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(ocx, ocy, ringR, -Math.PI / 2, endA); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.lineCap = 'butt'; ctx.restore();
       }
       ctx.lineWidth = 1;
-      ctx.font = `bold ${Math.round(r * 0.52)}px monospace`; ctx.fillStyle = '#fff';
+      // Center time text
+      ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 12;
+      ctx.font = `bold ${Math.round(r * 0.5)}px monospace`; ctx.fillStyle = '#fff';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(formatTime(remaining), ocx, ocy);
-      ctx.textBaseline = 'alphabetic';
+      ctx.shadowBlur = 0; ctx.restore(); ctx.textBaseline = 'alphabetic';
 
     } else if (style === 'battery') {
-      const bw = Math.round(W * 0.1), bh = Math.round(bw * 0.42);
-      const bx = W - bw - 30, by = H - bh - 26;
-      const tipW = Math.round(bw * 0.045), tipH = Math.round(bh * 0.42);
+      const bw = Math.round(W * 0.11), bh = Math.round(bw * 0.46);
+      const bx = W - bw - 28, by = H - bh - 26;
+      const tipW = Math.round(bw * 0.05), tipH = Math.round(bh * 0.44);
       const remaining = 1 - pPct;
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, bh); ctx.lineWidth = 1;
-      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillRect(bx + bw + 2, by + (bh - tipH) / 2, tipW, tipH);
       const fillColor = remaining > 0.5 ? T.progressFg : remaining > 0.25 ? '#ffcc00' : '#ff3300';
+      // Body shadow
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 12;
+      ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
+      // Tip
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.beginPath(); ctx.roundRect(bx + bw + 2, by + (bh - tipH) / 2, tipW, tipH, 2); ctx.fill();
+      // Fill
       if (remaining > 0.01) {
-        ctx.fillStyle = fillColor; ctx.fillRect(bx + 4, by + 4, Math.max(1, (bw - 8) * remaining), bh - 8);
+        const fillW = Math.max(2, (bw - 8) * remaining);
+        const pg = ctx.createLinearGradient(bx + 4, 0, bx + 4 + fillW, 0);
+        pg.addColorStop(0, fillColor); pg.addColorStop(1, remaining < 0.5 ? fillColor : activeColor);
+        ctx.save(); ctx.shadowColor = fillColor; ctx.shadowBlur = 10;
+        ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(bx + 4, by + 4, fillW, bh - 8, 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
       }
-      ctx.font = `300 ${Math.round(fsSm * 0.82)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      // Percentage text
+      ctx.font = `600 ${Math.round(fsSm * 0.85)}px monospace`;
+      ctx.fillStyle = remaining < 0.3 ? '#fff' : 'rgba(255,255,255,0.55)';
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText(`${Math.round(remaining * 100)}%`, bx + bw / 2 + tipW / 2, by + bh + 6);
+      ctx.fillText(`${Math.round(remaining * 100)}%`, bx + bw / 2 + tipW / 2, by + bh + 7);
       ctx.textBaseline = 'alphabetic';
 
     } else if (style === 'dots') {
-      const ndots = 20;
+      const ndots = 24;
       const filled = Math.round(pPct * ndots);
-      const dotR = Math.max(4, Math.round(H * 0.007));
-      const sp = dotR * 3;
+      const dotR = Math.max(5, Math.round(H * 0.008));
+      const sp = dotR * 2.8;
       const totalW = (ndots - 1) * sp;
-      const sx = W / 2 - totalW / 2, dotY = H - dotR - 18;
+      const sx = W / 2 - totalW / 2, dotY = H - dotR - 20;
       for (let i = 0; i < ndots; i++) {
         const dx = sx + i * sp;
-        ctx.beginPath(); ctx.arc(dx, dotY, i < filled ? dotR : dotR * 0.55, 0, Math.PI * 2);
-        ctx.fillStyle = i < filled ? T.progressFg : T.progressBg;
-        if (i < filled) { ctx.shadowColor = T.progressFg; ctx.shadowBlur = 7; }
+        const isActive = i < filled;
+        const isNext = i === filled;
+        const r2 = isActive ? dotR : isNext ? dotR * 0.7 : dotR * 0.5;
+        ctx.beginPath(); ctx.arc(dx, dotY, r2, 0, Math.PI * 2);
+        ctx.fillStyle = isActive ? T.progressFg : T.progressBg;
+        if (isActive) { ctx.shadowColor = T.progressFg; ctx.shadowBlur = i === filled - 1 ? 14 : 6; }
         ctx.fill(); ctx.shadowBlur = 0;
       }
-      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.42)';
       ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, dotY - dotR - 4);
+      ctx.fillText(timeStr, W - 28, dotY - dotR - 5);
 
     } else if (style === 'wave') {
-      const barY = H - 28;
-      const amplitude = Math.max(3, Math.round(H * 0.006));
+      const barY = H - 30;
+      const amplitude = Math.max(4, Math.round(H * 0.007));
       const fillW = (W - 56) * pPct;
-      ctx.strokeStyle = T.progressBg; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(28, barY); ctx.lineTo(W - 28, barY); ctx.stroke();
+      // Background wave (dim)
+      ctx.save(); ctx.globalAlpha *= 0.35;
+      ctx.strokeStyle = T.progressBg; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let x = 28; x <= W - 28; x += 3) {
+        const y = barY + Math.sin((x / 60) * Math.PI * 2 - time * 4) * amplitude * 0.6;
+        x === 28 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke(); ctx.restore();
+      // Filled wave
       if (fillW > 2) {
-        ctx.save(); ctx.beginPath(); ctx.rect(28, barY - amplitude * 2.5, fillW, amplitude * 5); ctx.clip();
-        ctx.strokeStyle = T.progressFg; ctx.lineWidth = 3; ctx.shadowColor = T.progressFg; ctx.shadowBlur = 9; ctx.lineCap = 'round';
+        ctx.save(); ctx.beginPath(); ctx.rect(28, barY - amplitude * 3, fillW, amplitude * 6); ctx.clip();
+        ctx.shadowColor = T.progressFg; ctx.shadowBlur = 14; ctx.strokeStyle = T.progressFg; ctx.lineWidth = 3; ctx.lineCap = 'round';
         ctx.beginPath();
         for (let x = 28; x <= W - 28; x += 3) {
-          const y = barY + Math.sin((x / 55) * Math.PI * 2 - time * 5) * amplitude;
+          const y = barY + Math.sin((x / 60) * Math.PI * 2 - time * 4) * amplitude;
+          x === 28 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        // Second layer offset
+        ctx.globalAlpha *= 0.4; ctx.strokeStyle = activeColor; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = 28; x <= W - 28; x += 3) {
+          const y = barY + Math.sin((x / 45) * Math.PI * 2 - time * 5.5 + 1.2) * amplitude * 0.7;
           x === 28 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
         ctx.stroke(); ctx.shadowBlur = 0; ctx.lineCap = 'butt'; ctx.restore();
       }
-      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.42)';
       ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, barY - amplitude * 2.5 - 4);
+      ctx.fillText(timeStr, W - 28, barY - amplitude * 3 - 5);
 
     } else if (style === 'neon_slim') {
       const lineY = H - 5;
+      // Background glow spread
+      ctx.save(); ctx.globalAlpha *= 0.15; ctx.strokeStyle = T.progressFg; ctx.lineWidth = 10; ctx.lineCap = 'square';
+      ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W * pPct, lineY); ctx.stroke(); ctx.restore();
+      // Track
       ctx.strokeStyle = T.progressBg; ctx.lineWidth = 2; ctx.lineCap = 'square';
       ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W, lineY); ctx.stroke();
+      // Fill
       if (pPct > 0) {
+        ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 20;
         ctx.strokeStyle = T.progressFg; ctx.lineWidth = 3;
-        ctx.shadowColor = T.progressFg; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W * pPct, lineY); ctx.stroke();
-        ctx.shadowBlur = 0;
+        // Inner bright line
+        ctx.shadowColor = '#fff'; ctx.shadowBlur = 8; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W * pPct, lineY); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.restore();
       }
       ctx.lineCap = 'butt';
-      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.42)';
       ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, lineY - 10);
+      ctx.fillText(timeStr, W - 28, lineY - 12);
     }
   }
 
   function drawFrame(canvas, opts) {
-    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom' } = opts;
+    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom', progressBarOpacity=1 } = opts;
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
     const T=THEMES[theme]||THEMES.classic;
     const GI=clampN(glowIntensity,0,3);
@@ -1546,7 +1668,10 @@ const Renderer = (() => {
     }
 
     if (showProgressBar) {
+      ctx.save();
+      ctx.globalAlpha = clampN(progressBarOpacity, 0, 1);
       _drawProgress(ctx, W, H, time, duration, progressBarStyle, T, activeColor, fsSm);
+      ctx.restore();
     }
 
     if (prevLine) {

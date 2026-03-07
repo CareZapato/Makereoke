@@ -60,7 +60,8 @@ const Audio = (() => {
 
     const offset = (from !== undefined) ? clamp(from, 0, duration) : pausedAt;
     pausedAt = offset;
-    startedAt = ctx.currentTime - offset;
+    startedAt = ctx.currentTime;  // wall-clock time at play start
+    sourceNode.playbackRate.value = _playbackRate;
     sourceNode.start(0, offset);
     isPlaying = true;
 
@@ -78,7 +79,8 @@ const Audio = (() => {
   function pause() {
     if (!isPlaying) return;
     cancelAnimationFrame(rafId);
-    pausedAt = clamp(audioCtx.currentTime - startedAt, 0, duration);
+    const elapsed = audioCtx.currentTime - startedAt;
+    pausedAt = clamp(pausedAt + elapsed * _playbackRate, 0, duration);
     if (sourceNode) { try { sourceNode.stop(); } catch (e) {} sourceNode = null; }
     isPlaying = false;
   }
@@ -108,7 +110,10 @@ const Audio = (() => {
   }
 
   function getCurrentTime() {
-    if (isPlaying) return clamp(audioCtx.currentTime - startedAt, 0, duration);
+    if (isPlaying) {
+      const elapsed = audioCtx.currentTime - startedAt;
+      return clamp(pausedAt + elapsed * _playbackRate, 0, duration);
+    }
     return pausedAt;
   }
 
@@ -116,6 +121,18 @@ const Audio = (() => {
   function setVolume(v) {
     _volume = clamp(v, 0, 1);
     if (gainNode) gainNode.gain.value = _volume;
+  }
+
+  let _playbackRate = 1;
+  function setPlaybackRate(r) {
+    _playbackRate = clamp(r, 0.1, 4);
+    if (isPlaying) {
+      // Seamlessly restart at current position with new rate
+      const current = getCurrentTime();
+      if (sourceNode) { sourceNode.onended = null; try { sourceNode.stop(); } catch(e){} sourceNode = null; }
+      isPlaying = false;
+      play(current);
+    }
   }
 
   function _scheduleRaf() {
@@ -143,7 +160,7 @@ const Audio = (() => {
   }
 
   return {
-    load, play, pause, stop, toggle, seek, setVolume, getCurrentTime,
+    load, play, pause, stop, toggle, seek, setVolume, setPlaybackRate, getCurrentTime,
     getChannelData, createRecordingStream,
     get duration()   { return duration; },
     get isPlaying()  { return isPlaying; },

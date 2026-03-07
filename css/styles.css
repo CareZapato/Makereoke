@@ -1889,3 +1889,86 @@ kbd {
   .cl-title  { font-size: 1.1rem; }
   .cl-logo-icon { font-size: 1.8rem; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   INTRO TITLE CARD — Step 3 timeline bar
+══════════════════════════════════════════════════════════════ */
+.intro-timeline-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px;
+  background: rgba(124,77,255,0.08);
+  border: 1px solid rgba(124,77,255,0.25);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.intro-tl-toggle {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.85rem; font-weight: 600; color: var(--text);
+  cursor: pointer; user-select: none; white-space: nowrap;
+}
+.intro-tl-toggle input[type="checkbox"] { accent-color: var(--primary); width: 15px; height: 15px; }
+.intro-tl-duration {
+  display: flex; align-items: center; gap: 8px; flex: 1;
+}
+.intro-tl-dur-hint { font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; }
+
+/* ══════════════════════════════════════════════════════════════
+   INTRO TITLE CARD — Step 4 settings section
+══════════════════════════════════════════════════════════════ */
+
+/* Style preset grid (5 cards: 3 + 2) */
+.intro-style-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.intro-style-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 9px 4px 7px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; cursor: pointer;
+  transition: all var(--transition); user-select: none; text-align: center;
+}
+.intro-style-card:hover {
+  border-color: var(--primary); background: rgba(124,77,255,0.1);
+  transform: translateY(-2px);
+}
+.intro-style-card.active {
+  border-color: var(--primary-light);
+  background: rgba(124,77,255,0.22);
+  box-shadow: 0 0 10px rgba(124,77,255,0.35);
+}
+.intro-style-icon { font-size: 1.2rem; line-height: 1; }
+.intro-style-label { font-size: 0.66rem; color: var(--text-dim); line-height: 1.2; }
+.intro-style-card.active .intro-style-label { color: var(--text); }
+
+/* Transition picker */
+.intro-trans-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.intro-trans-card {
+  padding: 7px 4px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  font-size: 0.72rem; color: var(--text-dim);
+  transition: all var(--transition); text-align: center;
+  user-select: none;
+}
+.intro-trans-card:hover { border-color: var(--primary); color: var(--text); background: rgba(124,77,255,0.1); }
+.intro-trans-card.active {
+  border-color: var(--primary-light); color: var(--text);
+  background: rgba(124,77,255,0.22);
+  box-shadow: 0 0 8px rgba(124,77,255,0.3);
+}
+
+/* Responsive: stack style grid to 3+2 on smaller screens */
+@media (max-width: 480px) {
+  .intro-style-grid { grid-template-columns: repeat(3, 1fr); }
+  .intro-trans-grid { grid-template-columns: repeat(2, 1fr); }
+  .intro-timeline-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .intro-tl-duration { width: 100%; }
+}

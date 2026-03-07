@@ -6,6 +6,7 @@ import Audio from './audio.js';
 import Lyrics from './lyrics.js';
 import Renderer from './renderer.js';
 import Sync from './sync.js';
+import Intro from './intro.js';
 import { formatTime, debounce } from './utils.js';
 import { Muxer, ArrayBufferTarget } from 'webm-muxer';
 
@@ -160,10 +161,6 @@ const ExportEngine = (() => {
       console.warn('[EE] init() — EARLY RETURN: critical element missing', { themeSelector: !!themeSelector, animGrid: !!animGrid, fontSizeSlider: !!fontSizeSlider, exportPlayBtn: !!exportPlayBtn, startRecordBtn: !!startRecordBtn });
       return;
     }
-    console.log('[EE] init() — DOM refs resolved:', {
-      inactiveColorPicker: inactiveColorPicker ? `✓ value="${inactiveColorPicker.value}"` : '✗ NULL',
-    });
-
     /* ── Build theme buttons from Renderer.THEME_LIST grouped by category ── */
     themeSelector.innerHTML = '';
     Renderer.THEME_CATEGORIES.forEach(cat => {
@@ -574,13 +571,93 @@ const ExportEngine = (() => {
         });
       });
     }
+
+    /* ── Intro card controls ── */
+    const introEnabledToggle     = document.getElementById('introEnabledToggle');
+    const introTitleInput        = document.getElementById('introTitleInput');
+    const introArtistInput       = document.getElementById('introArtistInput');
+    const introDurationSlider    = document.getElementById('introDurationSlider');
+    const introDurationVal       = document.getElementById('introDurationVal');
+    const introTitleColorPicker  = document.getElementById('introTitleColorPicker');
+    const introArtistColorPicker = document.getElementById('introArtistColorPicker');
+    const introTitleSizeSlider   = document.getElementById('introTitleSizeSlider');
+    const introTitleSizeVal      = document.getElementById('introTitleSizeVal');
+    const introArtistRatioSlider = document.getElementById('introArtistRatioSlider');
+    const introArtistRatioVal    = document.getElementById('introArtistRatioVal');
+    const introShowLogoToggle    = document.getElementById('introShowLogoToggle');
+    const introStyleGrid         = document.getElementById('introStyleGrid');
+    const introTransitionGrid    = document.getElementById('introTransitionGrid');
+
+    function _syncIntroUI() {
+      const ic = Intro.get();
+      if (introEnabledToggle)     introEnabledToggle.checked       = ic.enabled;
+      if (introTitleInput)        introTitleInput.value             = ic.title;
+      if (introArtistInput)       introArtistInput.value            = ic.artist;
+      if (introDurationSlider)    { introDurationSlider.value = ic.duration;  if (introDurationVal) introDurationVal.textContent = ic.duration.toFixed(1) + 's'; }
+      if (introTitleColorPicker)  introTitleColorPicker.value       = ic.titleColor;
+      if (introArtistColorPicker) introArtistColorPicker.value      = ic.artistColor;
+      if (introTitleSizeSlider)   { introTitleSizeSlider.value = ic.titleSize;  if (introTitleSizeVal) introTitleSizeVal.textContent = ic.titleSize.toFixed(2) + '×'; }
+      if (introArtistRatioSlider) { introArtistRatioSlider.value = ic.artistRatio; if (introArtistRatioVal) introArtistRatioVal.textContent = Math.round(ic.artistRatio * 100) + '%'; }
+      if (introShowLogoToggle)    introShowLogoToggle.checked       = ic.showLogo;
+      if (introStyleGrid)      introStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c.dataset.style === ic.style));
+      if (introTransitionGrid) introTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transition === ic.transition));
+    }
+
+    if (introEnabledToggle) introEnabledToggle.addEventListener('change', () => { Intro.set({ enabled: introEnabledToggle.checked }); renderPreviewFrame(); });
+    if (introTitleInput)    introTitleInput.addEventListener('input',  debounce(() => { Intro.set({ title:  introTitleInput.value  }); renderPreviewFrame(); }, 200));
+    if (introArtistInput)   introArtistInput.addEventListener('input', debounce(() => { Intro.set({ artist: introArtistInput.value }); renderPreviewFrame(); }, 200));
+    if (introDurationSlider) {
+      introDurationSlider.addEventListener('input', () => {
+        const d = parseFloat(introDurationSlider.value);
+        Intro.set({ duration: d });
+        if (introDurationVal) introDurationVal.textContent = d.toFixed(1) + 's';
+        renderPreviewFrame();
+      });
+    }
+    if (introTitleColorPicker)  introTitleColorPicker.addEventListener('input',  () => { Intro.set({ titleColor:  introTitleColorPicker.value  }); renderPreviewFrame(); });
+    if (introArtistColorPicker) introArtistColorPicker.addEventListener('input', () => { Intro.set({ artistColor: introArtistColorPicker.value }); renderPreviewFrame(); });
+    if (introTitleSizeSlider) {
+      introTitleSizeSlider.addEventListener('input', () => {
+        const v = parseFloat(introTitleSizeSlider.value);
+        Intro.set({ titleSize: v });
+        if (introTitleSizeVal) introTitleSizeVal.textContent = v.toFixed(2) + '×';
+        renderPreviewFrame();
+      });
+    }
+    if (introArtistRatioSlider) {
+      introArtistRatioSlider.addEventListener('input', () => {
+        const v = parseFloat(introArtistRatioSlider.value);
+        Intro.set({ artistRatio: v });
+        if (introArtistRatioVal) introArtistRatioVal.textContent = Math.round(v * 100) + '%';
+        renderPreviewFrame();
+      });
+    }
+    if (introShowLogoToggle) introShowLogoToggle.addEventListener('change', () => { Intro.set({ showLogo: introShowLogoToggle.checked }); renderPreviewFrame(); });
+    if (introStyleGrid) {
+      introStyleGrid.addEventListener('click', e => {
+        const card = e.target.closest('.intro-style-card');
+        if (!card) return;
+        Intro.set({ style: card.dataset.style });
+        introStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c === card));
+        renderPreviewFrame();
+      });
+    }
+    if (introTransitionGrid) {
+      introTransitionGrid.addEventListener('click', e => {
+        const card = e.target.closest('.intro-trans-card');
+        if (!card) return;
+        Intro.set({ transition: card.dataset.transition });
+        introTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c === card));
+        renderPreviewFrame();
+      });
+    }
+    _syncIntroUI();
   }
 
   /* ═══════════════════════════════════════════════════════
      setup() — called whenever panel4 becomes active
   ═══════════════════════════════════════════════════════ */
   function setup() {
-    console.log('[EE] setup() START — currentTheme:', currentTheme, '| currentInactiveColor:', currentInactiveColor);
     if (Audio.isPlaying) { Audio.pause(); exportPlayBtn.textContent = '▶'; }
     stopPreviewLoop();
     Audio.seek(0);
@@ -612,14 +689,10 @@ const ExportEngine = (() => {
     const T0 = Renderer.THEMES[currentTheme] || Renderer.THEMES.classic;
     currentInactiveColor = _hexFromCssColor(T0.textDim);
     if (inactiveColorPicker) inactiveColorPicker.value = currentInactiveColor;
-    console.log('[EE] setup() theme-sync → inactiveColor:', currentInactiveColor,
-      '| inactiveColorPicker:', inactiveColorPicker ? '✓' : '✗ NULL');
-
     // Wire inactive color picker listener (fresh each activation)
     if (inactiveColorPicker) {
       inactiveColorPicker.addEventListener('input', () => {
         currentInactiveColor = inactiveColorPicker.value;
-        console.log('[EE] 🎨 inactiveColorPicker input → currentInactiveColor:', currentInactiveColor);
         renderPreviewFrame();
       }, { signal });
     }
@@ -632,8 +705,11 @@ const ExportEngine = (() => {
     } else if (previewLines.length === 1) {
       seekTarget = previewLines[0].time + 0.5;
     }
-    console.log('[EE] setup() DONE — seekTarget:', seekTarget.toFixed(2), '| previewLines:', previewLines.length,
-      '| currentInactiveColor:', currentInactiveColor, '| signal.aborted:', signal.aborted);
+    // If intro is enabled, override to show the intro card on entry
+    const _introPreview = Intro.get();
+    if (_introPreview.enabled && _introPreview.duration > 0) {
+      seekTarget = 0;
+    }
     Audio.seek(seekTarget);
     exportSeekBar.value = Audio.duration > 0 ? (seekTarget / Audio.duration) * 100 : 0;
     exportCurrentTime.textContent = formatTime(seekTarget);
@@ -669,6 +745,7 @@ const ExportEngine = (() => {
       secondaryOpacity:      currentSecondaryOpacity,
       nextLineOffset:        currentNextOffset,
       prevLineOpacity:       currentPrevOpacity,
+      introConfig:           Intro.get(),
     };
   }
 
@@ -698,14 +775,6 @@ const ExportEngine = (() => {
       previewCanvas.width = rW; previewCanvas.height = rH;
     }
     const opts = getRenderOpts(t);
-    // Log only when opts change (rate-limited by value comparison)
-    if (renderPreviewAt._lastActive !== opts.activeColorOverride ||
-        renderPreviewAt._lastTitle  !== opts.songTitle) {
-      renderPreviewAt._lastActive = opts.activeColorOverride;
-      renderPreviewAt._lastTitle  = opts.songTitle;
-      console.log('[EE] renderPreviewAt — opts snapshot: activeColorOverride:', opts.activeColorOverride,
-        '| songTitle:', `"${opts.songTitle}"`, '| t:', t.toFixed(2));
-    }
     Renderer.drawFrame(previewCanvas, opts);
   }
 
@@ -788,7 +857,7 @@ const ExportEngine = (() => {
       recording = false;
       const blob = new Blob(chunks, { type: mimeType });
 
-      const rawTitle  = songTitleInput.value.trim() || 'karaoke';
+      const rawTitle  = (Intro.get().title || '').trim() || 'karaoke';
       const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
       const filename  = safeTitle + '.' + ext;
 
@@ -878,19 +947,25 @@ const ExportEngine = (() => {
       firstTimestampBehavior: 'offset',
     });
 
+    // Encoder errors are stored here and re-thrown on the main loop to avoid
+    // throwing from inside a browser callback (which crashes the tab uncaught).
+    let _vcErr = null, _acErr = null;
+
     const videoEncoder = new VideoEncoder({
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-      error:  e => { throw e; },
+      error:  e => { _vcErr = e; },
     });
     videoEncoder.configure({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000, latencyMode: 'quality' });
 
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-      error:  e => { throw e; },
+      error:  e => { _acErr = e; },
     });
     audioEncoder.configure({ codec: 'opus', sampleRate, numberOfChannels: numChannels, bitrate: 128_000 });
 
     // ── Encode video + update preview ──────────────────
+    console.log('[EE] WebCodecs render START — codec:', videoCodec, '| resolution:', rW + 'x' + rH,
+      '| fps:', fps, '| duration:', duration.toFixed(2) + 's', '| frames:', totalFrames);
     progressLabel.textContent = 'Renderizando... 0%';
     const offCanvas = document.createElement('canvas');
     offCanvas.width = rW; offCanvas.height = rH;
@@ -900,14 +975,25 @@ const ExportEngine = (() => {
       previewCanvas.width = rW; previewCanvas.height = rH;
     }
     const prevCtx = previewCanvas.getContext('2d');
+    // Max frames to queue in the encoder before yielding (backpressure)
+    const MAX_QUEUE = 12;
 
     for (let i = 0; i < totalFrames; i++) {
+      // Propagate any encoder error to the outer try/catch
+      if (_vcErr) throw _vcErr;
+
+      // Backpressure: yield until the encoder queue drains below threshold
+      while (videoEncoder.encodeQueueSize > MAX_QUEUE) {
+        await new Promise(r => setTimeout(r, 5));
+        if (_vcErr) throw _vcErr;
+      }
+
       const t         = i * frameStep;
       const tsUs      = Math.round(t * 1_000_000); // microseconds
 
       Renderer.drawFrame(offCanvas, getRenderOpts(t));
-      // Mirror to visible preview every frame — rAF not needed, browser paints on yield
-      prevCtx.drawImage(offCanvas, 0, 0);
+      // Mirror to visible preview once per second to reduce GPU pressure
+      if (i % fps === 0) prevCtx.drawImage(offCanvas, 0, 0);
 
       const videoFrame = new VideoFrame(offCanvas, { timestamp: tsUs, duration: Math.round(frameStep * 1_000_000) });
       videoEncoder.encode(videoFrame, { keyFrame: i % (fps * 2) === 0 });
@@ -920,9 +1006,11 @@ const ExportEngine = (() => {
       exportSeekBar.value          = (t / duration) * 100;
       exportCurrentTime.textContent = formatTime(t);
 
-      // Yield to browser every 8 frames so UI updates are visible
+      // Yield to browser every 8 frames so UI updates paint
       if (i % 8 === 7) await new Promise(r => setTimeout(r, 0));
     }
+    if (_vcErr) throw _vcErr;
+    console.log('[EE] WebCodecs video frames done — encodeQueueSize:', videoEncoder.encodeQueueSize);
 
     // ── Encode audio in chunks ──────────────────────────
     progressLabel.textContent = 'Codificando audio...';
@@ -945,14 +1033,24 @@ const ExportEngine = (() => {
       audioData.close();
     }
 
+    if (_acErr) throw _acErr;
+    console.log('[EE] WebCodecs audio chunks done — flushing encoders...');
     progressLabel.textContent = 'Finalizando...';
-    await videoEncoder.flush();
-    await audioEncoder.flush();
+    // Flush both encoders concurrently; 20s timeout prevents infinite hang
+    const FLUSH_TIMEOUT = 20_000;
+    await Promise.race([
+      Promise.all([videoEncoder.flush(), audioEncoder.flush()]),
+      new Promise(r => setTimeout(r, FLUSH_TIMEOUT)),
+    ]);
+    if (_vcErr) throw _vcErr;
+    if (_acErr) throw _acErr;
+    console.log('[EE] Encoders flushed — finalizing muxer...');
     muxer.finalize();
+    console.log('[EE] Muxer finalized — blob size:', muxer.target.buffer.byteLength, 'bytes');
 
     recording = false;
     const blob = new Blob([muxer.target.buffer], { type: 'video/webm' });
-    const rawTitle  = songTitleInput.value.trim() || 'karaoke';
+    const rawTitle  = (Intro.get().title || '').trim() || 'karaoke';
     const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');

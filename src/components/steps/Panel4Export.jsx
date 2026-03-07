@@ -25,6 +25,96 @@ export default function Panel4Export({ isActive, goToStep }) {
 
           <div className="export-settings">
 
+          {/* Intro del video */}
+          <div className="settings-section" id="sec-intro">
+            <div className="settings-section-header">
+              <div className="settings-section-title">🎬 Intro del video</div>
+              <button className="sec-collapse-btn" data-sec="sec-intro" title="Colapsar">▾</button>
+            </div>
+            <div className="sec-body">
+
+              <div className="toggle-row">
+                <label className="toggle-label">
+                  <input id="introEnabledToggle" type="checkbox" />
+                  <span>Activar carta de título</span>
+                </label>
+              </div>
+
+              <label className="field-label">Título de la canción</label>
+              <input id="introTitleInput" type="text" className="field-input" placeholder="Nombre de la canción..." />
+
+              <label className="field-label">Artista / Banda</label>
+              <input id="introArtistInput" type="text" className="field-input" placeholder="Nombre del artista..." />
+
+              <label className="field-label">Duración</label>
+              <div className="slider-row">
+                <input id="introDurationSlider" type="range" className="slider" min="2" max="12" step="0.5" defaultValue="4" />
+                <span id="introDurationVal" className="slider-val">4.0s</span>
+              </div>
+
+              <label className="field-label">Estilo visual</label>
+              <div id="introStyleGrid" className="intro-style-grid">
+                {[
+                  { id: 'minimal',   icon: '☁️',  label: 'Minimal'   },
+                  { id: 'bold',      icon: '★',   label: 'Bold'       },
+                  { id: 'neon',      icon: '⚡',  label: 'Neon'       },
+                  { id: 'cinematic', icon: '🎞️', label: 'Cinematic'  },
+                  { id: 'vintage',   icon: '🎭',  label: 'Vintage'    },
+                ].map(s => (
+                  <button key={s.id} className={`intro-style-card${s.id === 'bold' ? ' active' : ''}`} data-style={s.id}>
+                    <span className="intro-style-icon">{s.icon}</span>
+                    <span className="intro-style-label">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <label className="field-label">Transición</label>
+              <div id="introTransitionGrid" className="intro-trans-grid">
+                {[
+                  { id: 'fade',       label: '✨ Fade'      },
+                  { id: 'slide-up',   label: '↑ Slide'     },
+                  { id: 'zoom',       label: '🔍 Zoom'     },
+                  { id: 'typewriter', label: '⌨️ Typer'    },
+                ].map((t, i) => (
+                  <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition={t.id}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="color-row" style={{ marginTop: '8px' }}>
+                <div className="color-item">
+                  <label className="field-label">Color título</label>
+                  <input id="introTitleColorPicker" type="color" className="color-picker" defaultValue="#ffffff" />
+                </div>
+                <div className="color-item">
+                  <label className="field-label">Color artista</label>
+                  <input id="introArtistColorPicker" type="color" className="color-picker" defaultValue="#c0a0ff" />
+                </div>
+              </div>
+
+              <label className="field-label">Tamaño del título</label>
+              <div className="slider-row">
+                <input id="introTitleSizeSlider" type="range" className="slider" min="0.5" max="1.8" step="0.05" defaultValue="1.0" />
+                <span id="introTitleSizeVal" className="slider-val">1.00×</span>
+              </div>
+
+              <label className="field-label">Tamaño del artista</label>
+              <div className="slider-row">
+                <input id="introArtistRatioSlider" type="range" className="slider" min="0.2" max="0.8" step="0.05" defaultValue="0.45" />
+                <span id="introArtistRatioVal" className="slider-val">45%</span>
+              </div>
+
+              <div className="toggle-row">
+                <label className="toggle-label">
+                  <input id="introShowLogoToggle" type="checkbox" defaultChecked />
+                  <span>Mostrar logo Makereoke</span>
+                </label>
+              </div>
+
+            </div>
+          </div>
+
           {/* Tema */}
           <div className="settings-section" id="sec-theme">
             <div className="settings-section-header">

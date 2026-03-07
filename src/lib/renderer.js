@@ -1631,22 +1631,169 @@ const Renderer = (() => {
     }
   }
 
-  function drawFrame(canvas, opts) {
-    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, progressColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom', progressBarOpacity=1, secondarySizeRatio=0.62, secondaryOpacity=0.65, nextLineOffset=1.05, prevLineOpacity=0.22 } = opts;
-    // Rate-limited log: fires only when activeColorOverride or songTitle changes
-    const _sig = `${activeColorOverride}|${songTitle}`;
-    if (drawFrame._lastSig !== _sig) {
-      drawFrame._lastSig = _sig;
-      let activeIdx2 = -1;
-      for (let i=0; i<lines.length; i++) { if (lines[i].time <= time) activeIdx2 = i; }
-      const currLineTxt = activeIdx2 >= 0 ? lines[activeIdx2]?.text : null;
-      console.log('[Renderer/drawFrame] value change detected \u2014 activeColorOverride:', activeColorOverride,
-        '| inactiveColorOverride:', inactiveColorOverride, '| songTitle:', `"${songTitle}"`,
-        '| currLine:', currLineTxt || 'null (no active lyric at t=' + time.toFixed(2) + ')');
+  /* ─── Intro title card renderer ───────────────────────── */
+  function drawIntroFrame(ctx, W, H, opts, introConfig) {
+    const {
+      theme = 'classic', animation = 'none', fontSize = 56,
+      fontFamily = "'Segoe UI', sans-serif",
+      showProgressBar = true, progressBarStyle = 'bottom',
+      progressBarOpacity = 1, progressColorOverride = null,
+      overlayEffect = 'none', duration = 1, time = 0,
+    } = opts;
+    const {
+      title = '', artist = '', style = 'bold', transition = 'fade',
+      titleColor = '#ffffff', artistColor = '#c0a0ff',
+      titleSize = 1.0, artistRatio = 0.45,
+      showLogo = true, duration: introDur = 4,
+    } = introConfig;
+    const T = THEMES[theme] || THEMES.classic;
+    // ── Background ──
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, T.base[0]); bg.addColorStop(1, T.base[1]);
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    ctx.save(); (ANIMATIONS[animation] || ANIMATIONS.none)(ctx, W, H, time); ctx.restore();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, 0, W, H);
+    // ── Style-specific overlays ──
+    if (style === 'cinematic') {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, W, H * 0.14);
+      ctx.fillRect(0, H * 0.86, W, H * 0.14);
+    } else if (style === 'vintage') {
+      ctx.fillStyle = 'rgba(90,60,10,0.18)'; ctx.fillRect(0, 0, W, H);
+      const vign = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.75);
+      vign.addColorStop(0, 'rgba(0,0,0,0)'); vign.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = vign; ctx.fillRect(0, 0, W, H);
+    } else if (style === 'neon') {
+      ctx.globalAlpha = 0.025; ctx.fillStyle = '#000';
+      for (let sy = 0; sy < H; sy += 4) ctx.fillRect(0, sy, W, 2);
+      ctx.globalAlpha = 1;
     }
+    // ── Transition state ──
+    const transInDur  = Math.min(0.7, introDur * 0.22);
+    const transOutDur = Math.min(0.6, introDur * 0.15);
+    const inPct  = transInDur  > 0 ? clampN(time / transInDur, 0, 1) : 1;
+    const outPct = transOutDur > 0 ? clampN((time - (introDur - transOutDur)) / transOutDur, 0, 1) : 0;
+    const alpha  = clampN(Math.min(inPct, 1 - outPct), 0, 1);
+    const eased  = 1 - Math.pow(1 - inPct, 3); // cubic ease-out
+    let offY = 0;
+    if (transition === 'slide-up') offY = (1 - eased) * H * 0.08;
+    // ── Font sizes & layout ──
+    const fsBase   = Math.max(24, Math.round(fontSize * W / 1920));
+    const fsTitle  = Math.round(fsBase * 1.8 * clampN(titleSize, 0.5, 2.0));
+    const fsArtist = Math.round(fsTitle * clampN(artistRatio, 0.2, 1.0));
+    const cx = W / 2, cy = H / 2;
+    const hasArtist = artist.trim().length > 0;
+    const gap = Math.round(fsTitle * 0.5);
+    const totalH = hasArtist ? fsTitle + gap + fsArtist : fsTitle;
+    const titleY  = cy - totalH / 2 + fsTitle / 2;
+    const artistY = titleY + gap + fsArtist * 0.5 + fsTitle * 0.5;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (transition === 'zoom') {
+      const sc = 0.82 + eased * 0.18;
+      ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy);
+    }
+    // Pre-measure text
+    ctx.font = `800 ${fsTitle}px ${fontFamily}`;
+    const titleDisplay = _fit(ctx, title || '\u266b', W - 160);
+    ctx.font = `400 ${fsArtist}px ${fontFamily}`;
+    const artistDisplay = hasArtist ? _fit(ctx, artist, W - 200) : '';
+    const tY = titleY + offY, aY = artistY + offY;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // ── Inner helper: draw text with typewriter clip ──
+    function _drawTxt(text, x, y, fs, weight) {
+      ctx.font = `${weight} ${fs}px ${fontFamily}`;
+      if (transition === 'typewriter' && inPct < 1) {
+        const tw = ctx.measureText(text).width;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x - tw * 0.52, y - fs, tw * inPct + 4, fs * 2.1); ctx.clip();
+        ctx.fillText(text, x, y);
+        ctx.restore();
+      } else {
+        ctx.fillText(text, x, y);
+      }
+      ctx.shadowBlur = 0;
+    }
+    // ── Title by style ──
+    if (style === 'minimal') {
+      ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
+      _drawTxt(titleDisplay, cx, tY, fsTitle, '300');
+    } else if (style === 'bold') {
+      ctx.shadowColor = titleColor; ctx.shadowBlur = 32; ctx.fillStyle = titleColor;
+      _drawTxt(titleDisplay, cx, tY, fsTitle, '800');
+    } else if (style === 'neon') {
+      ctx.save(); ctx.globalAlpha = alpha * 0.4;
+      ctx.font = `700 ${fsTitle}px ${fontFamily}`;
+      ctx.shadowColor = titleColor; ctx.shadowBlur = 70; ctx.fillStyle = titleColor;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(titleDisplay, cx, tY);
+      ctx.restore(); ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#fff'; ctx.shadowColor = titleColor; ctx.shadowBlur = 18;
+      _drawTxt(titleDisplay, cx, tY, fsTitle, '700');
+    } else if (style === 'cinematic') {
+      const cinTitle = (title || '\u266b').toUpperCase();
+      ctx.font = `200 ${Math.round(fsTitle * 0.9)}px ${fontFamily}`;
+      const cinDisplay = _fit(ctx, cinTitle, W - 160);
+      ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
+      _drawTxt(cinDisplay, cx, tY, Math.round(fsTitle * 0.9), '200');
+      const lineLen = Math.min(W * 0.22, 300);
+      ctx.save(); ctx.globalAlpha = alpha * 0.4; ctx.fillStyle = titleColor;
+      ctx.fillRect(cx - lineLen / 2, tY + Math.round(fsTitle * 0.62), lineLen, 1);
+      ctx.restore();
+    } else if (style === 'vintage') {
+      ctx.shadowColor = 'rgba(180,140,60,0.6)'; ctx.shadowBlur = 14; ctx.fillStyle = titleColor;
+      _drawTxt(titleDisplay, cx, tY, Math.round(fsTitle * 0.88), '600');
+      ctx.save(); ctx.globalAlpha = alpha * 0.5;
+      ctx.font = `300 ${Math.round(fsArtist * 0.85)}px ${fontFamily}`;
+      ctx.fillStyle = titleColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('\u2500\u2500\u2500 \u2736 \u2500\u2500\u2500', cx, tY + Math.round(fsTitle * 0.58));
+      ctx.restore();
+    }
+    // ── Artist ──
+    if (hasArtist) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = artistColor;
+      ctx.shadowBlur = style === 'neon' ? 18 : 0;
+      if (style === 'neon') ctx.shadowColor = artistColor;
+      _drawTxt(
+        style === 'cinematic' ? artist.toUpperCase() : artistDisplay,
+        cx, aY, fsArtist, style === 'cinematic' ? '300' : '400'
+      );
+    }
+    ctx.restore();
+    // ── Logo watermark ──
+    if (showLogo) {
+      ctx.save(); ctx.globalAlpha = alpha * 0.55;
+      const logoFs = Math.max(14, Math.round(W * 0.011));
+      ctx.font = `700 ${logoFs}px ${fontFamily}`;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.shadowBlur = 0;
+      ctx.fillText('\uD83C\uDFA4 Makereoke', W - 28, 22);
+      ctx.restore();
+    }
+    // ── Progress bar ──
+    if (showProgressBar) {
+      ctx.save(); ctx.globalAlpha = clampN(progressBarOpacity, 0, 1);
+      const _progressT = progressColorOverride ? { ...T, progressFg: progressColorOverride } : T;
+      _drawProgress(ctx, W, H, time, duration, progressBarStyle, _progressT, Math.max(12, Math.round(fontSize * 0.44 * W / 1920)));
+      ctx.restore();
+    }
+    // ── FG overlay ──
+    ctx.save(); (OVERLAYS[overlayEffect] || OVERLAYS.none)(ctx, W, H, time); ctx.restore();
+  }
+
+  function drawFrame(canvas, opts) {
+    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, progressColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom', progressBarOpacity=1, secondarySizeRatio=0.62, secondaryOpacity=0.65, nextLineOffset=1.05, prevLineOpacity=0.22, introConfig=null } = opts;
+    // Rate-limited log: fires only when activeColorOverride or songTitle changes
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
     const T=THEMES[theme]||THEMES.classic;
     const GI=clampN(glowIntensity,0,3);
+
+    // ── Intro title card (renders in place of lyrics during intro duration) ──
+    if (introConfig?.enabled && time < introConfig.duration) {
+      drawIntroFrame(ctx, W, H, opts, introConfig);
+      return;
+    }
 
     const bg=ctx.createLinearGradient(0,0,0,H);
     bg.addColorStop(0,T.base[0]); bg.addColorStop(1,T.base[1]);

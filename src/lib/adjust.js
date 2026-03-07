@@ -5,6 +5,7 @@
 import Audio from './audio.js';
 import Lyrics from './lyrics.js';
 import Sync from './sync.js';
+import Intro from './intro.js';
 import { formatTime, parseTime, toast, clamp } from './utils.js';
 
 const Adjust = (() => {
@@ -98,6 +99,26 @@ const Adjust = (() => {
     document.getElementById('adjSeekBar').max = dur;
     document.getElementById('adjTotalTime').textContent = formatTime(dur);
     onTimeUpdate(Audio.getCurrentTime());
+
+    // ── Intro timeline controls ──
+    const adjIntroEnabled   = document.getElementById('adjIntroEnabled');
+    const adjIntroDurSlider = document.getElementById('adjIntroDurationSlider');
+    const adjIntroDurLabel  = document.getElementById('adjIntroDurationLabel');
+    const ic = Intro.get();
+    if (adjIntroEnabled) {
+      adjIntroEnabled.checked = ic.enabled;
+      adjIntroEnabled.onchange = () => { Intro.set({ enabled: adjIntroEnabled.checked }); drawTimeline(); };
+    }
+    if (adjIntroDurSlider) {
+      adjIntroDurSlider.value = ic.duration;
+      if (adjIntroDurLabel) adjIntroDurLabel.textContent = ic.duration.toFixed(1) + 's';
+      adjIntroDurSlider.oninput = () => {
+        const d = parseFloat(adjIntroDurSlider.value);
+        Intro.set({ duration: d });
+        if (adjIntroDurLabel) adjIntroDurLabel.textContent = d.toFixed(1) + 's';
+        drawTimeline();
+      };
+    }
   }
 
   /* ─── VOICE CONFIG (mirrors sync.js state into adj_ inputs) ─── */
@@ -340,6 +361,25 @@ const Adjust = (() => {
 
     ctx.fillStyle = '#141428';
     ctx.fillRect(0, 0, W, H);
+
+    // ── Intro zone tint ──
+    const _ic = Intro.get();
+    if (_ic.enabled && _ic.duration > 0 && dur > 0) {
+      ctx.save();
+      const izW = Math.max(4, (_ic.duration / dur) * W);
+      ctx.fillStyle = 'rgba(124,77,255,0.15)';
+      ctx.fillRect(0, 0, izW, H);
+      ctx.strokeStyle = 'rgba(192,160,255,0.75)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(izW, 0); ctx.lineTo(izW, H); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#c0a0ff';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      if (izW > 40) ctx.fillText('\uD83C\uDDEE\uD83C\uDDF3 ' + _ic.duration.toFixed(1) + 's', 4, 4);
+      ctx.restore();
+    }
 
     ctx.fillStyle = '#31316a';
     ctx.fillRect(0, 30, W, 1);

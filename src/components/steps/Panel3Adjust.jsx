@@ -47,6 +47,22 @@ export default function Panel3Adjust({ isActive, goToStep }) {
           <input id="adjSeekBar" type="range" className="seek-bar" min="0" step="0.01" defaultValue="0" style={{ flex: 1 }} />
         </div>
 
+        {/* Intro segment control */}
+        <div className="intro-timeline-bar">
+          <label className="intro-tl-toggle">
+            <input type="checkbox" id="adjIntroEnabled" />
+            <span>🎬 Intro del video</span>
+          </label>
+          <div className="intro-tl-duration">
+            <span className="intro-tl-dur-hint">Duración:</span>
+            <input type="range" id="adjIntroDurationSlider" className="slider"
+              min="1" max="15" step="0.5" defaultValue="4"
+              style={{ flex: 1, maxWidth: 160 }}
+            />
+            <span id="adjIntroDurationLabel" className="slider-val">4.0s</span>
+          </div>
+        </div>
+
         {/* Timeline */}
         <div className="timeline-toolbar">
           <span className="timeline-toolbar-label">📍 Línea de tiempo</span>

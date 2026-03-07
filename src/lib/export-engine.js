@@ -9,6 +9,7 @@ import Sync from './sync.js';
 import Intro from './intro.js';
 import { formatTime, debounce } from './utils.js';
 import { Muxer, ArrayBufferTarget } from 'webm-muxer';
+import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4ABTarget } from 'mp4-muxer';
 
 const ExportEngine = (() => {
 
@@ -44,7 +45,7 @@ const ExportEngine = (() => {
   let nextOffsetSlider, nextOffsetVal;
   let prevOpacitySlider, prevOpacityVal;
   let resolutionSelect, fontSizeSlider, fontSizeVal;
-  let glowSlider, glowVal, textPositionSelect, fpsSelect;
+  let glowSlider, glowVal, textPositionSelect, fpsSelect, exportFormatSelect;
   let showProgressToggle;
   let songTitleInput, activeColorPicker, inactiveColorPicker;
   let previewCanvas, exportPlayBtn, exportSeekBar, exportCurrentTime;
@@ -411,7 +412,21 @@ const ExportEngine = (() => {
     glowVal            = document.getElementById('glowVal');
     textPositionSelect = document.getElementById('textPositionSelect');
     fpsSelect          = document.getElementById('fpsSelect');
+    exportFormatSelect = document.getElementById('exportFormatSelect');
     showProgressToggle = document.getElementById('showProgressToggle');
+
+    // Update hint text when format changes
+    if (exportFormatSelect) {
+      const _hints = {
+        mp4:  'MP4 — H.264 + AAC. Mejor compatibilidad con reproductores y editores.',
+        webm: 'WebM — VP9 + Opus. Ideal para web. Requiere Chrome/Edge.',
+        avi:  'AVI — MJPEG + PCM16. Máxima compatibilidad clásica. Archivos más grandes.',
+      };
+      const _hintEl = document.getElementById('exportFormatHint');
+      exportFormatSelect.addEventListener('change', () => {
+        if (_hintEl) _hintEl.textContent = _hints[exportFormatSelect.value] || '';
+      });
+    }
     if (glowSlider) {
       glowSlider.addEventListener('input', () => {
         currentGlow = parseFloat(glowSlider.value);
@@ -818,9 +833,10 @@ const ExportEngine = (() => {
 
     // ── Prefer fast offline WebCodecs path ──
     const hasWebCodecs = typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined';
+    const _format = exportFormatSelect?.value || 'webm';
     if (hasWebCodecs && Audio.rawFile) {
       try {
-        await _startWebCodecsRecording(rW, rH);
+        await _startWebCodecsRecording(rW, rH, _format);
         return;
       } catch (err) {
         console.warn('[export] WebCodecs render failed, falling back to MediaRecorder:', err);
@@ -915,14 +931,226 @@ const ExportEngine = (() => {
     rafId = requestAnimationFrame(recLoop);
   }
 
-  /* ─── WebCodecs offline fast render ─────────────────── */
-  async function _startWebCodecsRecording(rW, rH) {
+  /* ─── Minimal RIFF/AVI MJPEG container writer ──────────────────
+     Produces standard RIFF AVI v1 with MJPEG video + 16-bit PCM audio.
+     Compatible with VLC, Windows Media Player, ffmpeg, video editors, etc.
+  ──────────────────────────────────────────────────────────────── */
+  class _MjpegAviWriter {
+    constructor({ width, height, fps, sampleRate, numChannels }) {
+      this.w = width; this.h = height; this.fps = fps;
+      this.sr = sampleRate; this.nc = numChannels;
+      this.vFrames = []; this.aFrames = [];
+    }
+    addVideo(jpegU8) { this.vFrames.push(jpegU8); }
+    addAudio(pcm16)  { this.aFrames.push(pcm16);  }
+
+    finalize() {
+      const { w, h, fps, sr, nc } = this;
+      const nf          = this.vFrames.length;
+      const nBlockAlign = nc * 2; // bytes per stereo/mono sample frame
+      const totalAudioBlocks = this.aFrames.reduce((s, a) => s + (a.length / nc), 0);
+      const maxVFrame   = Math.max(...this.vFrames.map(f => f.length));
+
+      // ── Pre-calculate movi layout (offsets needed for idx1) ──
+      const chunks = []; // { fcc, isKey, data: Uint8Array, pad, moviOff }
+      let moviOffset = 4; // bytes inside movi after 'movi' FCC
+      for (let i = 0; i < nf; i++) {
+        const vd = this.vFrames[i];
+        const vPad = vd.length & 1;
+        chunks.push({ fcc: 0x30306463 /* '00dc' */, isKey: true,  data: vd, pad: vPad, moviOff: moviOffset });
+        moviOffset += 8 + vd.length + vPad;
+        if (this.aFrames[i]) {
+          const ab = new Uint8Array(this.aFrames[i].buffer, this.aFrames[i].byteOffset, this.aFrames[i].byteLength);
+          const aPad = ab.length & 1;
+          chunks.push({ fcc: 0x30317762 /* '01wb' */, isKey: false, data: ab, pad: aPad, moviOff: moviOffset });
+          moviOffset += 8 + ab.length + aPad;
+        }
+      }
+      const moviDataSize = moviOffset - 4;
+
+      // ── Header & total size calculation ──
+      const avihSz = 56, strhSz = 56, strfVSz = 40, strfASz = 18;
+      const strlVSz       = 4 + (8 + strhSz) + (8 + strfVSz);
+      const strlASz       = 4 + (8 + strhSz) + (8 + strfASz);
+      const hdrlPayload   = 4 + (8 + avihSz) + (8 + strlVSz) + (8 + strlASz);
+      const moviListPayload = 4 + moviDataSize;
+      const idx1Sz        = chunks.length * 16;
+      const riffData      = 4 + (8 + hdrlPayload) + (8 + moviListPayload) + (8 + idx1Sz);
+      const totalSz       = 8 + riffData;
+
+      const buf = new ArrayBuffer(totalSz);
+      const dv  = new DataView(buf);
+      const u8  = new Uint8Array(buf);
+      let p = 0;
+
+      // Helpers (AVI uses little-endian for sizes, big-endian for FCC viewed as uint32)
+      const wFCC = (code) => { dv.setUint32(p, code, false); p += 4; };
+      const w4   = (v)    => { dv.setUint32(p, v, true);     p += 4; };
+      const w2   = (v)    => { dv.setUint16(p, v, true);     p += 2; };
+      const wBuf = (arr)  => { u8.set(arr, p); p += arr.length; };
+
+      // RIFF AVI
+      wFCC(0x52494646); w4(riffData); wFCC(0x41564920); // 'RIFF' <size> 'AVI '
+
+      // LIST hdrl
+      wFCC(0x4C495354); w4(hdrlPayload); wFCC(0x6864726C); // 'LIST' <size> 'hdrl'
+
+      // avih — AVI main header
+      wFCC(0x61766968); w4(avihSz);
+      w4(Math.round(1_000_000 / fps)); // dwMicroSecPerFrame
+      w4((sr * nBlockAlign) + maxVFrame * fps); // dwMaxBytesPerSec
+      w4(0);                           // dwPaddingGranularity
+      w4(0x00000110);                  // dwFlags: HASINDEX(0x10) | ISINTERLEAVED(0x100)
+      w4(nf);                          // dwTotalFrames
+      w4(0);                           // dwInitialFrames
+      w4(2);                           // dwStreams
+      w4(maxVFrame + Math.ceil(sr / fps) * nBlockAlign); // dwSuggestedBufferSize
+      w4(w); w4(h);                    // dwWidth, dwHeight
+      w4(0); w4(0); w4(0); w4(0);     // dwReserved[4]
+
+      // LIST strl — video stream
+      wFCC(0x4C495354); w4(strlVSz); wFCC(0x7374726C);
+      wFCC(0x73747268); w4(strhSz); // strh
+      wFCC(0x76696473); // fccType  = 'vids'
+      wFCC(0x4D4A5047); // fccHandler = 'MJPG'
+      w4(0); w2(0); w2(0); w4(0);   // Flags, Priority, Language, InitialFrames
+      w4(1); w4(fps);                // dwScale=1, dwRate=fps
+      w4(0); w4(nf);                 // dwStart, dwLength
+      w4(maxVFrame);                 // dwSuggestedBufferSize
+      w4(0xFFFFFFFF);                // dwQuality
+      w4(0);                         // dwSampleSize (variable-size frames)
+      w2(0); w2(0); w2(w); w2(h);  // rcFrame
+      wFCC(0x73747266); w4(strfVSz); // strf
+      w4(40); w4(w); w4(h); w2(1); w2(24); // biSize,Width,Height,Planes,BitCount
+      wFCC(0x4D4A5047);              // biCompression = 'MJPG'
+      w4(w * h * 3);                 // biSizeImage
+      w4(0); w4(0); w4(0); w4(0);   // XPels,YPels,ClrUsed,ClrImportant
+
+      // LIST strl — audio stream
+      wFCC(0x4C495354); w4(strlASz); wFCC(0x7374726C);
+      wFCC(0x73747268); w4(strhSz); // strh
+      wFCC(0x61756473); // fccType = 'auds'
+      w4(0);             // fccHandler
+      w4(0); w2(0); w2(0); w4(0);               // Flags, Priority, Language, InitialFrames
+      w4(nBlockAlign); w4(sr * nBlockAlign);      // dwScale, dwRate
+      w4(0); w4(Math.round(totalAudioBlocks));    // dwStart, dwLength (blocks)
+      w4(Math.ceil(sr / fps) * nBlockAlign);      // dwSuggestedBufferSize
+      w4(0xFFFFFFFF);                             // dwQuality
+      w4(nBlockAlign);                            // dwSampleSize
+      w2(0); w2(0); w2(0); w2(0);                // rcFrame
+      wFCC(0x73747266); w4(strfASz); // strf (WAVEFORMATEX)
+      w2(1); w2(nc);                              // WAVE_FORMAT_PCM, nChannels
+      w4(sr); w4(sr * nBlockAlign);               // nSamplesPerSec, nAvgBytesPerSec
+      w2(nBlockAlign); w2(16); w2(0);             // nBlockAlign, wBitsPerSample, cbSize
+
+      // LIST movi
+      wFCC(0x4C495354); w4(moviListPayload); wFCC(0x6D6F7669);
+      for (const ck of chunks) {
+        wFCC(ck.fcc); w4(ck.data.length);
+        wBuf(ck.data);
+        if (ck.pad) u8[p++] = 0;
+      }
+
+      // idx1 chunk index
+      wFCC(0x69647831); w4(idx1Sz);
+      for (const ck of chunks) {
+        wFCC(ck.fcc);
+        w4(ck.isKey ? 0x10 : 0x00); // AVIIF_KEYFRAME
+        w4(ck.moviOff);
+        w4(ck.data.length);
+      }
+
+      return buf;
+    }
+  }
+
+  /* ─── AVI MJPEG offline render ──────────────────────────── */
+  async function _encodeAsAvi(rW, rH, fps, audioBuffer, totalFrames, frameStep) {
+    const sampleRate    = audioBuffer.sampleRate;
+    const numChannels   = Math.min(audioBuffer.numberOfChannels, 2);
+    const channels      = [];
+    for (let c = 0; c < numChannels; c++) channels.push(audioBuffer.getChannelData(c));
+    const samplesPerFrame = Math.round(sampleRate / fps);
+    const duration        = totalFrames / fps;
+
+    const aviWriter = new _MjpegAviWriter({ width: rW, height: rH, fps, sampleRate: sampleRate, numChannels });
+
+    console.log('[EE] AVI MJPEG render START — resolution:', rW + 'x' + rH,
+      '| fps:', fps, '| frames:', totalFrames);
+    progressLabel.textContent = 'Renderizando... 0%';
+
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = rW; offCanvas.height = rH;
+    if (previewCanvas.width !== rW || previewCanvas.height !== rH) {
+      previewCanvas.width = rW; previewCanvas.height = rH;
+    }
+    const prevCtx = previewCanvas.getContext('2d');
+
+    for (let i = 0; i < totalFrames; i++) {
+      const t = i * frameStep;
+      Renderer.drawFrame(offCanvas, getRenderOpts(t));
+      if (i % fps === 0) prevCtx.drawImage(offCanvas, 0, 0);
+
+      // Synchronous JPEG encoding via canvas API
+      const dataUrl   = offCanvas.toDataURL('image/jpeg', 0.82);
+      const b64       = dataUrl.slice(dataUrl.indexOf(',') + 1);
+      const rawStr    = atob(b64);
+      const jpegBytes = new Uint8Array(rawStr.length);
+      for (let j = 0; j < rawStr.length; j++) jpegBytes[j] = rawStr.charCodeAt(j);
+      aviWriter.addVideo(jpegBytes);
+
+      // PCM16 interleaved audio for this frame
+      const aStart = i * samplesPerFrame;
+      const count  = Math.min(samplesPerFrame, audioBuffer.length - aStart);
+      const pcm16  = new Int16Array(Math.max(0, count) * numChannels);
+      for (let c = 0; c < numChannels; c++) {
+        const ch = channels[c];
+        for (let s = 0; s < count; s++) {
+          const raw = (aStart + s) < ch.length ? ch[aStart + s] : 0;
+          pcm16[s * numChannels + c] = Math.max(-32768, Math.min(32767, Math.round(raw * 32767)));
+        }
+      }
+      aviWriter.addAudio(pcm16);
+
+      const pct = Math.round(((i + 1) / totalFrames) * 100);
+      progressBarInner.style.width = pct + '%';
+      progressLabel.textContent    = `Renderizando AVI... ${pct}%`;
+      exportSeekBar.value          = (t / duration) * 100;
+      exportCurrentTime.textContent = formatTime(t);
+      // Yield every 4 frames so the UI stays responsive
+      if (i % 4 === 3) await new Promise(r => setTimeout(r, 0));
+    }
+
+    progressLabel.textContent = 'Finalizando AVI...';
+    console.log('[EE] AVI frames done — building RIFF container...');
+    await new Promise(r => setTimeout(r, 0)); // one paint before heavy finalize
+    const buffer = aviWriter.finalize();
+    console.log('[EE] AVI finalized — size:', buffer.byteLength, 'bytes');
+
+    recording = false;
+    const blob = new Blob([buffer], { type: 'video/x-msvideo' });
+    const rawTitle  = (Intro.get().title || '').trim() || 'karaoke';
+    const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = safeTitle + '.avi'; a.click();
+    URL.revokeObjectURL(url);
+
+    document.querySelector('.status-idle').classList.remove('hidden');
+    recordProgress.classList.add('hidden');
+    startRecordBtn.disabled = false;
+    previewExportBtn.disabled = false;
+    progressBarInner.style.width = '0%';
+    alert('✅ Video AVI listo');
+  }
+
+  /* ─── WebCodecs offline fast render (WebM / MP4) ──────── */
+  async function _startWebCodecsRecording(rW, rH, format) {
     const fps       = parseInt(fpsSelect?.value || '30', 10);
     const duration  = Audio.duration;
     const totalFrames = Math.ceil(duration * fps);
-    const frameStep   = duration / totalFrames; // seconds per frame
+    const frameStep   = duration / totalFrames;
 
-    // Decode audio to PCM using a temporary AudioContext
     progressLabel.textContent = 'Decodificando audio...';
     const arrayBuffer = await Audio.rawFile.arrayBuffer();
     const tempCtx     = new (window.AudioContext || window.webkitAudioContext)();
@@ -933,22 +1161,57 @@ const ExportEngine = (() => {
     const numChannels  = Math.min(audioBuffer.numberOfChannels, 2);
     const totalSamples = audioBuffer.length;
 
-    // Try VP9 first, fall back to VP8 for broader hardware support
-    let videoCodec = 'vp09.00.10.08';
-    try {
-      const vRes = await VideoEncoder.isConfigSupported({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000 });
-      if (!vRes.supported) videoCodec = 'vp8';
-    } catch (_) { videoCodec = 'vp8'; }
+    // ── AVI path delegates to MJPEG writer ──
+    if (format === 'avi') {
+      return _encodeAsAvi(rW, rH, fps, audioBuffer, totalFrames, frameStep);
+    }
 
-    const muxer = new Muxer({
-      target:  new ArrayBufferTarget(),
-      video:   { codec: videoCodec === 'vp8' ? 'V_VP8' : 'V_VP9', width: rW, height: rH, frameRate: fps },
-      audio:   { codec: 'A_OPUS', sampleRate, numberOfChannels: numChannels },
-      firstTimestampBehavior: 'offset',
-    });
+    // ── MP4 (H.264 + AAC) or WebM (VP9/VP8 + Opus) ──
+    let muxer, videoCodec, audioCodecStr, fileExt, blobType;
 
-    // Encoder errors are stored here and re-thrown on the main loop to avoid
-    // throwing from inside a browser callback (which crashes the tab uncaught).
+    if (format === 'mp4') {
+      // Try H.264 profiles from highest quality to most compatible
+      const h264Profiles = ['avc1.640028', 'avc1.4d001f', 'avc1.42E01E'];
+      for (const p of h264Profiles) {
+        try {
+          const r = await VideoEncoder.isConfigSupported({ codec: p, width: rW, height: rH, bitrate: 4_000_000 });
+          if (r.supported) { videoCodec = p; break; }
+        } catch (_) {}
+      }
+      if (!videoCodec) throw new Error('H.264 encoding no soportado en este navegador — intenta WebM');
+
+      const aacCheck = await AudioEncoder.isConfigSupported({
+        codec: 'mp4a.40.2', sampleRate, numberOfChannels: numChannels, bitrate: 128_000,
+      }).catch(() => ({ supported: false }));
+      if (!aacCheck.supported) throw new Error('AAC encoding no soportado en este navegador — intenta WebM');
+
+      audioCodecStr = 'mp4a.40.2';
+      muxer = new Mp4Muxer({
+        target: new Mp4ABTarget(),
+        video:  { codec: 'avc', width: rW, height: rH },
+        audio:  { codec: 'aac', numberOfChannels: numChannels, sampleRate },
+        fastStart: 'in-memory',
+      });
+      fileExt = 'mp4'; blobType = 'video/mp4';
+    } else {
+      // WebM — VP9 with VP8 fallback
+      videoCodec = 'vp09.00.10.08';
+      try {
+        const vRes = await VideoEncoder.isConfigSupported({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000 });
+        if (!vRes.supported) videoCodec = 'vp8';
+      } catch (_) { videoCodec = 'vp8'; }
+
+      audioCodecStr = 'opus';
+      muxer = new Muxer({
+        target: new ArrayBufferTarget(),
+        video:  { codec: videoCodec === 'vp8' ? 'V_VP8' : 'V_VP9', width: rW, height: rH, frameRate: fps },
+        audio:  { codec: 'A_OPUS', sampleRate, numberOfChannels: numChannels },
+        firstTimestampBehavior: 'offset',
+      });
+      fileExt = 'webm'; blobType = 'video/webm';
+    }
+
+    // Errors stored and rethrown on main loop (throwing from a callback crashes the tab)
     let _vcErr = null, _acErr = null;
 
     const videoEncoder = new VideoEncoder({
@@ -961,67 +1224,58 @@ const ExportEngine = (() => {
       output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
       error:  e => { _acErr = e; },
     });
-    audioEncoder.configure({ codec: 'opus', sampleRate, numberOfChannels: numChannels, bitrate: 128_000 });
+    audioEncoder.configure({ codec: audioCodecStr, sampleRate, numberOfChannels: numChannels, bitrate: 128_000 });
 
-    // ── Encode video + update preview ──────────────────
-    console.log('[EE] WebCodecs render START — codec:', videoCodec, '| resolution:', rW + 'x' + rH,
-      '| fps:', fps, '| duration:', duration.toFixed(2) + 's', '| frames:', totalFrames);
+    console.log('[EE] WebCodecs render START —', fileExt.toUpperCase(),
+      '| vcodec:', videoCodec, '| acodec:', audioCodecStr,
+      '| resolution:', rW + 'x' + rH, '| fps:', fps,
+      '| duration:', duration.toFixed(2) + 's', '| frames:', totalFrames);
     progressLabel.textContent = 'Renderizando... 0%';
     const offCanvas = document.createElement('canvas');
     offCanvas.width = rW; offCanvas.height = rH;
-
-    // Update previewCanvas size if needed
     if (previewCanvas.width !== rW || previewCanvas.height !== rH) {
       previewCanvas.width = rW; previewCanvas.height = rH;
     }
-    const prevCtx = previewCanvas.getContext('2d');
-    // Max frames to queue in the encoder before yielding (backpressure)
+    const prevCtx  = previewCanvas.getContext('2d');
     const MAX_QUEUE = 12;
 
     for (let i = 0; i < totalFrames; i++) {
-      // Propagate any encoder error to the outer try/catch
       if (_vcErr) throw _vcErr;
-
-      // Backpressure: yield until the encoder queue drains below threshold
       while (videoEncoder.encodeQueueSize > MAX_QUEUE) {
         await new Promise(r => setTimeout(r, 5));
         if (_vcErr) throw _vcErr;
       }
 
-      const t         = i * frameStep;
-      const tsUs      = Math.round(t * 1_000_000); // microseconds
+      const t    = i * frameStep;
+      const tsUs = Math.round(t * 1_000_000);
 
       Renderer.drawFrame(offCanvas, getRenderOpts(t));
-      // Mirror to visible preview once per second to reduce GPU pressure
       if (i % fps === 0) prevCtx.drawImage(offCanvas, 0, 0);
 
       const videoFrame = new VideoFrame(offCanvas, { timestamp: tsUs, duration: Math.round(frameStep * 1_000_000) });
       videoEncoder.encode(videoFrame, { keyFrame: i % (fps * 2) === 0 });
       videoFrame.close();
 
-      // Update progress bar and seek bar
       const pct = Math.round(((i + 1) / totalFrames) * 100);
       progressBarInner.style.width = pct + '%';
       progressLabel.textContent    = `Renderizando... ${pct}%`;
       exportSeekBar.value          = (t / duration) * 100;
       exportCurrentTime.textContent = formatTime(t);
 
-      // Yield to browser every 8 frames so UI updates paint
       if (i % 8 === 7) await new Promise(r => setTimeout(r, 0));
     }
     if (_vcErr) throw _vcErr;
-    console.log('[EE] WebCodecs video frames done — encodeQueueSize:', videoEncoder.encodeQueueSize);
+    console.log('[EE] Video frames done — encodeQueueSize:', videoEncoder.encodeQueueSize);
 
-    // ── Encode audio in chunks ──────────────────────────
     progressLabel.textContent = 'Codificando audio...';
     const audioChunkSamples = Math.round(sampleRate / fps);
     const channels = [];
     for (let c = 0; c < numChannels; c++) channels.push(audioBuffer.getChannelData(c));
 
     for (let start = 0; start < totalSamples; start += audioChunkSamples) {
-      const count    = Math.min(audioChunkSamples, totalSamples - start);
-      const tsUs     = Math.round((start / sampleRate) * 1_000_000);
-      const planar   = new Float32Array(count * numChannels);
+      const count  = Math.min(audioChunkSamples, totalSamples - start);
+      const tsUs   = Math.round((start / sampleRate) * 1_000_000);
+      const planar = new Float32Array(count * numChannels);
       for (let c = 0; c < numChannels; c++) {
         planar.set(channels[c].subarray(start, start + count), c * count);
       }
@@ -1034,9 +1288,8 @@ const ExportEngine = (() => {
     }
 
     if (_acErr) throw _acErr;
-    console.log('[EE] WebCodecs audio chunks done — flushing encoders...');
     progressLabel.textContent = 'Finalizando...';
-    // Flush both encoders concurrently; 20s timeout prevents infinite hang
+    console.log('[EE] Audio done — flushing encoders...');
     const FLUSH_TIMEOUT = 20_000;
     await Promise.race([
       Promise.all([videoEncoder.flush(), audioEncoder.flush()]),
@@ -1044,17 +1297,16 @@ const ExportEngine = (() => {
     ]);
     if (_vcErr) throw _vcErr;
     if (_acErr) throw _acErr;
-    console.log('[EE] Encoders flushed — finalizing muxer...');
     muxer.finalize();
-    console.log('[EE] Muxer finalized — blob size:', muxer.target.buffer.byteLength, 'bytes');
+    console.log('[EE] Muxer finalized — size:', muxer.target.buffer.byteLength, 'bytes');
 
     recording = false;
-    const blob = new Blob([muxer.target.buffer], { type: 'video/webm' });
+    const blob = new Blob([muxer.target.buffer], { type: blobType });
     const rawTitle  = (Intro.get().title || '').trim() || 'karaoke';
     const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');
-    a.href = url; a.download = safeTitle + '.webm'; a.click();
+    a.href = url; a.download = safeTitle + '.' + fileExt; a.click();
     URL.revokeObjectURL(url);
 
     document.querySelector('.status-idle').classList.remove('hidden');

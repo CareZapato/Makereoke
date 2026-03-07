@@ -301,6 +301,14 @@ export default function Panel4Export({ isActive, goToStep }) {
               <option value="24">24 fps cinematográfico</option>
             </select>
 
+            <label className="field-label" htmlFor="exportFormatSelect">Formato de exportación</label>
+            <select id="exportFormatSelect" className="field-select">
+              <option value="mp4">MP4 — H.264 + AAC (compatible)</option>
+              <option value="webm">WebM — VP9 + Opus (web)</option>
+              <option value="avi">AVI — MJPEG + PCM (clásico)</option>
+            </select>
+            <p className="field-hint" id="exportFormatHint">MP4 es el formato más compatible con reproductores y editores de video.</p>
+
             </div>
           </div>
 

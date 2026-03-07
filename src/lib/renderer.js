@@ -1338,7 +1338,7 @@ const Renderer = (() => {
     { id: 'neon_slim',     label: 'Neón fino',         emoji: '💡' },
   ];
 
-  function _drawProgress(ctx, W, H, time, duration, style, T, activeColor, fsSm) {
+  function _drawProgress(ctx, W, H, time, duration, style, T, fsSm) {
     const pPct = duration > 0 ? clampN(time / duration, 0, 1) : 0;
     const timeStr = `${formatTime(time)}  /  ${formatTime(duration)}`;
 
@@ -1352,13 +1352,13 @@ const Renderer = (() => {
       ctx.shadowBlur = 0; ctx.restore();
       if (pPct > 0) {
         const pg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
-        pg.addColorStop(0, T.progressFg); pg.addColorStop(0.8, activeColor); pg.addColorStop(1, '#ffffff88');
+        pg.addColorStop(0, T.progressFg); pg.addColorStop(0.8, T.progressFg); pg.addColorStop(1, '#ffffff88');
         ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 14;
         ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(bx, pbY, bw * pPct, pbH, pbH / 2); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
         // Glowing dot at fill endpoint
         const ex = bx + bw * pPct, ey = pbY + pbH / 2;
-        ctx.save(); ctx.shadowColor = activeColor; ctx.shadowBlur = 22;
+        ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 22;
         ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, pbH * 0.75, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
       }
@@ -1382,13 +1382,13 @@ const Renderer = (() => {
       if (pPct > 0) {
         const fillH = barH * pPct;
         const pg = ctx.createLinearGradient(0, barY + barH, 0, barY);
-        pg.addColorStop(0, T.progressFg); pg.addColorStop(0.8, activeColor); pg.addColorStop(1, '#ffffff88');
+        pg.addColorStop(0, T.progressFg); pg.addColorStop(0.8, T.progressFg); pg.addColorStop(1, '#ffffff88');
         ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 12;
         ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(pbX, barY + barH - fillH, pbW, fillH, pbW / 2); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
         // Glowing dot at top of fill
         const dotY = barY + barH - fillH;
-        ctx.save(); ctx.shadowColor = activeColor; ctx.shadowBlur = 20;
+        ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 20;
         ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(pbX + pbW / 2, dotY, pbW * 0.75, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
       }
@@ -1426,7 +1426,7 @@ const Renderer = (() => {
       if (pPct > 0) {
         ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 8;
         const pg = ctx.createLinearGradient(bx - boxW, 0, bx, 0);
-        pg.addColorStop(0, T.progressFg); pg.addColorStop(1, activeColor);
+        pg.addColorStop(0, T.progressFg); pg.addColorStop(1, T.progressFg);
         ctx.fillStyle = pg; ctx.beginPath();
         ctx.roundRect(bx - boxW + 2, by - 6, (boxW - 4) * pPct, 3, 1.5); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
@@ -1475,11 +1475,11 @@ const Renderer = (() => {
       }
       // Center dot + hand
       const handLen = r * 0.54;
-      ctx.save(); ctx.shadowColor = activeColor; ctx.shadowBlur = 14;
+      ctx.save(); ctx.shadowColor = T.progressFg; ctx.shadowBlur = 14;
       ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(2, r * 0.07); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(ocx, ocy); ctx.lineTo(ocx + Math.cos(pAngle) * handLen, ocy + Math.sin(pAngle) * handLen); ctx.stroke();
       ctx.shadowBlur = 0; ctx.lineCap = 'butt'; ctx.restore();
-      ctx.beginPath(); ctx.arc(ocx, ocy, Math.max(3, r * 0.09), 0, Math.PI * 2); ctx.fillStyle = activeColor; ctx.fill();
+      ctx.beginPath(); ctx.arc(ocx, ocy, Math.max(3, r * 0.09), 0, Math.PI * 2); ctx.fillStyle = T.progressFg; ctx.fill();
       // Time label
       ctx.font = `300 ${Math.round(fsSm * 0.76)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -1537,7 +1537,7 @@ const Renderer = (() => {
       if (remaining > 0.01) {
         const fillW = Math.max(2, (bw - 8) * remaining);
         const pg = ctx.createLinearGradient(bx + 4, 0, bx + 4 + fillW, 0);
-        pg.addColorStop(0, fillColor); pg.addColorStop(1, remaining < 0.5 ? fillColor : activeColor);
+        pg.addColorStop(0, fillColor); pg.addColorStop(1, remaining < 0.5 ? fillColor : T.progressFg);
         ctx.save(); ctx.shadowColor = fillColor; ctx.shadowBlur = 10;
         ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(bx + 4, by + 4, fillW, bh - 8, 2); ctx.fill();
         ctx.shadowBlur = 0; ctx.restore();
@@ -1594,7 +1594,7 @@ const Renderer = (() => {
         }
         ctx.stroke();
         // Second layer offset
-        ctx.globalAlpha *= 0.4; ctx.strokeStyle = activeColor; ctx.lineWidth = 2;
+        ctx.globalAlpha *= 0.4; ctx.strokeStyle = T.progressFg; ctx.lineWidth = 2;
         ctx.beginPath();
         for (let x = 28; x <= W - 28; x += 3) {
           const y = barY + Math.sin((x / 45) * Math.PI * 2 - time * 5.5 + 1.2) * amplitude * 0.7;
@@ -1632,7 +1632,7 @@ const Renderer = (() => {
   }
 
   function drawFrame(canvas, opts) {
-    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom', progressBarOpacity=1 } = opts;
+    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, progressColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom', progressBarOpacity=1, secondarySizeRatio=0.62, secondaryOpacity=0.65, nextLineOffset=1.05, prevLineOpacity=0.22 } = opts;
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
     const T=THEMES[theme]||THEMES.classic;
     const GI=clampN(glowIntensity,0,3);
@@ -1659,7 +1659,7 @@ const Renderer = (() => {
       return (v && v.color) ? v.color : activeColor;
     }
 
-    const cx=W/2, fsLg=Math.max(22,Math.round(fontSize*W/1920)), fsMd=Math.max(16,Math.round(fsLg*0.62)), fsSm=Math.max(12,Math.round(fsLg*0.44));
+    const cx=W/2, fsLg=Math.max(22,Math.round(fontSize*W/1920)), fsMd=Math.max(16,Math.round(fsLg*secondarySizeRatio)), fsSm=Math.max(12,Math.round(fsLg*0.44));
     const midY = textPosition==='lower' ? H*0.72 : textPosition==='upper' ? H*0.28 : H*0.5;
 
     if (showTitle && songTitle) {
@@ -1670,18 +1670,25 @@ const Renderer = (() => {
     if (showProgressBar) {
       ctx.save();
       ctx.globalAlpha = clampN(progressBarOpacity, 0, 1);
-      _drawProgress(ctx, W, H, time, duration, progressBarStyle, T, activeColor, fsSm);
+      const _progressT = progressColorOverride ? { ...T, progressFg: progressColorOverride } : T;
+      _drawProgress(ctx, W, H, time, duration, progressBarStyle, _progressT, fsSm);
       ctx.restore();
     }
 
     if (prevLine) {
-      ctx.font=`300 ${fsSm}px ${fontFamily}`; ctx.fillStyle=T.textPrev;
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(_fit(ctx,prevLine.text,W-80),cx,midY-fsLg*1.65);
+      ctx.save();
+      ctx.globalAlpha = clampN(prevLineOpacity, 0, 1);
+      ctx.font=`300 ${fsMd}px ${fontFamily}`; ctx.fillStyle=inactiveColor;
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(_fit(ctx,prevLine.text,W-80),cx,midY-fsLg*(nextLineOffset+0.6));
+      ctx.restore();
     }
     if (nextLine) {
+      ctx.save();
+      ctx.globalAlpha = clampN(secondaryOpacity, 0, 1);
       ctx.font=`400 ${fsMd}px ${fontFamily}`; ctx.fillStyle=inactiveColor;
       ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.shadowColor='transparent'; ctx.shadowBlur=0;
-      ctx.fillText(_fit(ctx,nextLine.text,W-80),cx,midY+fsLg*1.05);
+      ctx.fillText(_fit(ctx,nextLine.text,W-80),cx,midY+fsLg*nextLineOffset);
+      ctx.restore();
     }
     if (currLine) {
       const lineActiveColor=_lineActiveColor(currLine);
@@ -1699,10 +1706,10 @@ const Renderer = (() => {
       } else {
         ctx.shadowColor=T.shadowActive; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY);
       }
-      // Karaoke reveal clip (white fill progress, always on top)
+      // Karaoke reveal clip — uses lineActiveColor so the color picker takes effect
       const txtW=ctx.measureText(txt).width, startX=cx-txtW/2;
       ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-      ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle='#ffffff'; ctx.fillText(txt,cx,midY); ctx.restore();
+      ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY); ctx.restore();
       ctx.restore(); // zoom
       ctx.shadowBlur=0; ctx.globalAlpha=1; ctx.textBaseline='alphabetic';
     } else {

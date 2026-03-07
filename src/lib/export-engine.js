@@ -21,6 +21,10 @@ const ExportEngine = (() => {
   let currentTextEffect= 'none';
   let currentProgressStyle = 'bottom';
   let currentProgressOpacity = 1;
+  let currentSecondarySize    = 0.62;
+  let currentSecondaryOpacity = 0.65;
+  let currentNextOffset       = 1.05;
+  let currentPrevOpacity      = 0.22;
   let previewRaf       = null;
   let recording        = false;
 
@@ -28,6 +32,11 @@ const ExportEngine = (() => {
   let themeSelector, animGrid, overlayGrid;
   let fontSelector, textEffectGrid, progressStyleGrid, zoomSlider, zoomVal;
   let progressOpacitySlider, progressOpacityVal;
+  let progressBarColorPicker;
+  let secondarySizeSlider, secondarySizeVal;
+  let secondaryOpacitySlider, secondaryOpacityVal;
+  let nextOffsetSlider, nextOffsetVal;
+  let prevOpacitySlider, prevOpacityVal;
   let resolutionSelect, fontSizeSlider, fontSizeVal;
   let glowSlider, glowVal, textPositionSelect, fpsSelect;
   let showProgressToggle, showTitleToggle;
@@ -332,6 +341,48 @@ const ExportEngine = (() => {
       });
     }
 
+    /* ── Progress bar color picker ── */
+    progressBarColorPicker = document.getElementById('progressBarColorPicker');
+    if (progressBarColorPicker) progressBarColorPicker.addEventListener('input', renderPreviewFrame);
+
+    /* ── Secondary text controls ── */
+    secondarySizeSlider    = document.getElementById('secondarySizeSlider');
+    secondarySizeVal       = document.getElementById('secondarySizeVal');
+    secondaryOpacitySlider = document.getElementById('secondaryOpacitySlider');
+    secondaryOpacityVal    = document.getElementById('secondaryOpacityVal');
+    nextOffsetSlider       = document.getElementById('nextOffsetSlider');
+    nextOffsetVal          = document.getElementById('nextOffsetVal');
+    prevOpacitySlider      = document.getElementById('prevOpacitySlider');
+    prevOpacityVal         = document.getElementById('prevOpacityVal');
+    if (secondarySizeSlider) {
+      secondarySizeSlider.addEventListener('input', () => {
+        currentSecondarySize = parseFloat(secondarySizeSlider.value);
+        if (secondarySizeVal) secondarySizeVal.textContent = Math.round(currentSecondarySize * 100) + '%';
+        renderPreviewFrame();
+      });
+    }
+    if (secondaryOpacitySlider) {
+      secondaryOpacitySlider.addEventListener('input', () => {
+        currentSecondaryOpacity = parseFloat(secondaryOpacitySlider.value);
+        if (secondaryOpacityVal) secondaryOpacityVal.textContent = Math.round(currentSecondaryOpacity * 100) + '%';
+        renderPreviewFrame();
+      });
+    }
+    if (nextOffsetSlider) {
+      nextOffsetSlider.addEventListener('input', () => {
+        currentNextOffset = parseFloat(nextOffsetSlider.value);
+        if (nextOffsetVal) nextOffsetVal.textContent = currentNextOffset.toFixed(2);
+        renderPreviewFrame();
+      });
+    }
+    if (prevOpacitySlider) {
+      prevOpacitySlider.addEventListener('input', () => {
+        currentPrevOpacity = parseFloat(prevOpacitySlider.value);
+        if (prevOpacityVal) prevOpacityVal.textContent = Math.round(currentPrevOpacity * 100) + '%';
+        renderPreviewFrame();
+      });
+    }
+
     /* ── Zoom slider ── */
     zoomSlider = document.getElementById('zoomSlider');
     zoomVal    = document.getElementById('zoomVal');
@@ -480,6 +531,15 @@ const ExportEngine = (() => {
         currentProgressStyle = 'bottom';
         currentProgressOpacity = 1;
         if (progressOpacitySlider) { progressOpacitySlider.value = '1'; if (progressOpacityVal) progressOpacityVal.textContent = '100%'; }
+        if (progressBarColorPicker) progressBarColorPicker.value = '#9c6dff';
+        currentSecondarySize    = 0.62;
+        currentSecondaryOpacity = 0.65;
+        currentNextOffset       = 1.05;
+        currentPrevOpacity      = 0.22;
+        if (secondarySizeSlider)    { secondarySizeSlider.value    = '0.62'; if (secondarySizeVal)    secondarySizeVal.textContent    = '62%'; }
+        if (secondaryOpacitySlider) { secondaryOpacitySlider.value = '0.65'; if (secondaryOpacityVal) secondaryOpacityVal.textContent = '65%'; }
+        if (nextOffsetSlider)       { nextOffsetSlider.value       = '1.05'; if (nextOffsetVal)       nextOffsetVal.textContent       = '1.05'; }
+        if (prevOpacitySlider)      { prevOpacitySlider.value      = '0.22'; if (prevOpacityVal)      prevOpacityVal.textContent      = '22%'; }
         if (animGrid)      animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === 'none'));
         if (overlayGrid)   overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === 'none'));
         if (themeSelector) themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === 'classic'));
@@ -547,8 +607,8 @@ const ExportEngine = (() => {
       glowIntensity:         currentGlow,
       fontSize:              parseInt(fontSizeSlider.value, 10),
       songTitle:             songTitleInput.value.trim(),
-      activeColorOverride:   activeColorPicker.value   !== '#FFD700' ? activeColorPicker.value   : null,
-      inactiveColorOverride: inactiveColorPicker.value !== '#FFFFFF' ? inactiveColorPicker.value : null,
+      activeColorOverride:   activeColorPicker.value,
+      inactiveColorOverride: inactiveColorPicker.value,
       showProgressBar:       showProgressToggle ? showProgressToggle.checked : true,
       showTitle:             showTitleToggle    ? showTitleToggle.checked    : true,
       voiceConfig:           Sync.getVoiceConfig(),
@@ -557,6 +617,11 @@ const ExportEngine = (() => {
       textEffect:            currentTextEffect,
       progressBarStyle:      currentProgressStyle,
       progressBarOpacity:    currentProgressOpacity,
+      progressColorOverride: progressBarColorPicker?.value || null,
+      secondarySizeRatio:    currentSecondarySize,
+      secondaryOpacity:      currentSecondaryOpacity,
+      nextLineOffset:        currentNextOffset,
+      prevLineOpacity:       currentPrevOpacity,
     };
   }
 
@@ -716,6 +781,23 @@ const ExportEngine = (() => {
     if (s.resolution  && resolutionSelect)   resolutionSelect.value   = s.resolution;
     if (s.activeColor   && activeColorPicker)   activeColorPicker.value   = s.activeColor;
     if (s.inactiveColor && inactiveColorPicker) inactiveColorPicker.value = s.inactiveColor;
+    if (s.progressBarColor && progressBarColorPicker) progressBarColorPicker.value = s.progressBarColor;
+    if (s.secondarySize !== undefined && secondarySizeSlider) {
+      currentSecondarySize = s.secondarySize; secondarySizeSlider.value = s.secondarySize;
+      if (secondarySizeVal) secondarySizeVal.textContent = Math.round(s.secondarySize * 100) + '%';
+    }
+    if (s.secondaryOpacity !== undefined && secondaryOpacitySlider) {
+      currentSecondaryOpacity = s.secondaryOpacity; secondaryOpacitySlider.value = s.secondaryOpacity;
+      if (secondaryOpacityVal) secondaryOpacityVal.textContent = Math.round(s.secondaryOpacity * 100) + '%';
+    }
+    if (s.nextOffset !== undefined && nextOffsetSlider) {
+      currentNextOffset = s.nextOffset; nextOffsetSlider.value = s.nextOffset;
+      if (nextOffsetVal) nextOffsetVal.textContent = parseFloat(s.nextOffset).toFixed(2);
+    }
+    if (s.prevOpacity !== undefined && prevOpacitySlider) {
+      currentPrevOpacity = s.prevOpacity; prevOpacitySlider.value = s.prevOpacity;
+      if (prevOpacityVal) prevOpacityVal.textContent = Math.round(s.prevOpacity * 100) + '%';
+    }
     if (s.font && fontSelector) {
       currentFont = s.font;
       fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === s.font));

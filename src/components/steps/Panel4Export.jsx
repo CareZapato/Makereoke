@@ -130,6 +130,32 @@ export default function Panel4Export({ isActive, goToStep }) {
                 </div>
               </div>
 
+              <div className="typo-subgroup-label">📝 Letras secundarias</div>
+
+              <label className="field-label">Tamaño</label>
+              <div className="slider-row">
+                <input id="secondarySizeSlider" type="range" className="slider" min="0.3" max="1.0" step="0.02" defaultValue="0.62" />
+                <span id="secondarySizeVal" className="slider-val">62%</span>
+              </div>
+
+              <label className="field-label">Opacidad</label>
+              <div className="slider-row">
+                <input id="secondaryOpacitySlider" type="range" className="slider" min="0" max="1" step="0.05" defaultValue="0.65" />
+                <span id="secondaryOpacityVal" className="slider-val">65%</span>
+              </div>
+
+              <label className="field-label">Distancia letra siguiente</label>
+              <div className="slider-row">
+                <input id="nextOffsetSlider" type="range" className="slider" min="0.5" max="2.5" step="0.05" defaultValue="1.05" />
+                <span id="nextOffsetVal" className="slider-val">1.05</span>
+              </div>
+
+              <label className="field-label">Opacidad letra anterior</label>
+              <div className="slider-row">
+                <input id="prevOpacitySlider" type="range" className="slider" min="0" max="0.6" step="0.02" defaultValue="0.22" />
+                <span id="prevOpacityVal" className="slider-val">22%</span>
+              </div>
+
               <label className="field-label" htmlFor="songTitleInput">Título de la canción</label>
               <input id="songTitleInput" type="text" className="field-input" placeholder="Artista — Título" />
 
@@ -166,6 +192,13 @@ export default function Panel4Export({ isActive, goToStep }) {
 
             <label className="field-label">Estilo</label>
             <div id="progressStyleGrid" className="prog-style-row" />
+
+            <div className="color-row" style={{ marginTop: '8px' }}>
+              <div className="color-item">
+                <label className="field-label">Color</label>
+                <input id="progressBarColorPicker" type="color" className="color-picker" defaultValue="#9c6dff" />
+              </div>
+            </div>
 
             </div>
           </div>

@@ -4,6 +4,7 @@
 
 import Audio from './audio.js';
 import Lyrics from './lyrics.js';
+import Sync from './sync.js';
 import { formatTime, parseTime, toast, clamp } from './utils.js';
 
 const Adjust = (() => {
@@ -43,8 +44,7 @@ const Adjust = (() => {
     init();
     Audio.onTimeUpdate = onTimeUpdate;
     Audio.onEnded = () => { document.getElementById('adjPlayBtn').textContent = '▶'; };
-
-    buildAdjustTable();
+    setupVoiceConfig();    buildAdjustTable();
     drawTimeline();
     updatePreview();
 
@@ -52,6 +52,29 @@ const Adjust = (() => {
     document.getElementById('adjSeekBar').max = dur;
     document.getElementById('adjTotalTime').textContent = formatTime(dur);
     onTimeUpdate(Audio.getCurrentTime());
+  }
+
+  /* ─── VOICE CONFIG (mirrors sync.js state into adj_ inputs) ─── */
+  function setupVoiceConfig() {
+    const cfg = Sync.getVoiceConfig();
+    for (let n = 1; n <= 4; n++) {
+      const row     = document.getElementById(`adj_voiceRow_${n}`);
+      const colEl   = document.getElementById(`adj_voiceColor_${n}`);
+      const nameEl  = document.getElementById(`adj_voiceName_${n}`);
+      const swatchEl= document.getElementById(`adj_voiceSwatch_${n}`);
+      const v = cfg.voices[n - 1];
+      if (!v) continue;
+      if (row)     { row.style.display = n <= cfg.count ? '' : 'none'; row.style.setProperty('--vc', v.color); }
+      if (swatchEl) swatchEl.style.background = v.color;
+      if (colEl)   { colEl.value = v.color;  colEl.oninput  = () => Sync.setVoiceColor(n, colEl.value); }
+      if (nameEl)  { nameEl.value = v.name;  nameEl.oninput = () => Sync.setVoiceName(n, nameEl.value); }
+    }
+    const adjAllRow    = document.getElementById('adj_voiceRow_all');
+    const adjAllCol    = document.getElementById('adj_allVoiceColor');
+    const adjAllSwatch = document.getElementById('adj_allVoiceSwatch');
+    if (adjAllRow)    { adjAllRow.style.display = cfg.count > 1 ? '' : 'none'; adjAllRow.style.setProperty('--vc', cfg.allColor); }
+    if (adjAllSwatch) adjAllSwatch.style.background = cfg.allColor;
+    if (adjAllCol)    { adjAllCol.value = cfg.allColor; adjAllCol.oninput = () => Sync.setVoiceColor(0, adjAllCol.value); }
   }
 
   /* ─── PLAYER ─── */
@@ -102,6 +125,7 @@ const Adjust = (() => {
     const tbody = document.getElementById('adjustTableBody');
     tbody.innerHTML = '';
     const dur = Audio.duration;
+    const cfg = Sync.getVoiceConfig();
 
     const sorted = [];
     Lyrics.lines.forEach((l, i) => {
@@ -112,16 +136,40 @@ const Adjust = (() => {
     sorted.forEach((line, rank) => {
       const nextTime = sorted[rank + 1]?.time ?? dur;
       const origDur = line.time !== null && nextTime ? (nextTime - line.time).toFixed(2) : '—';
+      const timeStr = line.time !== null ? formatTime(line.time, true) : '';
+
+      const v = line.voice; // null | 0 | 1..4
+      let dotColor = '#555';
+      if (v === 0) dotColor = cfg.allColor;
+      else if (v !== null && v >= 1 && cfg.voices[v - 1]) dotColor = cfg.voices[v - 1].color;
+
+      // Build mini voice pills
+      let pillsHtml = `<button class="vmini${v === null ? ' vmini-active' : ''}" data-setvoice="null" data-lidx="${line.origIdx}" title="Sin asignar">—</button>`;
+      if (cfg.count > 1) {
+        pillsHtml += `<button class="vmini${v === 0 ? ' vmini-active' : ''}" data-setvoice="0" data-lidx="${line.origIdx}" title="Todos juntos" style="border-color:${cfg.allColor};color:${cfg.allColor}">∀</button>`;
+      }
+      for (let n = 1; n <= cfg.count; n++) {
+        const vc = cfg.voices[n - 1];
+        const col = vc?.color || '#888';
+        pillsHtml += `<button class="vmini${v === n ? ' vmini-active' : ''}" data-setvoice="${n}" data-lidx="${line.origIdx}" title="${escapeHtml(vc?.name || `Voz ${n}`)}" style="border-color:${col};color:${col}">${n}</button>`;
+      }
 
       const tr = document.createElement('tr');
       tr.dataset.lineIdx = line.origIdx;
+      tr.style.setProperty('--row-vc', dotColor);
       tr.innerHTML = `
         <td><span class="line-num-badge">${rank + 1}</span></td>
+        <td class="col-voice">
+          <div class="voice-cell">
+            <span class="voice-dot-sm" style="background:${dotColor}" title="${v === null ? 'Sin asignar' : v === 0 ? 'Todos' : (cfg.voices[v-1]?.name || `Voz ${v}`)}"></span>
+            <div class="vmini-row">${pillsHtml}</div>
+          </div>
+        </td>
         <td><span class="lyric-text-cell" title="${escapeHtml(line.text)}">${escapeHtml(line.text)}</span></td>
         <td>
           <input type="text" class="time-input"
             data-orig-idx="${line.origIdx}"
-            value="${line.time !== null ? formatTime(line.time, true) : ''}"
+            value="${timeStr}"
             placeholder="0:00.00"
           />
         </td>
@@ -146,6 +194,18 @@ const Adjust = (() => {
     });
 
     tbody.addEventListener('click', e => {
+      // Voice pill click
+      const pill = e.target.closest('[data-setvoice]');
+      if (pill) {
+        const lidx = parseInt(pill.dataset.lidx);
+        const raw  = pill.dataset.setvoice;
+        const newVoice = raw === 'null' ? null : parseInt(raw);
+        Lyrics.setVoice(lidx, newVoice);
+        buildAdjustTable();
+        return;
+      }
+
+      // Row action buttons
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const action = btn.dataset.action;

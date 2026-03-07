@@ -11,7 +11,10 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
       {/* ── Voice configuration ── */}
       <div className="voice-config-panel">
         <div className="voice-config-header">
-          <span className="voice-config-title">🎤 Cantantes</span>
+          <div>
+            <span className="voice-config-title">🎤 Cantantes</span>
+            <span className="voice-config-hint">Selecciona el cantante activo antes de tapear</span>
+          </div>
           <div className="voice-count-selector">
             {[1, 2, 3, 4].map(n => (
               <button key={n} id={`voiceCountBtn_${n}`} className={`voice-count-btn${n === 2 ? ' active' : ''}`}>{n}</button>
@@ -25,14 +28,26 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
             { id: 3, name: 'Voz 3',  color: '#FFE66D' },
             { id: 4, name: 'Voz 4',  color: '#C084FC' },
           ].map(v => (
-            <div key={v.id} id={`voiceRow_${v.id}`} className="voice-row" style={{ display: v.id > 2 ? 'none' : '' }}>
-              <span className="voice-row-swatch" style={{ background: v.color }} />
+            <div key={v.id} id={`voiceRow_${v.id}`} className="voice-row" style={{ '--vc': v.color, display: v.id > 2 ? 'none' : '' }}>
+              <label
+                id={`voiceSwatch_${v.id}`}
+                className="voice-row-swatch"
+                htmlFor={`voiceColor_${v.id}`}
+                style={{ background: v.color }}
+                title="Haz clic para cambiar color"
+              />
               <input type="text" id={`voiceName_${v.id}`} className="voice-name-input" defaultValue={v.name} />
               <input type="color" id={`voiceColor_${v.id}`} className="voice-color-picker" defaultValue={v.color} />
             </div>
           ))}
-          <div className="voice-row voice-row-all">
-            <span className="voice-row-swatch" style={{ background: '#FFFFFF' }} />
+          <div className="voice-row voice-row-all" style={{ '--vc': '#FFFFFF' }}>
+            <label
+              id="allVoiceSwatch"
+              className="voice-row-swatch"
+              htmlFor="allVoiceColor"
+              style={{ background: '#FFFFFF' }}
+              title="Haz clic para cambiar color"
+            />
             <span className="voice-all-label">Todos juntos</span>
             <input type="color" id="allVoiceColor" className="voice-color-picker" defaultValue="#FFFFFF" />
           </div>
@@ -95,6 +110,7 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
             </span>
             <span id="syncProgress" className="sync-badge">0 / 0</span>
           </div>
+          <div id="voiceLegend" className="voice-legend" />
           <ul id="syncLyricsList" className="sync-lyrics-list" />
         </div>
       </div>

@@ -16,11 +16,15 @@ const ExportEngine = (() => {
   let currentOverlay   = 'none';
   let currentTextPos   = 'center';
   let currentGlow      = 1;
+  let currentFont      = 'segoe';
+  let currentZoom      = 1;
+  let currentTextEffect= 'none';
   let previewRaf       = null;
   let recording        = false;
 
-  /* ── DOM refs (set in init) ────────────────────────────── */
+  /* ── DOM refs (set in init) ────────────────────────────────────── */
   let themeSelector, animGrid, overlayGrid;
+  let fontSelector, textEffectGrid, zoomSlider, zoomVal;
   let resolutionSelect, fontSizeSlider, fontSizeVal;
   let glowSlider, glowVal, textPositionSelect, fpsSelect;
   let showProgressToggle, showTitleToggle;
@@ -28,6 +32,85 @@ const ExportEngine = (() => {
   let previewCanvas, exportPlayBtn, exportSeekBar, exportCurrentTime;
   let startRecordBtn, previewExportBtn;
   let recordProgress, progressBarInner, progressLabel;
+
+  /* ═══════════════════════════════════════════════════════
+     Cat-tab + search helpers
+  ═══════════════════════════════════════════════════════ */
+
+  /** Build category tab strip above a grid and wire it with optional search input.
+   *  gridEl rows must have [data-cat] set before calling this. */
+  function buildCatTabsEl(tabsEl, gridEl, categories, rowSelector, searchEl) {
+    if (!tabsEl) return;
+    tabsEl.innerHTML = '';
+
+    const rows = Array.from(gridEl.querySelectorAll(rowSelector));
+
+    function applyFilter(catId, q) {
+      q = (q || '').toLowerCase().trim();
+      rows.forEach(row => {
+        const rowCat = row.dataset.cat;
+        const catMatch = catId === '__all__' || rowCat === catId;
+        if (!catMatch) { row.style.display = 'none'; return; }
+        if (!q) {
+          row.style.display = '';
+          row.querySelectorAll('.anim-card, .theme-btn, .font-btn').forEach(c => c.style.display = '');
+          return;
+        }
+        let anyVis = false;
+        row.querySelectorAll('.anim-card, .theme-btn, .font-btn').forEach(c => {
+          const lbl = c.querySelector('.anim-label, .theme-btn-label, .font-btn-label, .font-btn-preview')?.textContent.toLowerCase() || '';
+          const vis = lbl.includes(q);
+          c.style.display = vis ? '' : 'none';
+          if (vis) anyVis = true;
+        });
+        row.style.display = anyVis ? '' : 'none';
+      });
+      gridEl.querySelectorAll('.selector-cat-label').forEach(lbl => {
+        lbl.style.display = catId === '__all__' && !q ? '' : 'none';
+      });
+    }
+
+    const allBtn = document.createElement('button');
+    allBtn.className = 'cat-tab active';
+    allBtn.textContent = 'Todos';
+    allBtn.dataset.cat = '__all__';
+    tabsEl.appendChild(allBtn);
+
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'cat-tab';
+      btn.textContent = (cat.emoji ? cat.emoji + ' ' : '') + cat.label;
+      btn.dataset.cat = cat.id;
+      tabsEl.appendChild(btn);
+    });
+
+    tabsEl.addEventListener('click', e => {
+      const btn = e.target.closest('.cat-tab');
+      if (!btn) return;
+      tabsEl.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilter(btn.dataset.cat, searchEl?.value || '');
+    });
+
+    if (searchEl) {
+      searchEl.addEventListener('input', () => {
+        const active = tabsEl.querySelector('.cat-tab.active');
+        applyFilter(active?.dataset.cat || '__all__', searchEl.value);
+      });
+    }
+  }
+
+  /** Wire a simple text search for flat grids (no categories). */
+  function wireSimpleSearch(searchEl, gridEl, cardSelector, labelSelector) {
+    if (!searchEl) return;
+    searchEl.addEventListener('input', () => {
+      const q = searchEl.value.toLowerCase().trim();
+      gridEl.querySelectorAll(cardSelector).forEach(c => {
+        const lbl = c.querySelector(labelSelector)?.textContent.toLowerCase() || '';
+        c.style.display = !q || lbl.includes(q) ? '' : 'none';
+      });
+    });
+  }
 
   /* ═══════════════════════════════════════════════════════
      init() — called once on app boot
@@ -65,10 +148,12 @@ const ExportEngine = (() => {
       themeSelector.appendChild(grpLabel);
       const row = document.createElement('div');
       row.className = 'theme-selector-row';
+      row.dataset.cat = cat.id;
       items.forEach(t => {
         const btn = document.createElement('button');
         btn.className = 'theme-btn' + (t.id === currentTheme ? ' active' : '');
         btn.dataset.theme = t.id;
+        btn.dataset.cat = cat.id;
         btn.innerHTML = `<span class="theme-btn-emoji">${t.emoji}</span><span class="theme-btn-label">${t.label}</span>`;
         btn.addEventListener('click', () => {
           currentTheme = t.id;
@@ -79,6 +164,11 @@ const ExportEngine = (() => {
       });
       themeSelector.appendChild(row);
     });
+    buildCatTabsEl(
+      document.getElementById('themeCatTabs'), themeSelector,
+      Renderer.THEME_CATEGORIES, '.theme-selector-row',
+      document.getElementById('themeSearch')
+    );
 
     /* ── Build animation grid from Renderer.ANIMATION_LIST grouped by category ── */
     animGrid.innerHTML = '';
@@ -91,10 +181,12 @@ const ExportEngine = (() => {
       animGrid.appendChild(grpLabel);
       const row = document.createElement('div');
       row.className = 'anim-grid-row';
+      row.dataset.cat = cat.id;
       items.forEach(a => {
         const card = document.createElement('div');
         card.className = 'anim-card' + (a.id === currentAnimation ? ' active' : '');
         card.dataset.anim = a.id;
+        card.dataset.cat = cat.id;
         card.innerHTML = `<span class="anim-emoji">${a.emoji}</span><span class="anim-label">${a.label}</span>`;
         card.addEventListener('click', () => {
           currentAnimation = a.id;
@@ -105,6 +197,24 @@ const ExportEngine = (() => {
       });
       animGrid.appendChild(row);
     });
+    const animSearch = document.getElementById('animSearch');
+    if (animSearch) {
+      animSearch.addEventListener('input', () => {
+        const q = animSearch.value.toLowerCase().trim();
+        animGrid.querySelectorAll('.anim-grid-row').forEach(row => {
+          if (!q) { row.style.display = ''; row.querySelectorAll('.anim-card').forEach(c => c.style.display = ''); return; }
+          let anyVis = false;
+          row.querySelectorAll('.anim-card').forEach(c => {
+            const lbl = c.querySelector('.anim-label')?.textContent.toLowerCase() || '';
+            const vis = lbl.includes(q);
+            c.style.display = vis ? '' : 'none';
+            if (vis) anyVis = true;
+          });
+          row.style.display = anyVis ? '' : 'none';
+        });
+        animGrid.querySelectorAll('.selector-cat-label').forEach(lbl => lbl.style.display = q ? 'none' : '');
+      });
+    }
 
     /* ── Build overlay grid from Renderer.OVERLAY_LIST grouped by category ── */
     overlayGrid = document.getElementById('overlayGrid');
@@ -119,10 +229,12 @@ const ExportEngine = (() => {
         overlayGrid.appendChild(grpLabel);
         const row = document.createElement('div');
         row.className = 'anim-grid-row';
+        row.dataset.cat = cat.id;
         items.forEach(o => {
           const card = document.createElement('div');
           card.className = 'anim-card' + (o.id === currentOverlay ? ' active' : '');
           card.dataset.ov = o.id;
+          card.dataset.cat = cat.id;
           card.innerHTML = `<span class="anim-emoji">${o.emoji}</span><span class="anim-label">${o.label}</span>`;
           card.addEventListener('click', () => {
             currentOverlay = o.id;
@@ -133,6 +245,11 @@ const ExportEngine = (() => {
         });
         overlayGrid.appendChild(row);
       });
+      buildCatTabsEl(
+        document.getElementById('overlayCatTabs'), overlayGrid,
+        Renderer.OVERLAY_CATEGORIES, '.anim-grid-row',
+        document.getElementById('overlaySearch')
+      );
     }
 
     /* ── Font size ── */
@@ -140,6 +257,55 @@ const ExportEngine = (() => {
       fontSizeVal.textContent = fontSizeSlider.value + 'px';
       renderPreviewFrame();
     });
+
+    /* ── Build font selector ── */
+    fontSelector = document.getElementById('fontSelector');
+    if (fontSelector) {
+      fontSelector.innerHTML = '';
+      Renderer.FONT_LIST.forEach(f => {
+        const btn = document.createElement('button');
+        btn.className = 'font-btn' + (f.id === currentFont ? ' active' : '');
+        btn.dataset.font = f.id;
+        btn.innerHTML = `<span class="font-btn-preview" style="font-family:${f.family}">${f.preview}</span><span class="font-btn-label">${f.label}</span>`;
+        btn.addEventListener('click', () => {
+          currentFont = f.id;
+          fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === f.id));
+          renderPreviewFrame();
+        });
+        fontSelector.appendChild(btn);
+      });
+      wireSimpleSearch(document.getElementById('fontSearch'), fontSelector, '.font-btn', '.font-btn-label');
+    }
+
+    /* ── Build text effect grid ── */
+    textEffectGrid = document.getElementById('textEffectGrid');
+    if (textEffectGrid) {
+      textEffectGrid.innerHTML = '';
+      Renderer.TEXT_EFFECT_LIST.forEach(ef => {
+        const card = document.createElement('div');
+        card.className = 'anim-card' + (ef.id === currentTextEffect ? ' active' : '');
+        card.dataset.te = ef.id;
+        card.innerHTML = `<span class="anim-emoji">${ef.emoji}</span><span class="anim-label">${ef.label}</span>`;
+        card.addEventListener('click', () => {
+          currentTextEffect = ef.id;
+          textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === ef.id));
+          renderPreviewFrame();
+        });
+        textEffectGrid.appendChild(card);
+      });
+      wireSimpleSearch(document.getElementById('textFxSearch'), textEffectGrid, '.anim-card', '.anim-label');
+    }
+
+    /* ── Zoom slider ── */
+    zoomSlider = document.getElementById('zoomSlider');
+    zoomVal    = document.getElementById('zoomVal');
+    if (zoomSlider) {
+      zoomSlider.addEventListener('input', () => {
+        currentZoom = parseFloat(zoomSlider.value);
+        if (zoomVal) zoomVal.textContent = currentZoom.toFixed(2) + '×';
+        renderPreviewFrame();
+      });
+    }
 
     /* ── Glow + text position + new controls ── */
     glowSlider         = document.getElementById('glowSlider');
@@ -204,6 +370,65 @@ const ExportEngine = (() => {
       if (recording) return;
       startRecording();
     });
+
+    /* ── Section collapse buttons ── */
+    document.querySelectorAll('.sec-collapse-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const secId = btn.dataset.sec;
+        const sec = document.getElementById(secId);
+        if (!sec) return;
+        sec.classList.toggle('collapsed');
+        btn.textContent = sec.classList.contains('collapsed') ? '▸' : '▾';
+      });
+    });
+
+    /* ── Collapse all button ── */
+    const collapseAllBtn = document.getElementById('collapseAllBtn');
+    if (collapseAllBtn) {
+      let allCollapsed = false;
+      collapseAllBtn.addEventListener('click', () => {
+        const secs = document.querySelectorAll('.settings-section');
+        allCollapsed = !allCollapsed;
+        secs.forEach(sec => {
+          sec.classList.toggle('collapsed', allCollapsed);
+          const btn2 = sec.querySelector('.sec-collapse-btn');
+          if (btn2) btn2.textContent = allCollapsed ? '▸' : '▾';
+        });
+        collapseAllBtn.textContent = allCollapsed ? '▸ Todo' : '▾ Todo';
+      });
+    }
+
+    /* ── Clear selection button ── */
+    const clearSelBtn = document.getElementById('clearSelectionBtn');
+    if (clearSelBtn) {
+      clearSelBtn.addEventListener('click', () => {
+        currentAnimation = 'none';
+        currentOverlay   = 'none';
+        currentTheme     = 'classic';
+        currentFont      = 'segoe';
+        currentTextEffect= 'none';
+        if (animGrid)      animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === 'none'));
+        if (overlayGrid)   overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === 'none'));
+        if (themeSelector) themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === 'classic'));
+        if (fontSelector)  fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'segoe'));
+        if (textEffectGrid)textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === 'none'));
+        renderPreviewFrame();
+      });
+    }
+
+    /* ── Clear filters button ── */
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener('click', () => {
+        // Clear all search inputs
+        document.querySelectorAll('.sec-search').forEach(inp => { inp.value = ''; inp.dispatchEvent(new Event('input')); });
+        // Reset all cat-tabs to "Todos"
+        document.querySelectorAll('.cat-tabs').forEach(tabs => {
+          const allTab = tabs.querySelector('[data-cat="__all__"]');
+          if (allTab) allTab.click();
+        });
+      });
+    }
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -253,6 +478,9 @@ const ExportEngine = (() => {
       showProgressBar:       showProgressToggle ? showProgressToggle.checked : true,
       showTitle:             showTitleToggle    ? showTitleToggle.checked    : true,
       voiceConfig:           Sync.getVoiceConfig(),
+      fontFamily:            Renderer.FONT_LIST.find(f => f.id === currentFont)?.family || "'Segoe UI', sans-serif",
+      activeZoom:            currentZoom,
+      textEffect:            currentTextEffect,
     };
   }
 
@@ -410,6 +638,18 @@ const ExportEngine = (() => {
     if (s.resolution  && resolutionSelect)   resolutionSelect.value   = s.resolution;
     if (s.activeColor   && activeColorPicker)   activeColorPicker.value   = s.activeColor;
     if (s.inactiveColor && inactiveColorPicker) inactiveColorPicker.value = s.inactiveColor;
+    if (s.font && fontSelector) {
+      currentFont = s.font;
+      fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === s.font));
+    }
+    if (s.zoom !== undefined && zoomSlider) {
+      currentZoom = s.zoom; zoomSlider.value = s.zoom;
+      if (zoomVal) zoomVal.textContent = parseFloat(s.zoom).toFixed(2) + '×';
+    }
+    if (s.textEffect !== undefined && textEffectGrid) {
+      currentTextEffect = s.textEffect;
+      textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === s.textEffect));
+    }
   }
 
   return { init, setup, applySettings };

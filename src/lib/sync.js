@@ -13,7 +13,7 @@ const Sync = (() => {
   let isInitialized = false;
   let _syncProgressListener = null;
 
-  /* ─── VOICE STATE ─── */
+  /* ─── VOICE STATE (JS-authoritative, DOM is a mirror) ─── */
   const VOICE_DEFAULTS = [
     { name: 'Voz 1', color: '#FF6B6B' },
     { name: 'Voz 2', color: '#4ECDC4' },
@@ -21,6 +21,10 @@ const Sync = (() => {
     { name: 'Voz 4', color: '#C084FC' },
   ];
   const ALL_VOICE_DEFAULT_COLOR = '#FFFFFF';
+  // Mutable state arrays — DOM inputs are synced from here
+  let voiceColors = VOICE_DEFAULTS.map(v => v.color);
+  let voiceNames  = VOICE_DEFAULTS.map(v => v.name);
+  let allVoiceColorState = ALL_VOICE_DEFAULT_COLOR;
   let voiceCount = 2;
   let currentVoice = 1; // 1..N = singer; 0 = "todos juntos"
 
@@ -45,18 +49,45 @@ const Sync = (() => {
   /* ─── VOICE HELPERS ─── */
   function getVoiceColor(v) {
     if (v === null || v === undefined) return null;
-    if (v === 0) {
-      const el = document.getElementById('allVoiceColor');
-      return el?.value || ALL_VOICE_DEFAULT_COLOR;
-    }
-    const el = document.getElementById(`voiceColor_${v}`);
-    return el?.value || VOICE_DEFAULTS[v - 1]?.color || '#aaaaaa';
+    if (v === 0) return allVoiceColorState;
+    return voiceColors[v - 1] || VOICE_DEFAULTS[v - 1]?.color || '#aaaaaa';
   }
 
   function getVoiceName(v) {
     if (v === 0) return 'Todos juntos';
-    const el = document.getElementById(`voiceName_${v}`);
-    return el?.value || VOICE_DEFAULTS[v - 1]?.name || `Voz ${v}`;
+    return voiceNames[v - 1] || VOICE_DEFAULTS[v - 1]?.name || `Voz ${v}`;
+  }
+
+  /* Update state AND mirror all DOM inputs/swatches for this voice */
+  function _updateVoiceDOM(v, color, name) {
+    const ids = v === 0
+      ? { col: ['allVoiceColor', 'adj_allVoiceColor'], swatch: ['allVoiceSwatch', 'adj_allVoiceSwatch'], row: null }
+      : { col: [`voiceColor_${v}`, `adj_voiceColor_${v}`], swatch: [`voiceSwatch_${v}`, `adj_voiceSwatch_${v}`], row: [`voiceRow_${v}`, `adj_voiceRow_${v}`] };
+    if (color !== undefined) {
+      ids.col.forEach(id => { const el = document.getElementById(id); if (el) el.value = color; });
+      ids.swatch.forEach(id => { const el = document.getElementById(id); if (el) el.style.background = color; });
+      if (ids.row) ids.row.forEach(id => { const el = document.getElementById(id); if (el) el.style.setProperty('--vc', color); });
+      if (v === 0) { document.querySelectorAll('.voice-row-all').forEach(el => el.style.setProperty('--vc', color)); }
+    }
+    if (name !== undefined && v !== 0) {
+      [`voiceName_${v}`, `adj_voiceName_${v}`].forEach(id => { const el = document.getElementById(id); if (el) el.value = name; });
+    }
+  }
+
+  function setVoiceColor(v, color) {
+    if (v === 0) allVoiceColorState = color;
+    else voiceColors[v - 1] = color;
+    _updateVoiceDOM(v, color, undefined);
+    buildVoicePills();
+    buildVoiceLegend();
+  }
+
+  function setVoiceName(v, name) {
+    if (v <= 0) return;
+    voiceNames[v - 1] = name;
+    _updateVoiceDOM(v, undefined, name);
+    buildVoicePills();
+    buildVoiceLegend();
   }
 
   function setVoiceCount(n) {
@@ -67,9 +98,39 @@ const Sync = (() => {
       const row = document.getElementById(`voiceRow_${i}`);
       if (row) row.style.display = i <= n ? '' : 'none';
     }
+    // Show/hide "Todos juntos" row based on voice count
+    const allRow = document.querySelector('.voice-row-all');
+    if (allRow) allRow.style.display = n > 1 ? '' : 'none';
     // If active voice is out of range, reset to 1
     if (currentVoice > n) selectVoice(1);
     else buildVoicePills();
+    buildVoiceLegend();
+  }
+
+  /* Sync all DOM mirrors from JS state (call when panel mounts/re-activates) */
+  function _syncSwatches() {
+    for (let n = 1; n <= 4; n++) _updateVoiceDOM(n, voiceColors[n-1], voiceNames[n-1]);
+    _updateVoiceDOM(0, allVoiceColorState, undefined);
+  }
+
+  /* Build the legend in the lyrics panel showing active voices and their colors */
+  function buildVoiceLegend() {
+    const container = document.getElementById('voiceLegend');
+    if (!container) return;
+    container.innerHTML = '';
+    if (voiceCount < 2) return; // single voice = no legend needed
+    for (let i = 1; i <= voiceCount; i++) {
+      const item = document.createElement('span');
+      item.className = 'voice-legend-item';
+      item.style.setProperty('--vc', getVoiceColor(i));
+      item.textContent = getVoiceName(i);
+      container.appendChild(item);
+    }
+    const allItem = document.createElement('span');
+    allItem.className = 'voice-legend-item voice-legend-all';
+    allItem.style.setProperty('--vc', getVoiceColor(0));
+    allItem.textContent = 'Todos';
+    container.appendChild(allItem);
   }
 
   function selectVoice(v) {
@@ -146,15 +207,15 @@ const Sync = (() => {
       const btn = document.getElementById(`voiceCountBtn_${n}`);
       if (btn) btn.addEventListener('click', () => setVoiceCount(n));
     }
-    // Rebuild pills when colors/names change
+    // DOM inputs call the authoritative JS setters
     for (let n = 1; n <= 4; n++) {
       const col  = document.getElementById(`voiceColor_${n}`);
       const name = document.getElementById(`voiceName_${n}`);
-      if (col)  col.addEventListener('input', () => buildVoicePills());
-      if (name) name.addEventListener('input', () => buildVoicePills());
+      if (col)  col.addEventListener('input', () => setVoiceColor(n, col.value));
+      if (name) name.addEventListener('input', () => setVoiceName(n, name.value));
     }
     const allCol = document.getElementById('allVoiceColor');
-    if (allCol) allCol.addEventListener('input', () => buildVoicePills());
+    if (allCol) allCol.addEventListener('input', () => setVoiceColor(0, allCol.value));
 
     document.addEventListener('keydown', onKeyDown);
   }
@@ -179,7 +240,9 @@ const Sync = (() => {
     currentSyncIdx = 0;
     // Apply stored voice count
     setVoiceCount(voiceCount);
+    _syncSwatches();
     buildVoicePills();
+    buildVoiceLegend();
     // Set initial TAP button color
     selectVoice(currentVoice);
 
@@ -422,6 +485,8 @@ const Sync = (() => {
     setup,
     drawWaveform,
     getVoiceConfig,
+    setVoiceColor,
+    setVoiceName,
     setSyncProgressListener(cb) { _syncProgressListener = cb; },
   };
 })();

@@ -11,29 +11,99 @@ export default function Panel4Export({ isActive, goToStep }) {
         {/* ══════════════════════════════
             LEFT — Settings sidebar
             ══════════════════════════════ */}
-        <div className="export-settings">
+        <div className="export-settings-wrap">
+
+          {/* Toolbar */}
+          <div className="export-settings-toolbar">
+            <span className="export-settings-toolbar-title">Edición</span>
+            <div className="export-settings-toolbar-btns">
+              <button id="clearSelectionBtn" className="toolbar-btn" title="Limpiar selección">⬜ Limpiar</button>
+              <button id="clearFiltersBtn" className="toolbar-btn" title="Limpiar filtros">🔍 Filtros</button>
+              <button id="collapseAllBtn" className="toolbar-btn" title="Colapsar todo">▾ Todo</button>
+            </div>
+          </div>
+
+          <div className="export-settings">
 
           {/* Tema */}
-          <div className="settings-section">
-            <div className="settings-section-title">🎨 Tema visual</div>
-            <div id="themeSelector" className="theme-selector" />
+          <div className="settings-section" id="sec-theme">
+            <div className="settings-section-header">
+              <div className="settings-section-title">🎨 Tema visual</div>
+              <button className="sec-collapse-btn" data-sec="sec-theme" title="Colapsar">▾</button>
+            </div>
+            <div className="sec-body">
+              <div className="sec-search-wrap">
+                <input type="text" id="themeSearch" className="sec-search" placeholder="Buscar tema..." />
+              </div>
+              <div id="themeCatTabs" className="cat-tabs" />
+              <div id="themeSelector" className="theme-selector" />
+            </div>
           </div>
 
           {/* Animación de fondo */}
-          <div className="settings-section">
-            <div className="settings-section-title">🌌 Animación de fondo</div>
-            <div id="animGrid" className="anim-grid" />
+          <div className="settings-section collapsed" id="sec-anim">
+            <div className="settings-section-header">
+              <div className="settings-section-title">🌌 Animación de fondo</div>
+              <button className="sec-collapse-btn" data-sec="sec-anim" title="Colapsar">▸</button>
+            </div>
+            <div className="sec-body">
+              <div className="sec-search-wrap">
+                <input type="text" id="animSearch" className="sec-search" placeholder="Buscar animación..." />
+              </div>
+              <div id="animGrid" className="anim-grid" />
+            </div>
           </div>
 
           {/* Efecto en primer plano */}
-          <div className="settings-section">
-            <div className="settings-section-title">🎇 Efecto en primer plano</div>
-            <div id="overlayGrid" className="anim-grid" />
+          <div className="settings-section collapsed" id="sec-overlay">
+            <div className="settings-section-header">
+              <div className="settings-section-title">🎇 Efecto en primer plano</div>
+              <button className="sec-collapse-btn" data-sec="sec-overlay" title="Colapsar">▸</button>
+            </div>
+            <div className="sec-body">
+              <div className="sec-search-wrap">
+                <input type="text" id="overlaySearch" className="sec-search" placeholder="Buscar efecto..." />
+              </div>
+              <div id="overlayCatTabs" className="cat-tabs" />
+              <div id="overlayGrid" className="anim-grid" />
+            </div>
+          </div>
+
+          {/* Fuente */}
+          <div className="settings-section collapsed" id="sec-font">
+            <div className="settings-section-header">
+              <div className="settings-section-title">💬 Fuente de texto</div>
+              <button className="sec-collapse-btn" data-sec="sec-font" title="Colapsar">▸</button>
+            </div>
+            <div className="sec-body">
+              <div className="sec-search-wrap">
+                <input type="text" id="fontSearch" className="sec-search" placeholder="Buscar fuente..." />
+              </div>
+              <div id="fontSelector" className="font-selector" />
+            </div>
+          </div>
+
+          {/* Efectos de texto */}
+          <div className="settings-section collapsed" id="sec-textfx">
+            <div className="settings-section-header">
+              <div className="settings-section-title">✨ Efectos de texto activo</div>
+              <button className="sec-collapse-btn" data-sec="sec-textfx" title="Colapsar">▸</button>
+            </div>
+            <div className="sec-body">
+              <div className="sec-search-wrap">
+                <input type="text" id="textFxSearch" className="sec-search" placeholder="Buscar efecto..." />
+              </div>
+              <div id="textEffectGrid" className="anim-grid-row" />
+            </div>
           </div>
 
           {/* Texto */}
-          <div className="settings-section">
-            <div className="settings-section-title">✍️ Texto y posición</div>
+          <div className="settings-section collapsed" id="sec-text">
+            <div className="settings-section-header">
+              <div className="settings-section-title">✍️ Texto y posición</div>
+              <button className="sec-collapse-btn" data-sec="sec-text" title="Colapsar">▸</button>
+            </div>
+            <div className="sec-body">
 
             <label className="field-label">Tamaño de fuente</label>
             <div className="slider-row">
@@ -45,6 +115,12 @@ export default function Panel4Export({ isActive, goToStep }) {
             <div className="slider-row">
               <input id="glowSlider" type="range" className="slider" min="0" max="3" step="0.1" defaultValue="1" />
               <span id="glowVal" className="slider-val">1.0×</span>
+            </div>
+
+            <label className="field-label">Zoom al texto activo</label>
+            <div className="slider-row">
+              <input id="zoomSlider" type="range" className="slider" min="1" max="1.4" step="0.01" defaultValue="1" />
+              <span id="zoomVal" className="slider-val">1.00×</span>
             </div>
 
             <label className="field-label" htmlFor="textPositionSelect">Posición del texto</label>
@@ -74,11 +150,17 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <span>Mostrar título en video</span>
               </label>
             </div>
+
+            </div>
           </div>
 
           {/* Opciones de video */}
-          <div className="settings-section">
-            <div className="settings-section-title">⚙️ Opciones de video</div>
+          <div className="settings-section collapsed" id="sec-video">
+            <div className="settings-section-header">
+              <div className="settings-section-title">⚙️ Opciones de video</div>
+              <button className="sec-collapse-btn" data-sec="sec-video" title="Colapsar">▸</button>
+            </div>
+            <div className="sec-body">
 
             <label className="field-label" htmlFor="resolutionSelect">Resolución</label>
             <select id="resolutionSelect" className="field-select">
@@ -100,8 +182,11 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <span>Mostrar barra de progreso</span>
               </label>
             </div>
+
+            </div>
           </div>
 
+          </div>
         </div>
 
         {/* ══════════════════════════════

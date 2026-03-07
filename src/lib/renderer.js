@@ -55,19 +55,50 @@ const Renderer = (() => {
       r: sr(i*7+603)*2.2+0.6, ph: sr(i*7+604)*6.28,
       drift: (sr(i*7+605)-0.5)*0.015,
     })),
+    // Extra data for new animations
+    rain: Array.from({ length: 120 }, (_, i) => ({
+      x: sr(i*6+700), y: sr(i*6+701), spd: sr(i*6+702)*0.12+0.06,
+      len: sr(i*6+703)*0.04+0.02, al: sr(i*6+704)*0.4+0.2,
+    })),
+    diamonds: Array.from({ length: 18 }, (_, i) => ({
+      x: sr(i*9+800), y: sr(i*9+801), spd: sr(i*9+802)*0.3+0.1,
+      sz: sr(i*9+803)*0.04+0.015, ph: sr(i*9+804)*6.28,
+      hue: i*20, rot: sr(i*9+806)*6.28, rotSpd: (sr(i*9+807)-0.5)*0.8,
+    })),
+    laserLines: Array.from({ length: 8 }, (_, i) => ({
+      y: sr(i*5+900)*0.8+0.1, hue: i*45, spd: (sr(i*5+901)-0.5)*0.04,
+      ph: sr(i*5+902)*6.28, thick: sr(i*5+903)*2+0.5,
+    })),
+    hearts: Array.from({ length: 22 }, (_, i) => ({
+      x: sr(i*8+1000), y: sr(i*8+1001), spd: sr(i*8+1002)*0.03+0.01,
+      sz: sr(i*8+1003)*0.04+0.018, ph: sr(i*8+1004)*6.28,
+      hue: sr(i*8+1005)*40+330,
+    })),
+    sparks2: Array.from({ length: 80 }, (_, i) => ({
+      x: sr(i*5+1100), y: sr(i*5+1101), ph: sr(i*5+1102)*6.28,
+      spd: sr(i*5+1103)*3+0.5, hue: sr(i*5+1104)*60+200,
+    })),
   };
 
   const MCHARS = 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ012345679';
 
   const THEMES = {
-    classic: { base: ['#0d0a2e','#160840'], textActive:'#FFD700', textDim:'rgba(255,255,255,0.65)', textPrev:'rgba(255,255,255,0.2)', progressBg:'rgba(255,255,255,0.1)', progressFg:'#7c4dff', shadowActive:'rgba(255,215,0,0.7)' },
-    neon:    { base: ['#050510','#0a0820'], textActive:'#00fff7', textDim:'rgba(160,220,255,0.7)', textPrev:'rgba(160,220,255,0.2)', progressBg:'rgba(0,255,247,0.1)', progressFg:'#00fff7', shadowActive:'rgba(0,255,247,0.9)' },
-    fire:    { base: ['#080000','#220600'], textActive:'#ff7700', textDim:'rgba(255,180,80,0.7)', textPrev:'rgba(255,180,80,0.2)', progressBg:'rgba(255,100,0,0.12)', progressFg:'#ff6600', shadowActive:'rgba(255,130,0,0.9)' },
-    ocean:   { base: ['#000d1a','#001c3a'], textActive:'#00d4ff', textDim:'rgba(150,220,255,0.7)', textPrev:'rgba(150,220,255,0.2)', progressBg:'rgba(0,212,255,0.1)', progressFg:'#00d4ff', shadowActive:'rgba(0,212,255,0.8)' },
-    minimal: { base: ['#0e0e0e','#1a1a1a'], textActive:'#ffffff', textDim:'rgba(255,255,255,0.55)', textPrev:'rgba(255,255,255,0.18)', progressBg:'rgba(255,255,255,0.1)', progressFg:'#fff', shadowActive:'rgba(255,255,255,0.5)' },
-    violeta: { base: ['#0c0020','#1a0040'], textActive:'#e040fb', textDim:'rgba(220,150,255,0.7)', textPrev:'rgba(220,150,255,0.2)', progressBg:'rgba(224,64,251,0.1)', progressFg:'#e040fb', shadowActive:'rgba(224,64,251,0.9)' },
-    dorado:  { base: ['#140e00','#241600'], textActive:'#FFC107', textDim:'rgba(255,215,90,0.65)', textPrev:'rgba(255,215,90,0.2)', progressBg:'rgba(255,193,7,0.12)', progressFg:'#FFC107', shadowActive:'rgba(255,193,7,0.8)' },
-    hielo:   { base: ['#ddeeff','#c0d8f5'], textActive:'#0055bb', textDim:'rgba(0,60,160,0.65)', textPrev:'rgba(0,60,160,0.2)', progressBg:'rgba(0,80,200,0.12)', progressFg:'#0055bb', shadowActive:'rgba(0,80,200,0.7)' },
+    // ── Oscuros
+    classic:    { base: ['#07051a','#12093a'], textActive:'#FFD700', textDim:'rgba(255,230,160,0.6)', textPrev:'rgba(255,230,160,0.18)', progressBg:'rgba(255,255,255,0.08)', progressFg:'#9c6dff', shadowActive:'rgba(255,215,0,0.85)' },
+    neon:       { base: ['#02020f','#060418'], textActive:'#00ffe5', textDim:'rgba(100,220,255,0.65)', textPrev:'rgba(100,220,255,0.18)', progressBg:'rgba(0,255,229,0.08)', progressFg:'#00ffe5', shadowActive:'rgba(0,255,229,1)' },
+    fire:       { base: ['#0a0100','#1e0400'], textActive:'#ff8c00', textDim:'rgba(255,180,80,0.65)', textPrev:'rgba(255,130,30,0.18)', progressBg:'rgba(255,100,0,0.1)', progressFg:'#ff5500', shadowActive:'rgba(255,110,0,1)' },
+    ocean:      { base: ['#000810','#00152e'], textActive:'#00d4ff', textDim:'rgba(120,210,255,0.65)', textPrev:'rgba(120,210,255,0.18)', progressBg:'rgba(0,212,255,0.08)', progressFg:'#00aaff', shadowActive:'rgba(0,212,255,0.95)' },
+    violeta:    { base: ['#080015','#130030'], textActive:'#d966ff', textDim:'rgba(210,140,255,0.65)', textPrev:'rgba(210,140,255,0.18)', progressBg:'rgba(200,60,255,0.08)', progressFg:'#c840ff', shadowActive:'rgba(210,60,255,1)' },
+    esmeralda:  { base: ['#010e08','#011e10'], textActive:'#00ffaa', textDim:'rgba(100,255,180,0.62)', textPrev:'rgba(100,255,180,0.17)', progressBg:'rgba(0,255,160,0.08)', progressFg:'#00dd88', shadowActive:'rgba(0,255,160,0.9)' },
+    atardecer:  { base: ['#0d0005','#200010'], textActive:'#ff6eb0', textDim:'rgba(255,160,200,0.62)', textPrev:'rgba(255,160,200,0.18)', progressBg:'rgba(255,80,160,0.08)', progressFg:'#ff4090', shadowActive:'rgba(255,80,180,0.9)' },
+    noir:       { base: ['#080808','#111111'], textActive:'#f0f0f0', textDim:'rgba(200,200,200,0.5)', textPrev:'rgba(200,200,200,0.15)', progressBg:'rgba(255,255,255,0.06)', progressFg:'#888', shadowActive:'rgba(255,255,255,0.55)' },
+    // ── Claros
+    minimal:    { base: ['#0d0d0d','#161616'], textActive:'#ffffff', textDim:'rgba(255,255,255,0.52)', textPrev:'rgba(255,255,255,0.16)', progressBg:'rgba(255,255,255,0.08)', progressFg:'#ccc', shadowActive:'rgba(255,255,255,0.6)' },
+    dorado:     { base: ['#110900','#1e1000'], textActive:'#ffcf2e', textDim:'rgba(255,210,80,0.6)', textPrev:'rgba(255,210,80,0.17)', progressBg:'rgba(255,200,0,0.1)', progressFg:'#ffb800', shadowActive:'rgba(255,200,0,0.9)' },
+    retro:      { base: ['#1a0d26','#2b1040'], textActive:'#ff77aa', textDim:'rgba(255,160,220,0.62)', textPrev:'rgba(255,160,220,0.17)', progressBg:'rgba(255,100,200,0.08)', progressFg:'#ff55bb', shadowActive:'rgba(255,100,200,0.85)' },
+    sakura:     { base: ['#f5e8f0','#e8d4e8'], textActive:'#b5006e', textDim:'rgba(160,0,100,0.58)', textPrev:'rgba(160,0,100,0.17)', progressBg:'rgba(180,0,90,0.1)', progressFg:'#cc0080', shadowActive:'rgba(180,0,100,0.55)' },
+    hielo:      { base: ['#d6eeff','#b8d8f8'], textActive:'#003faa', textDim:'rgba(0,50,140,0.6)', textPrev:'rgba(0,50,140,0.18)', progressBg:'rgba(0,70,180,0.1)', progressFg:'#0055cc', shadowActive:'rgba(0,70,200,0.65)' },
+    aurora:     { base: ['#001410','#002018'], textActive:'#7fff8a', textDim:'rgba(160,255,200,0.6)', textPrev:'rgba(160,255,200,0.16)', progressBg:'rgba(0,255,120,0.07)', progressFg:'#55ffaa', shadowActive:'rgba(100,255,160,0.9)' },
   };
 
   const ANIMATIONS = {
@@ -226,31 +257,175 @@ const Renderer = (() => {
         ctx.lineTo(W,H); ctx.closePath(); ctx.fillStyle=`hsla(${hue},78%,42%,0.1)`; ctx.fill();
       }
     },
+
+    lluvia: (ctx, W, H, t) => {
+      DATA.rain.forEach(r => {
+        const y = (r.y + t * r.spd) % 1;
+        const x = r.x;
+        const px = x * W, py = y * H;
+        const plen = r.len * H;
+        ctx.globalAlpha = r.al * Math.min(1, y * 12, (1 - y) * 12);
+        const g = ctx.createLinearGradient(px, py, px - plen * 0.18, py + plen);
+        g.addColorStop(0, 'rgba(180,220,255,0.9)'); g.addColorStop(1, 'transparent');
+        ctx.strokeStyle = g; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - plen * 0.18, py + plen); ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+    },
+
+    tunel: (ctx, W, H, t) => {
+      const cx = W * 0.5, cy = H * 0.5;
+      for (let ring = 20; ring > 0; ring--) {
+        const prog = ((ring / 20 + t * 0.22) % 1);
+        const r = prog * Math.min(W, H) * 0.65;
+        const hue = (t * 30 + ring * 18) % 360;
+        const al = (1 - prog) * 0.18;
+        ctx.globalAlpha = al;
+        ctx.strokeStyle = `hsl(${hue},100%,70%)`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.rect(cx - r * 0.88, cy - r * 0.5, r * 1.76, r); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    },
+
+    latido: (ctx, W, H, t) => {
+      const cx = W * 0.5, cy = H * 0.5;
+      const beat = 0.5 + 0.5 * Math.sin(t * 4.8);
+      for (let i = 0; i < 5; i++) {
+        const r = (0.12 + i * 0.09) * Math.min(W, H) * (0.9 + beat * 0.1);
+        const hue = 350 + i * 8;
+        const al = (0.3 - i * 0.05) * (0.4 + beat * 0.6);
+        ctx.globalAlpha = al;
+        const g = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
+        g.addColorStop(0, `hsla(${hue},100%,65%,0.6)`);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.28); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    },
+
+    diamante: (ctx, W, H, t) => {
+      DATA.diamonds.forEach(d => {
+        const yFrac = (d.y + t * d.spd) % 1;
+        const px = d.x * W, py = yFrac * H, sz = d.sz * W;
+        const rot = d.rot + t * d.rotSpd;
+        const hue = (d.hue + t * 20) % 360;
+        const fade = Math.min(1, Math.min(yFrac * 8, (1 - yFrac) * 8));
+        ctx.globalAlpha = fade * 0.7;
+        ctx.save(); ctx.translate(px, py); ctx.rotate(rot);
+        const g = ctx.createLinearGradient(-sz, -sz, sz, sz);
+        g.addColorStop(0, `hsla(${hue},100%,90%,0.9)`);
+        g.addColorStop(0.5, `hsla(${(hue+60)%360},100%,70%,0.6)`);
+        g.addColorStop(1, `hsla(${(hue+120)%360},100%,90%,0.9)`);
+        ctx.strokeStyle = g; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(0,-sz); ctx.lineTo(sz*0.6,0); ctx.lineTo(0,sz); ctx.lineTo(-sz*0.6,0); ctx.closePath(); ctx.stroke();
+        ctx.fillStyle = `hsla(${hue},100%,90%,0.08)`; ctx.fill();
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1;
+    },
+
+    vortex: (ctx, W, H, t) => {
+      const cx = W * 0.5, cy = H * 0.5;
+      for (let i = 0; i < 180; i++) {
+        const ang = (i / 180) * Math.PI * 2 + t * 0.4;
+        const radius = (i / 180) * Math.min(W, H) * 0.42;
+        const spiral = radius + Math.sin(i * 0.18 + t * 2.2) * 12;
+        const px = cx + Math.cos(ang) * spiral;
+        const py = cy + Math.sin(ang) * spiral * 0.55;
+        const hue = (i * 2 + t * 40) % 360;
+        ctx.globalAlpha = 0.22 * (i / 180);
+        ctx.fillStyle = `hsl(${hue},100%,72%)`;
+        const sz = (i / 180) * 2.2 + 0.4;
+        ctx.beginPath(); ctx.arc(px, py, sz, 0, 6.28); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    },
+
+    nebulosa: (ctx, W, H, t) => {
+      const clouds = [
+        {x:0.15,y:0.2,r:0.38,hue:260,spd:0.04,ph:0},
+        {x:0.75,y:0.55,r:0.32,hue:180,spd:0.06,ph:2.1},
+        {x:0.45,y:0.8,r:0.28,hue:320,spd:0.05,ph:4.2},
+        {x:0.85,y:0.15,r:0.22,hue:60,spd:0.07,ph:1.0},
+      ];
+      clouds.forEach(c => {
+        const pulse = 0.6 + 0.4 * Math.sin(t * c.spd * 8 + c.ph);
+        const cx2 = c.x * W + Math.sin(t * c.spd + c.ph) * W * 0.04;
+        const cy2 = c.y * H + Math.cos(t * c.spd * 0.7 + c.ph) * H * 0.04;
+        const g = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, c.r * W);
+        g.addColorStop(0, `hsla(${c.hue},80%,60%,${0.12 * pulse})`);
+        g.addColorStop(0.4, `hsla(${(c.hue+40)%360},70%,50%,${0.06 * pulse})`);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      });
+      DATA.stars.slice(0,80).forEach(s => {
+        const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * s.spd + s.ph));
+        ctx.globalAlpha = s.a * tw * 0.55;
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x*W, s.y*H, s.r*0.6, 0, 6.28); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    },
   };
 
   const ANIMATION_LIST = [
-    { id: 'none',       label: 'Sin animación', emoji: '⬜' },
-    { id: 'galaxia',    label: 'Galaxia',       emoji: '🌌' },
-    { id: 'matrix',     label: 'Matrix',        emoji: '💻' },
-    { id: 'aurora',     label: 'Aurora',        emoji: '🌈' },
-    { id: 'particulas', label: 'Partículas',    emoji: '✨' },
-    { id: 'hipnotico',  label: 'Hipnótico',     emoji: '🌀' },
-    { id: 'confeti',    label: 'Confeti',        emoji: '🎊' },
-    { id: 'cosmos',     label: 'Cosmos',        emoji: '🚀' },
-    { id: 'destellos',  label: 'Destellos',     emoji: '⭐' },
-    { id: 'prisma',     label: 'Prisma',        emoji: '🔮' },
-    { id: 'olas',       label: 'Olas',          emoji: '🌊' },
+    { id: 'none',       label: 'Ninguna',    emoji: '⬜', cat: 'basico' },
+    // Espacio
+    { id: 'galaxia',    label: 'Galaxia',    emoji: '🌌', cat: 'espacio' },
+    { id: 'cosmos',     label: 'Cosmos',     emoji: '🚀', cat: 'espacio' },
+    { id: 'nebulosa',   label: 'Nebulosa',   emoji: '🌠', cat: 'espacio' },
+    // Naturaleza
+    { id: 'aurora',     label: 'Aurora',     emoji: '🌈', cat: 'naturaleza' },
+    { id: 'olas',       label: 'Olas',       emoji: '🌊', cat: 'naturaleza' },
+    { id: 'lluvia',     label: 'Lluvia',     emoji: '🌧️', cat: 'naturaleza' },
+    // Energía
+    { id: 'particulas', label: 'Partículas', emoji: '✨', cat: 'energia' },
+    { id: 'destellos',  label: 'Destellos',  emoji: '⭐', cat: 'energia' },
+    { id: 'latido',     label: 'Latido',     emoji: '💗', cat: 'energia' },
+    { id: 'vortex',     label: 'Vórtex',     emoji: '🌀', cat: 'energia' },
+    // Geométrico
+    { id: 'hipnotico',  label: 'Hipnótico',  emoji: '🔮', cat: 'geometrico' },
+    { id: 'tunel',      label: 'Túnel',      emoji: '🔲', cat: 'geometrico' },
+    { id: 'diamante',   label: 'Diamantes',  emoji: '💎', cat: 'geometrico' },
+    { id: 'prisma',     label: 'Prisma',     emoji: '🔆', cat: 'geometrico' },
+    // Digital
+    { id: 'matrix',     label: 'Matrix',     emoji: '💻', cat: 'digital' },
+    // Festivo
+    { id: 'confeti',    label: 'Confeti',    emoji: '🎊', cat: 'festivo' },
+  ];
+
+  const ANIMATION_CATEGORIES = [
+    { id: 'basico',      label: 'Básico' },
+    { id: 'espacio',     label: 'Espacio' },
+    { id: 'naturaleza',  label: 'Naturaleza' },
+    { id: 'energia',     label: 'Energía' },
+    { id: 'geometrico',  label: 'Geométrico' },
+    { id: 'digital',     label: 'Digital' },
+    { id: 'festivo',     label: 'Festivo' },
   ];
 
   const THEME_LIST = [
-    { id: 'classic', label: 'Clásico',  emoji: '🌌' },
-    { id: 'neon',    label: 'Neón',     emoji: '⚡' },
-    { id: 'fire',    label: 'Fuego',    emoji: '🔥' },
-    { id: 'ocean',   label: 'Océano',   emoji: '💙' },
-    { id: 'minimal', label: 'Minimal',  emoji: '◻' },
-    { id: 'violeta', label: 'Violeta',  emoji: '💜' },
-    { id: 'dorado',  label: 'Dorado',   emoji: '🏆' },
-    { id: 'hielo',   label: 'Hielo',    emoji: '❄️' },
+    // Oscuros
+    { id: 'classic',   label: 'Clásico',    emoji: '🌌', cat: 'oscuro' },
+    { id: 'neon',      label: 'Neón',       emoji: '⚡', cat: 'oscuro' },
+    { id: 'fire',      label: 'Fuego',      emoji: '🔥', cat: 'oscuro' },
+    { id: 'ocean',     label: 'Océano',     emoji: '💙', cat: 'oscuro' },
+    { id: 'violeta',   label: 'Violeta',    emoji: '💜', cat: 'oscuro' },
+    { id: 'esmeralda', label: 'Esmeralda',  emoji: '💚', cat: 'oscuro' },
+    { id: 'atardecer', label: 'Atardecer',  emoji: '🌅', cat: 'oscuro' },
+    { id: 'noir',      label: 'Noir',       emoji: '◾', cat: 'oscuro' },
+    // Suaves / Claros
+    { id: 'minimal',   label: 'Minimalista',emoji: '◻',  cat: 'claro' },
+    { id: 'dorado',    label: 'Dorado',     emoji: '🏆', cat: 'claro' },
+    { id: 'retro',     label: 'Retro',      emoji: '🎀', cat: 'claro' },
+    { id: 'sakura',    label: 'Sakura',     emoji: '🌸', cat: 'claro' },
+    { id: 'hielo',     label: 'Hielo',      emoji: '❄️', cat: 'claro' },
+    { id: 'aurora',    label: 'Aurora',     emoji: '🌿', cat: 'claro' },
+  ];
+
+  const THEME_CATEGORIES = [
+    { id: 'oscuro', label: 'Oscuros' },
+    { id: 'claro',  label: 'Suaves / Claros' },
   ];
 
   /* ── Foreground overlay effects (render AFTER text) ── */
@@ -324,14 +499,121 @@ const Renderer = (() => {
       });
       ctx.globalAlpha = 1;
     },
+
+    corazones: (ctx, W, H, t) => {
+      ctx.save();
+      DATA.hearts.forEach(h => {
+        const yFrac = 1 - ((h.y + t * h.spd) % 1);
+        const xFrac = h.x + Math.sin(t * 0.5 + h.ph) * 0.025;
+        const fade = Math.min(1, Math.min(yFrac * 8, (1 - yFrac) * 8)) * 0.55;
+        if (fade < 0.02) return;
+        const sz = h.sz * W;
+        const px = xFrac * W, py = yFrac * H;
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = `hsl(${h.hue},85%,70%)`;
+        ctx.save(); ctx.translate(px, py); ctx.scale(sz / 12, sz / 12);
+        ctx.beginPath();
+        ctx.moveTo(0, 3); ctx.bezierCurveTo(-6, -3, -12, 0, -12, 6);
+        ctx.bezierCurveTo(-12, 12, 0, 18, 0, 18);
+        ctx.bezierCurveTo(0, 18, 12, 12, 12, 6);
+        ctx.bezierCurveTo(12, 0, 6, -3, 0, 3);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1; ctx.restore();
+    },
+
+    chispas: (ctx, W, H, t) => {
+      DATA.sparks2.forEach(s => {
+        const pulse = Math.abs(Math.sin(t * s.spd + s.ph));
+        if (pulse < 0.3) return;
+        const a = (pulse - 0.3) / 0.7;
+        const x = s.x * W, y = s.y * H;
+        const r = 0.4 + a * 1.8;
+        ctx.globalAlpha = a * 0.7;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r * W / 500);
+        g.addColorStop(0, `hsla(${s.hue},100%,95%,1)`);
+        g.addColorStop(0.5, `hsla(${s.hue},100%,70%,0.4)`);
+        g.addColorStop(1, 'transparent');
+        const rw = r * W / 500;
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rw * 4, 0, 6.28); ctx.fill();
+        // Cross spark
+        ctx.strokeStyle = `hsl(${s.hue},100%,90%)`; ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(x - rw * 5, y); ctx.lineTo(x + rw * 5, y);
+        ctx.moveTo(x, y - rw * 3); ctx.lineTo(x, y + rw * 3);
+        ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+    },
+
+    estrellas: (ctx, W, H, t) => {
+      DATA.stars.forEach(s => {
+        const tw = 0.3 + 0.7 * Math.abs(Math.sin(t * s.spd * 2.5 + s.ph));
+        if (tw < 0.35) return;
+        ctx.globalAlpha = s.a * tw * 0.65;
+        const hue = (s.ph * 58 + t * 20) % 360;
+        ctx.fillStyle = s.a > 0.6 ? '#fff' : `hsl(${hue},90%,85%)`;
+        const r = (s.r + tw * 1.2) * W / 2200;
+        ctx.beginPath(); ctx.arc(s.x * W, s.y * H, r, 0, 6.28); ctx.fill();
+        // Twinkle cross
+        if (tw > 0.7) {
+          ctx.globalAlpha = s.a * (tw - 0.7) * 0.5;
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.7;
+          const cr = r * 3.5;
+          ctx.beginPath();
+          ctx.moveTo(s.x*W - cr, s.y*H); ctx.lineTo(s.x*W + cr, s.y*H);
+          ctx.moveTo(s.x*W, s.y*H - cr); ctx.lineTo(s.x*W, s.y*H + cr);
+          ctx.stroke();
+        }
+      });
+      ctx.globalAlpha = 1;
+    },
+
+    laser: (ctx, W, H, t) => {
+      DATA.laserLines.forEach(l => {
+        const y = (l.y + Math.sin(t * 0.4 + l.ph) * 0.06) * H;
+        const hue = (l.hue + t * 20) % 360;
+        const al = 0.18 + 0.12 * Math.sin(t * 1.2 + l.ph);
+        const grad = ctx.createLinearGradient(0, y, W, y);
+        grad.addColorStop(0, 'transparent');
+        grad.addColorStop(0.2, `hsla(${hue},100%,70%,${al})`);
+        grad.addColorStop(0.5, `hsla(${hue},100%,90%,${al * 1.6})`);
+        grad.addColorStop(0.8, `hsla(${hue},100%,70%,${al})`);
+        grad.addColorStop(1, 'transparent');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = (l.thick * W) / 1920;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        // Core bright line
+        ctx.lineWidth = ctx.lineWidth * 0.3;
+        ctx.strokeStyle = `hsla(${hue},100%,98%,${al * 0.7})`;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      });
+    },
   };
 
   const OVERLAY_LIST = [
-    { id: 'none',     label: 'Ninguno',  emoji: '⬜' },
-    { id: 'notas',    label: 'Notas',    emoji: '🎵' },
-    { id: 'brasas',   label: 'Brasas',   emoji: '🔥' },
-    { id: 'nieve',    label: 'Nieve',    emoji: '❄️' },
-    { id: 'burbujas', label: 'Burbujas', emoji: '🫧' },
+    { id: 'none',      label: 'Ninguno',   emoji: '⬜', cat: 'basico' },
+    // Musica
+    { id: 'notas',     label: 'Notas',     emoji: '🎵', cat: 'musica' },
+    // Naturaleza
+    { id: 'brasas',    label: 'Brasas',    emoji: '🔥', cat: 'naturaleza' },
+    { id: 'nieve',     label: 'Nieve',     emoji: '❄️', cat: 'naturaleza' },
+    { id: 'burbujas',  label: 'Burbujas',  emoji: '🫧', cat: 'naturaleza' },
+    // Festivo
+    { id: 'corazones', label: 'Corazones', emoji: '💖', cat: 'festivo' },
+    { id: 'chispas',   label: 'Chispas',   emoji: '✨', cat: 'festivo' },
+    // Sci-fi
+    { id: 'estrellas', label: 'Estrellas', emoji: '⭐', cat: 'scifi' },
+    { id: 'laser',     label: 'Láser',     emoji: '💡', cat: 'scifi' },
+  ];
+
+  const OVERLAY_CATEGORIES = [
+    { id: 'basico',     label: 'Sin efecto' },
+    { id: 'musica',     label: 'Música' },
+    { id: 'naturaleza', label: 'Naturaleza' },
+    { id: 'festivo',    label: 'Festivo' },
+    { id: 'scifi',      label: 'Sci-fi' },
   ];
 
   function drawFrame(canvas, opts) {
@@ -418,7 +700,7 @@ const Renderer = (() => {
     return t+'…';
   }
 
-  return { drawFrame, THEMES, ANIMATIONS, OVERLAY_LIST, ANIMATION_LIST, THEME_LIST };
+  return { drawFrame, THEMES, ANIMATIONS, OVERLAY_LIST, OVERLAY_CATEGORIES, ANIMATION_LIST, ANIMATION_CATEGORIES, THEME_LIST, THEME_CATEGORIES };
 })();
 
 export default Renderer;

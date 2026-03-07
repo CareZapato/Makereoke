@@ -740,20 +740,41 @@ kbd {
   padding: 2px;
 }
 
-.theme-selector { display: flex; gap: 6px; flex-wrap: wrap; }
-.theme-btn {
-  background: var(--bg3); border: 1px solid var(--border);
-  color: var(--text-dim); padding: 6px 10px; border-radius: 8px;
-  cursor: pointer; font-size: 0.8rem; transition: all var(--transition);
+/* Theme selector */
+.theme-selector {
+  display: flex; flex-direction: column; gap: 8px;
 }
-.theme-btn:hover { border-color: var(--primary); color: var(--text); background: rgba(124,77,255,0.08); }
-.theme-btn.active { border-color: var(--primary); background: rgba(124,77,255,0.2); color: var(--text); box-shadow: 0 0 8px rgba(124,77,255,0.3); }
+.theme-selector-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.selector-cat-label {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-dim);
+  opacity: 0.55; padding: 2px 0 0;
+}
+.theme-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text-dim); padding: 7px 10px; border-radius: 10px;
+  cursor: pointer; font-size: 0.78rem; transition: all var(--transition);
+  min-width: 64px; text-align: center;
+}
+.theme-btn-emoji { font-size: 1.2rem; line-height: 1; }
+.theme-btn-label { font-size: 0.7rem; color: inherit; }
+.theme-btn:hover { border-color: var(--primary); color: var(--text); background: rgba(124,77,255,0.1); }
+.theme-btn.active {
+  border-color: var(--primary); background: rgba(124,77,255,0.22);
+  color: var(--text); box-shadow: 0 0 10px rgba(124,77,255,0.35);
+}
 
-/* Animation selector grid */
+/* Animation / Overlay selector */
 .anim-grid {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.anim-grid-row {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
 }
 .anim-card {
   display: flex; flex-direction: column; align-items: center;
@@ -888,8 +909,8 @@ kbd {
   /* Step 4 – Export */
   .export-btns { flex-direction: column; align-items: stretch; }
   .export-btns .btn { justify-content: center; }
-  .theme-selector { gap: 5px; }
-  .theme-btn { padding: 5px 8px; font-size: 0.75rem; }
+  .theme-btn { padding: 5px 8px; font-size: 0.72rem; min-width: 54px; }
+  .anim-grid-row { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 }
 
 /* ── ≤ 600px: phones ── */

@@ -54,51 +54,84 @@ const ExportEngine = (() => {
     // Guard: export panel may not be mounted yet on first boot
     if (!themeSelector || !animGrid || !fontSizeSlider || !exportPlayBtn || !startRecordBtn) return;
 
-    /* ── Build theme buttons from Renderer.THEME_LIST ── */
+    /* ── Build theme buttons from Renderer.THEME_LIST grouped by category ── */
     themeSelector.innerHTML = '';
-    Renderer.THEME_LIST.forEach(t => {
-      const btn = document.createElement('button');
-      btn.className = 'theme-btn' + (t.id === currentTheme ? ' active' : '');
-      btn.dataset.theme = t.id;
-      btn.textContent = `${t.emoji} ${t.label}`;
-      btn.addEventListener('click', () => {
-        currentTheme = t.id;
-        themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t.id));
-        renderPreviewFrame();
+    Renderer.THEME_CATEGORIES.forEach(cat => {
+      const items = Renderer.THEME_LIST.filter(t => t.cat === cat.id);
+      if (!items.length) return;
+      const grpLabel = document.createElement('div');
+      grpLabel.className = 'selector-cat-label';
+      grpLabel.textContent = cat.label;
+      themeSelector.appendChild(grpLabel);
+      const row = document.createElement('div');
+      row.className = 'theme-selector-row';
+      items.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'theme-btn' + (t.id === currentTheme ? ' active' : '');
+        btn.dataset.theme = t.id;
+        btn.innerHTML = `<span class="theme-btn-emoji">${t.emoji}</span><span class="theme-btn-label">${t.label}</span>`;
+        btn.addEventListener('click', () => {
+          currentTheme = t.id;
+          themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t.id));
+          renderPreviewFrame();
+        });
+        row.appendChild(btn);
       });
-      themeSelector.appendChild(btn);
+      themeSelector.appendChild(row);
     });
 
-    /* ── Build animation grid from Renderer.ANIMATION_LIST ── */
+    /* ── Build animation grid from Renderer.ANIMATION_LIST grouped by category ── */
     animGrid.innerHTML = '';
-    Renderer.ANIMATION_LIST.forEach(a => {
-      const card = document.createElement('div');
-      card.className = 'anim-card' + (a.id === currentAnimation ? ' active' : '');
-      card.dataset.anim = a.id;
-      card.innerHTML = `<span class="anim-emoji">${a.emoji}</span><span class="anim-label">${a.label}</span>`;
-      card.addEventListener('click', () => {
-        currentAnimation = a.id;
-        animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === a.id));
-        renderPreviewFrame();
+    Renderer.ANIMATION_CATEGORIES.forEach(cat => {
+      const items = Renderer.ANIMATION_LIST.filter(a => a.cat === cat.id);
+      if (!items.length) return;
+      const grpLabel = document.createElement('div');
+      grpLabel.className = 'selector-cat-label';
+      grpLabel.textContent = cat.label;
+      animGrid.appendChild(grpLabel);
+      const row = document.createElement('div');
+      row.className = 'anim-grid-row';
+      items.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'anim-card' + (a.id === currentAnimation ? ' active' : '');
+        card.dataset.anim = a.id;
+        card.innerHTML = `<span class="anim-emoji">${a.emoji}</span><span class="anim-label">${a.label}</span>`;
+        card.addEventListener('click', () => {
+          currentAnimation = a.id;
+          animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === a.id));
+          renderPreviewFrame();
+        });
+        row.appendChild(card);
       });
-      animGrid.appendChild(card);
+      animGrid.appendChild(row);
     });
 
-    /* ── Build overlay grid from Renderer.OVERLAY_LIST ── */
+    /* ── Build overlay grid from Renderer.OVERLAY_LIST grouped by category ── */
     overlayGrid = document.getElementById('overlayGrid');
     if (overlayGrid) {
       overlayGrid.innerHTML = '';
-      Renderer.OVERLAY_LIST.forEach(o => {
-        const card = document.createElement('div');
-        card.className = 'anim-card' + (o.id === currentOverlay ? ' active' : '');
-        card.dataset.ov = o.id;
-        card.innerHTML = `<span class="anim-emoji">${o.emoji}</span><span class="anim-label">${o.label}</span>`;
-        card.addEventListener('click', () => {
-          currentOverlay = o.id;
-          overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === o.id));
-          renderPreviewFrame();
+      Renderer.OVERLAY_CATEGORIES.forEach(cat => {
+        const items = Renderer.OVERLAY_LIST.filter(o => o.cat === cat.id);
+        if (!items.length) return;
+        const grpLabel = document.createElement('div');
+        grpLabel.className = 'selector-cat-label';
+        grpLabel.textContent = cat.label;
+        overlayGrid.appendChild(grpLabel);
+        const row = document.createElement('div');
+        row.className = 'anim-grid-row';
+        items.forEach(o => {
+          const card = document.createElement('div');
+          card.className = 'anim-card' + (o.id === currentOverlay ? ' active' : '');
+          card.dataset.ov = o.id;
+          card.innerHTML = `<span class="anim-emoji">${o.emoji}</span><span class="anim-label">${o.label}</span>`;
+          card.addEventListener('click', () => {
+            currentOverlay = o.id;
+            overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === o.id));
+            renderPreviewFrame();
+          });
+          row.appendChild(card);
         });
-        overlayGrid.appendChild(card);
+        overlayGrid.appendChild(row);
       });
     }
 

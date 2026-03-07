@@ -10,12 +10,14 @@ import Panel1Upload from './components/steps/Panel1Upload.jsx';
 import Panel2Sync from './components/steps/Panel2Sync.jsx';
 import Panel3Adjust from './components/steps/Panel3Adjust.jsx';
 import Panel4Export from './components/steps/Panel4Export.jsx';
+import ChangelogModal from './components/ChangelogModal.jsx';
 
 export default function App() {
-  const [step, setStep]         = useState(1);
-  const [hasAudio, setHasAudio] = useState(false);
-  const [hasLyrics, setHasLyrics] = useState(false);
-  const [syncDone, setSyncDone]   = useState(false);
+  const [step, setStep]             = useState(1);
+  const [hasAudio, setHasAudio]     = useState(false);
+  const [hasLyrics, setHasLyrics]   = useState(false);
+  const [syncDone, setSyncDone]     = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
 
   /* ── Boot ── */
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function App() {
 
   return (
     <>
-      <Header step={step} />
+      <Header step={step} onShowChangelog={() => setShowChangelog(true)} />
 
       <main className="app-main">
         <Panel1Upload
@@ -91,6 +93,9 @@ export default function App() {
 
       {/* Global toast container */}
       <div id="toastContainer" />
+
+      {/* Changelog overlay */}
+      {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
     </>
   );
 }

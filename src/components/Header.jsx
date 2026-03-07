@@ -8,13 +8,19 @@ const STEPS = [
   { n: 4, label: 'Export' },
 ];
 
-export default function Header({ step }) {
+export default function Header({ step, onShowChangelog }) {
   return (
     <header className="app-header">
       <div className="logo">
         <span className="logo-icon">🎤</span>
         <span className="logo-text">Makereoke</span>
-        <span className="version-badge">v{APP_VERSION}</span>
+        <button
+          className="version-badge version-badge-btn"
+          onClick={onShowChangelog}
+          title="Ver historial de cambios"
+        >
+          v{APP_VERSION}
+        </button>
       </div>
 
       <div className="header-right">

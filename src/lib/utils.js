@@ -2,7 +2,7 @@
    utils.js — Helper functions (ES module)
    ============================================================ */
 
-export const APP_VERSION = '0.3.1';
+export const APP_VERSION = '0.3.3';
 
 /** Format seconds to MM:SS or MM:SS.ms */
 export function formatTime(sec, ms = false) {

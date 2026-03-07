@@ -616,6 +616,16 @@ const ExportEngine = (() => {
       if (introShowLogoToggle)    introShowLogoToggle.checked       = ic.showLogo;
       if (introStyleGrid)      introStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c.dataset.style === ic.style));
       if (introTransitionGrid) introTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transition === ic.transition));
+      const introTransitionOutGrid = document.getElementById('introTransitionOutGrid');
+      const introSameTransOutToggle = document.getElementById('introSameTransOutToggle');
+      const introTransOutLabel = document.getElementById('introTransOutLabel');
+      if (introSameTransOutToggle) introSameTransOutToggle.checked = ic.useSameTransOut;
+      if (introTransitionOutGrid) {
+        introTransitionOutGrid.style.opacity = ic.useSameTransOut ? '0.4' : '1';
+        introTransitionOutGrid.style.pointerEvents = ic.useSameTransOut ? 'none' : 'auto';
+        introTransitionOutGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transitionOut === (ic.transitionOut || ic.transition)));
+      }
+      if (introTransOutLabel) introTransOutLabel.style.opacity = ic.useSameTransOut ? '0.4' : '1';
     }
 
     if (introEnabledToggle) introEnabledToggle.addEventListener('change', () => { Intro.set({ enabled: introEnabledToggle.checked }); renderPreviewFrame(); });
@@ -663,6 +673,37 @@ const ExportEngine = (() => {
         if (!card) return;
         Intro.set({ transition: card.dataset.transition });
         introTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c === card));
+        // Seek to start of intro to show entry transition
+        Audio.seek(0);
+        renderPreviewFrame();
+      });
+    }
+    const introTransitionOutGrid = document.getElementById('introTransitionOutGrid');
+    const introSameTransOutToggle = document.getElementById('introSameTransOutToggle');
+    const introTransOutLabel = document.getElementById('introTransOutLabel');
+    if (introTransitionOutGrid) {
+      introTransitionOutGrid.addEventListener('click', e => {
+        const card = e.target.closest('.intro-trans-card');
+        if (!card) return;
+        Intro.set({ transitionOut: card.dataset.transitionOut });
+        introTransitionOutGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c === card));
+        // Seek to show exit transition (go to end of intro minus exit transition duration)
+        const ic = Intro.get();
+        const introDur = ic.duration || 4;
+        const exitStartTime = Math.max(0, introDur - 1);
+        Audio.seek(exitStartTime);
+        renderPreviewFrame();
+      });
+    }
+    if (introSameTransOutToggle) {
+      introSameTransOutToggle.addEventListener('change', () => {
+        const useSame = introSameTransOutToggle.checked;
+        Intro.set({ useSameTransOut: useSame, transitionOut: useSame ? null : Intro.get().transition });
+        if (introTransitionOutGrid) {
+          introTransitionOutGrid.style.opacity = useSame ? '0.4' : '1';
+          introTransitionOutGrid.style.pointerEvents = useSame ? 'none' : 'auto';
+        }
+        if (introTransOutLabel) introTransOutLabel.style.opacity = useSame ? '0.4' : '1';
         renderPreviewFrame();
       });
     }

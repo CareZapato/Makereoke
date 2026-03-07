@@ -66,6 +66,13 @@ export default function Panel4Export({ isActive, goToStep }) {
                   { id: 'glitch',     icon: '📺',  label: 'Glitch'      },
                   { id: 'aurora',     icon: '🌈',  label: 'Aurora'      },
                   { id: 'magazine',   icon: '📰',  label: 'Magazine'    },
+                  { id: 'clasico',    icon: '📜',  label: 'Clásico'     },
+                  { id: 'gamer',      icon: '🎮',  label: 'Gamer'       },
+                  { id: 'metal',      icon: '🤘',  label: 'Metal'       },
+                  { id: 'fotografia', icon: '📷',  label: 'Fotografía'  },
+                  { id: 'espacial',   icon: '🌌',  label: 'Espacial'    },
+                  { id: 'teatro',     icon: '🎭',  label: 'Teatro'      },
+                  { id: 'escenario',  icon: '🎤',  label: 'Escenario'   },
                 ].map(s => (
                   <button key={s.id} className={`intro-style-card${s.id === 'bold' ? ' active' : ''}`} data-style={s.id}>
                     <span className="intro-style-icon">{s.icon}</span>
@@ -74,20 +81,58 @@ export default function Panel4Export({ isActive, goToStep }) {
                 ))}
               </div>
 
-              <label className="field-label">Transición</label>
+              <label className="field-label">Transición de entrada</label>
               <div id="introTransitionGrid" className="intro-trans-grid">
                 {[
-                  { id: 'fade',       label: '✨ Fade'      },
-                  { id: 'slide-up',   label: '↑ Slide'     },
-                  { id: 'zoom',       label: '🔍 Zoom'     },
-                  { id: 'typewriter', label: '⌨️ Type'     },
-                  { id: 'blur-in',    label: '🔵 Blur'     },
-                  { id: 'bounce',     label: '🏀 Bounce'   },
-                  { id: 'glitch-in',  label: '📺 Glitch'   },
-                  { id: 'swipe-left', label: '← Swipe'     },
-                  { id: 'spin-in',    label: '🔄 Spin'     },
+                  { id: 'fade',         label: '✨ Fade'      },
+                  { id: 'slide-up',     label: '↑ Slide Up'  },
+                  { id: 'slide-down',   label: '↓ Slide Dn'  },
+                  { id: 'zoom',         label: '🔍 Zoom'     },
+                  { id: 'typewriter',   label: '⌨️ Type'     },
+                  { id: 'blur-in',      label: '🔵 Blur'     },
+                  { id: 'bounce',       label: '🏀 Bounce'   },
+                  { id: 'glitch-in',    label: '📺 Glitch'   },
+                  { id: 'swipe-left',   label: '← Swipe'     },
+                  { id: 'spin-in',      label: '🔄 Spin'     },
+                  { id: 'wipe-right',   label: '→ Wipe R'    },
+                  { id: 'wipe-left',    label: '← Wipe L'    },
+                  { id: 'circle-expand',label: '⭕ Circle'   },
+                  { id: 'curtain-open', label: '🎭 Curtain'  },
+                  { id: 'push-up',      label: '⬆️ Push'     },
                 ].map((t, i) => (
                   <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition={t.id}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="toggle-row" style={{ marginTop: '8px' }}>
+                <label className="toggle-label">
+                  <input id="introSameTransOutToggle" type="checkbox" defaultChecked />
+                  <span>Usar misma transición para salida</span>
+                </label>
+              </div>
+
+              <label className="field-label" id="introTransOutLabel" style={{ opacity: 0.4 }}>Trans. de salida</label>
+              <div id="introTransitionOutGrid" className="intro-trans-grid" style={{ opacity: 0.4, pointerEvents: 'none' }}>
+                {[
+                  { id: 'fade',         label: '✨ Fade'      },
+                  { id: 'slide-up',     label: '↑ Slide Up'  },
+                  { id: 'slide-down',   label: '↓ Slide Dn'  },
+                  { id: 'zoom',         label: '🔍 Zoom'     },
+                  { id: 'typewriter',   label: '⌨️ Type'     },
+                  { id: 'blur-in',      label: '🔵 Blur'     },
+                  { id: 'bounce',       label: '🏀 Bounce'   },
+                  { id: 'glitch-in',    label: '📺 Glitch'   },
+                  { id: 'swipe-left',   label: '← Swipe'     },
+                  { id: 'spin-in',      label: '🔄 Spin'     },
+                  { id: 'wipe-right',   label: '→ Wipe R'    },
+                  { id: 'wipe-left',    label: '← Wipe L'    },
+                  { id: 'circle-expand',label: '⭕ Circle'   },
+                  { id: 'curtain-open', label: '🎭 Curtain'  },
+                  { id: 'push-up',      label: '⬆️ Push'     },
+                ].map((t, i) => (
+                  <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition-out={t.id}>
                     {t.label}
                   </button>
                 ))}

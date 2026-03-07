@@ -4,17 +4,19 @@
 
 const Intro = (() => {
   const _defaults = {
-    enabled:     false,
-    duration:    4,          // seconds the intro card shows
-    title:       '',         // song title displayed on the card
-    artist:      '',         // artist / band name
-    showLogo:    true,       // show 'Makereoke' watermark
-    style:       'bold',     // 'minimal' | 'bold' | 'neon' | 'cinematic' | 'vintage'
-    transition:  'fade',     // 'fade' | 'slide-up' | 'zoom' | 'typewriter'
-    titleColor:  '#ffffff',
-    artistColor: '#c0a0ff',
-    titleSize:   1.0,        // size multiplier for the title text
-    artistRatio: 0.45,       // artist font size as fraction of title font
+    enabled:        false,
+    duration:       4,          // seconds the intro card shows
+    title:          '',         // song title displayed on the card
+    artist:         '',         // artist / band name
+    showLogo:       true,       // show 'Makereoke' watermark
+    style:          'bold',     // 'minimal' | 'bold' | 'neon' | 'cinematic' | 'vintage' | ...
+    transition:     'fade',     // 'fade' | 'slide-up' | 'zoom' | 'typewriter' | ...
+    transitionOut:  null,       // null = use same as transition, or specify different exit transition
+    titleColor:     '#ffffff',
+    artistColor:    '#c0a0ff',
+    titleSize:      1.0,        // size multiplier for the title text
+    artistRatio:    0.45,       // artist font size as fraction of title font
+    useSameTransOut: true,      // UI checkbox: true = transitionOut follows transition
   };
 
   let _cfg = { ..._defaults };

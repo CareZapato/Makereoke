@@ -20,6 +20,17 @@ export const PROJECT_INFO = {
  */
 export const CHANGELOG = [
   {
+    version: '0.3.3',
+    date: '2026-03-07',
+    changes: [
+      { type: 'new',     text: '7 nuevos estilos visuales para la intro: Clásico, Gamer, Metal, Fotografía, Espacial, Teatro y Escenario.' },
+      { type: 'new',     text: '6 nuevas transiciones modernas: deslizar hacia abajo, cortina izquierda/derecha, círculo expandido, cortina abierta y empuje hacia arriba.' },
+      { type: 'new',     text: 'Transiciones de salida personalizables: ahora puedes elegir una transición diferente para el final de la intro.' },
+      { type: 'improve', text: 'Al probar transiciones, el video salta automáticamente al inicio o final de la intro para ver el efecto en acción.' },
+      { type: 'fix',     text: 'Corregidas transiciones visuales que dejaban de funcionar al cambiar entre diferentes efectos.' },
+    ],
+  },
+  {
     version: '0.2.14',
     date: '2026-03-07',
     changes: [

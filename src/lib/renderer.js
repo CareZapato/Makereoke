@@ -1226,14 +1226,25 @@ const Renderer = (() => {
 
   /* ── Font list ── */
   const FONT_LIST = [
-    { id: 'segoe',      label: 'Por defecto',  family: "'Segoe UI', Arial, sans-serif",                  preview: 'Abc' },
-    { id: 'nunito',     label: 'Nunito',        family: "'Nunito', 'Arial Rounded MT Bold', sans-serif",  preview: 'Abc' },
-    { id: 'montserrat', label: 'Montserrat',    family: "'Montserrat', Arial, sans-serif",                preview: 'Abc' },
-    { id: 'oswald',     label: 'Oswald',        family: "'Oswald', 'Impact', sans-serif",                 preview: 'Abc' },
-    { id: 'bebas',      label: 'Bebas Neue',    family: "'Bebas Neue', 'Impact', sans-serif",             preview: 'Abc' },
-    { id: 'pacifico',   label: 'Pacifico',      family: "'Pacifico', cursive",                            preview: 'Abc' },
-    { id: 'bangers',    label: 'Bangers',        family: "'Bangers', fantasy",                             preview: 'Abc' },
-    { id: 'russo',      label: 'Russo One',     family: "'Russo One', 'Arial Black', sans-serif",         preview: 'Abc' },
+    { id: 'segoe',      label: 'Por defecto',      family: "'Segoe UI', Arial, sans-serif",                          preview: 'Abc' },
+    { id: 'nunito',     label: 'Nunito',            family: "'Nunito', 'Arial Rounded MT Bold', sans-serif",          preview: 'Abc' },
+    { id: 'montserrat', label: 'Montserrat',        family: "'Montserrat', Arial, sans-serif",                        preview: 'Abc' },
+    { id: 'oswald',     label: 'Oswald',            family: "'Oswald', 'Impact', sans-serif",                         preview: 'Abc' },
+    { id: 'bebas',      label: 'Bebas Neue',        family: "'Bebas Neue', 'Impact', sans-serif",                     preview: 'Abc' },
+    { id: 'pacifico',   label: 'Pacifico',          family: "'Pacifico', cursive",                                    preview: 'Abc' },
+    { id: 'bangers',    label: 'Bangers',            family: "'Bangers', fantasy",                                     preview: 'Abc' },
+    { id: 'russo',      label: 'Russo One',         family: "'Russo One', 'Arial Black', sans-serif",                 preview: 'Abc' },
+    { id: 'anton',      label: 'Anton',             family: "'Anton', Impact, sans-serif",                            preview: 'Abc' },
+    { id: 'raleway',    label: 'Raleway',           family: "'Raleway', sans-serif",                                  preview: 'Abc' },
+    { id: 'righteous',  label: 'Righteous',         family: "'Righteous', sans-serif",                                preview: 'Abc' },
+    { id: 'audiowide',  label: 'Audiowide',         family: "'Audiowide', 'Courier New', monospace",                  preview: 'Abc' },
+    { id: 'cinzel',     label: 'Cinzel',            family: "'Cinzel', Georgia, serif",                               preview: 'Abc' },
+    { id: 'dancing',    label: 'Dancing Script',    family: "'Dancing Script', cursive",                              preview: 'Abc' },
+    { id: 'caveat',     label: 'Caveat',            family: "'Caveat', cursive",                                      preview: 'Abc' },
+    { id: 'marker',     label: 'Permanent Marker',  family: "'Permanent Marker', cursive",                            preview: 'Abc' },
+    { id: 'comic',      label: 'Comic Neue',        family: "'Comic Neue', 'Comic Sans MS', cursive",                 preview: 'Abc' },
+    { id: 'boogaloo',   label: 'Boogaloo',          family: "'Boogaloo', cursive",                                    preview: 'Abc' },
+    { id: 'pressstart', label: 'Press Start 2P',    family: "'Press Start 2P', monospace",                            preview: 'Abc' },
   ];
 
   /* ── Text effects (applied when drawing active lyric line) ── */
@@ -1312,8 +1323,194 @@ const Renderer = (() => {
     { id: 'sombra_ring', label: 'Anillo',    emoji: '🔵' },
   ];
 
+  /* ── Progress bar styles ── */
+  const PROGRESS_BAR_LIST = [
+    { id: 'bottom',        label: 'Barra abajo',       emoji: '⬇️' },
+    { id: 'top',           label: 'Barra arriba',      emoji: '⬆️' },
+    { id: 'left',          label: 'Vertical izq.',     emoji: '◀' },
+    { id: 'right',         label: 'Vertical der.',     emoji: '▶' },
+    { id: 'clock_analog',  label: 'Reloj analógico',   emoji: '🕐' },
+    { id: 'clock_digital', label: 'Reloj digital',     emoji: '🔢' },
+    { id: 'countdown',     label: 'Cuenta atrás',      emoji: '⏱' },
+    { id: 'battery',       label: 'Batería',           emoji: '🔋' },
+    { id: 'dots',          label: 'Puntos',            emoji: '⚬' },
+    { id: 'wave',          label: 'Onda',              emoji: '〰' },
+    { id: 'neon_slim',     label: 'Neón fino',         emoji: '💡' },
+  ];
+
+  function _drawProgress(ctx, W, H, time, duration, style, T, activeColor, fsSm) {
+    const pPct = duration > 0 ? clampN(time / duration, 0, 1) : 0;
+
+    if (style === 'bottom' || style === 'top') {
+      const pbH = Math.max(4, Math.round(H * 0.007));
+      const pbY = style === 'top' ? 10 : H - pbH - 18;
+      ctx.fillStyle = T.progressBg; ctx.beginPath(); ctx.roundRect(28, pbY, W - 56, pbH, pbH / 2); ctx.fill();
+      if (pPct > 0) {
+        const pg = ctx.createLinearGradient(28, 0, W - 56, 0); pg.addColorStop(0, T.progressFg); pg.addColorStop(1, activeColor);
+        ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(28, pbY, (W - 56) * pPct, pbH, pbH / 2); ctx.fill();
+      }
+      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      const timeY = style === 'top' ? pbY + pbH + fsSm + 4 : pbY - 8;
+      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, timeY);
+
+    } else if (style === 'left' || style === 'right') {
+      const pbW = Math.max(6, Math.round(W * 0.008));
+      const pbX = style === 'left' ? 14 : W - 14 - pbW;
+      const barH = H - 56, barY = 28;
+      ctx.fillStyle = T.progressBg; ctx.beginPath(); ctx.roundRect(pbX, barY, pbW, barH, pbW / 2); ctx.fill();
+      if (pPct > 0) {
+        const pg = ctx.createLinearGradient(0, barY + barH, 0, barY); pg.addColorStop(0, T.progressFg); pg.addColorStop(1, activeColor);
+        ctx.fillStyle = pg;
+        const fillH = barH * pPct;
+        ctx.beginPath(); ctx.roundRect(pbX, barY + barH - fillH, pbW, fillH, pbW / 2); ctx.fill();
+      }
+      const labelX = style === 'left' ? pbX + pbW + fsSm * 0.6 : pbX - fsSm * 0.6;
+      ctx.save();
+      ctx.translate(labelX, barY + barH / 2);
+      ctx.rotate(style === 'left' ? -Math.PI / 2 : Math.PI / 2);
+      ctx.font = `300 ${Math.round(fsSm * 0.78)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, 0, 0);
+      ctx.restore();
+
+    } else if (style === 'clock_digital') {
+      const fs2 = Math.max(18, Math.round(fsSm * 1.35));
+      ctx.font = `bold ${fs2}px monospace`;
+      const elapsed = formatTime(time), total = formatTime(duration);
+      const tw1 = ctx.measureText(elapsed).width, tw2 = ctx.measureText(` / ${total}`).width;
+      const tw = tw1 + tw2, pad = fs2 * 0.55;
+      const bx = W - 16, by = H - 16;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.strokeStyle = T.progressFg; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(bx - tw - pad * 2, by - fs2 - pad, tw + pad * 2, fs2 + pad * 1.5, 8); ctx.fill(); ctx.stroke(); ctx.lineWidth = 1;
+      ctx.fillStyle = T.progressFg; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(elapsed, bx - tw2 - pad, by - pad * 0.4);
+      ctx.fillStyle = 'rgba(255,255,255,0.48)';
+      ctx.fillText(` / ${total}`, bx - pad, by - pad * 0.4);
+
+    } else if (style === 'clock_analog') {
+      const r = Math.round(Math.min(W, H) * 0.065);
+      const ocx = W - r - 22, ocy = H - r - 22;
+      const pAngle = pPct * Math.PI * 2 - Math.PI / 2;
+      ctx.beginPath(); ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.58)'; ctx.fill();
+      ctx.strokeStyle = T.progressFg; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+        const r1 = r * 0.8, r2 = r * 0.95;
+        ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = i % 3 === 0 ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(ocx + Math.cos(a) * r1, ocy + Math.sin(a) * r1);
+        ctx.lineTo(ocx + Math.cos(a) * r2, ocy + Math.sin(a) * r2); ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+      if (pPct > 0) {
+        ctx.globalAlpha = 0.22;
+        ctx.beginPath(); ctx.moveTo(ocx, ocy); ctx.arc(ocx, ocy, r * 0.88, -Math.PI / 2, pAngle); ctx.closePath();
+        ctx.fillStyle = T.progressFg; ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      const handLen = r * 0.66;
+      ctx.strokeStyle = T.progressFg; ctx.lineWidth = Math.max(2, r * 0.08); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(ocx, ocy); ctx.lineTo(ocx + Math.cos(pAngle) * handLen, ocy + Math.sin(pAngle) * handLen); ctx.stroke();
+      ctx.lineWidth = 1; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.arc(ocx, ocy, Math.max(3, r * 0.1), 0, Math.PI * 2); ctx.fillStyle = activeColor; ctx.fill();
+      ctx.font = `300 ${Math.round(fsSm * 0.78)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(formatTime(time), ocx, ocy + r + 6);
+      ctx.textBaseline = 'alphabetic';
+
+    } else if (style === 'countdown') {
+      const r = Math.round(Math.min(W, H) * 0.065);
+      const ocx = W - r - 22, ocy = H - r - 22;
+      const remaining = Math.max(0, duration - time);
+      const endA = -Math.PI / 2 + (1 - pPct) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(ocx, ocy, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.58)'; ctx.fill();
+      const ringR = r * 0.82, ringW = Math.max(4, r * 0.18);
+      ctx.beginPath(); ctx.arc(ocx, ocy, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = T.progressBg; ctx.lineWidth = ringW; ctx.stroke();
+      if (1 - pPct > 0.002) {
+        ctx.beginPath(); ctx.arc(ocx, ocy, ringR, -Math.PI / 2, endA);
+        ctx.strokeStyle = T.progressFg; ctx.lineWidth = ringW; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+      }
+      ctx.lineWidth = 1;
+      ctx.font = `bold ${Math.round(r * 0.52)}px monospace`; ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(formatTime(remaining), ocx, ocy);
+      ctx.textBaseline = 'alphabetic';
+
+    } else if (style === 'battery') {
+      const bw = Math.round(W * 0.1), bh = Math.round(bw * 0.42);
+      const bx = W - bw - 30, by = H - bh - 26;
+      const tipW = Math.round(bw * 0.045), tipH = Math.round(bh * 0.42);
+      const remaining = 1 - pPct;
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, bh); ctx.lineWidth = 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillRect(bx + bw + 2, by + (bh - tipH) / 2, tipW, tipH);
+      const fillColor = remaining > 0.5 ? T.progressFg : remaining > 0.25 ? '#ffcc00' : '#ff3300';
+      if (remaining > 0.01) {
+        ctx.fillStyle = fillColor; ctx.fillRect(bx + 4, by + 4, Math.max(1, (bw - 8) * remaining), bh - 8);
+      }
+      ctx.font = `300 ${Math.round(fsSm * 0.82)}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(`${Math.round(remaining * 100)}%`, bx + bw / 2 + tipW / 2, by + bh + 6);
+      ctx.textBaseline = 'alphabetic';
+
+    } else if (style === 'dots') {
+      const ndots = 20;
+      const filled = Math.round(pPct * ndots);
+      const dotR = Math.max(4, Math.round(H * 0.007));
+      const sp = dotR * 3;
+      const totalW = (ndots - 1) * sp;
+      const sx = W / 2 - totalW / 2, dotY = H - dotR - 18;
+      for (let i = 0; i < ndots; i++) {
+        const dx = sx + i * sp;
+        ctx.beginPath(); ctx.arc(dx, dotY, i < filled ? dotR : dotR * 0.55, 0, Math.PI * 2);
+        ctx.fillStyle = i < filled ? T.progressFg : T.progressBg;
+        if (i < filled) { ctx.shadowColor = T.progressFg; ctx.shadowBlur = 7; }
+        ctx.fill(); ctx.shadowBlur = 0;
+      }
+      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, dotY - dotR - 4);
+
+    } else if (style === 'wave') {
+      const barY = H - 28;
+      const amplitude = Math.max(3, Math.round(H * 0.006));
+      const fillW = (W - 56) * pPct;
+      ctx.strokeStyle = T.progressBg; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(28, barY); ctx.lineTo(W - 28, barY); ctx.stroke();
+      if (fillW > 2) {
+        ctx.save(); ctx.beginPath(); ctx.rect(28, barY - amplitude * 2.5, fillW, amplitude * 5); ctx.clip();
+        ctx.strokeStyle = T.progressFg; ctx.lineWidth = 3; ctx.shadowColor = T.progressFg; ctx.shadowBlur = 9; ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let x = 28; x <= W - 28; x += 3) {
+          const y = barY + Math.sin((x / 55) * Math.PI * 2 - time * 5) * amplitude;
+          x === 28 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke(); ctx.shadowBlur = 0; ctx.lineCap = 'butt'; ctx.restore();
+      }
+      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, barY - amplitude * 2.5 - 4);
+
+    } else if (style === 'neon_slim') {
+      const lineY = H - 5;
+      ctx.strokeStyle = T.progressBg; ctx.lineWidth = 2; ctx.lineCap = 'square';
+      ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W, lineY); ctx.stroke();
+      if (pPct > 0) {
+        ctx.strokeStyle = T.progressFg; ctx.lineWidth = 3;
+        ctx.shadowColor = T.progressFg; ctx.shadowBlur = 16;
+        ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W * pPct, lineY); ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      ctx.lineCap = 'butt';
+      ctx.font = `300 ${fsSm}px monospace`; ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`, W - 28, lineY - 10);
+    }
+  }
+
   function drawFrame(canvas, opts) {
-    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none' } = opts;
+    const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom' } = opts;
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
     const T=THEMES[theme]||THEMES.classic;
     const GI=clampN(glowIntensity,0,3);
@@ -1349,15 +1546,7 @@ const Renderer = (() => {
     }
 
     if (showProgressBar) {
-      const pbH=Math.max(4,Math.round(H*0.007)), pbY=H-pbH-18;
-      ctx.fillStyle=T.progressBg; ctx.beginPath(); ctx.roundRect(28,pbY,W-56,pbH,pbH/2); ctx.fill();
-      const pPct=duration>0?clampN(time/duration,0,1):0;
-      if (pPct>0) {
-        const pg=ctx.createLinearGradient(28,0,W-56,0); pg.addColorStop(0,T.progressFg); pg.addColorStop(1,activeColor);
-        ctx.fillStyle=pg; ctx.beginPath(); ctx.roundRect(28,pbY,(W-56)*pPct,pbH,pbH/2); ctx.fill();
-      }
-      ctx.font=`300 ${fsSm}px monospace`; ctx.fillStyle='rgba(255,255,255,0.38)';
-      ctx.textAlign='right'; ctx.textBaseline='alphabetic'; ctx.fillText(`${formatTime(time)} / ${formatTime(duration)}`,W-28,pbY-8);
+      _drawProgress(ctx, W, H, time, duration, progressBarStyle, T, activeColor, fsSm);
     }
 
     if (prevLine) {
@@ -1407,7 +1596,7 @@ const Renderer = (() => {
     return t+'…';
   }
 
-  return { drawFrame, THEMES, ANIMATIONS, OVERLAY_LIST, OVERLAY_CATEGORIES, ANIMATION_LIST, ANIMATION_CATEGORIES, THEME_LIST, THEME_CATEGORIES, FONT_LIST, TEXT_EFFECT_LIST };
+  return { drawFrame, THEMES, ANIMATIONS, OVERLAY_LIST, OVERLAY_CATEGORIES, ANIMATION_LIST, ANIMATION_CATEGORIES, THEME_LIST, THEME_CATEGORIES, FONT_LIST, TEXT_EFFECT_LIST, PROGRESS_BAR_LIST };
 })();
 
 export default Renderer;

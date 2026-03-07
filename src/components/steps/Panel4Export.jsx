@@ -183,6 +183,9 @@ export default function Panel4Export({ isActive, goToStep }) {
               </label>
             </div>
 
+            <label className="field-label">Estilo de progreso</label>
+            <div id="progressStyleGrid" className="anim-grid" />
+
             </div>
           </div>
 

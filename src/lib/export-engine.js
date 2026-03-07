@@ -19,12 +19,13 @@ const ExportEngine = (() => {
   let currentFont      = 'segoe';
   let currentZoom      = 1;
   let currentTextEffect= 'none';
+  let currentProgressStyle = 'bottom';
   let previewRaf       = null;
   let recording        = false;
 
   /* ── DOM refs (set in init) ────────────────────────────────────── */
   let themeSelector, animGrid, overlayGrid;
-  let fontSelector, textEffectGrid, zoomSlider, zoomVal;
+  let fontSelector, textEffectGrid, progressStyleGrid, zoomSlider, zoomVal;
   let resolutionSelect, fontSizeSlider, fontSizeVal;
   let glowSlider, glowVal, textPositionSelect, fpsSelect;
   let showProgressToggle, showTitleToggle;
@@ -296,6 +297,24 @@ const ExportEngine = (() => {
       wireSimpleSearch(document.getElementById('textFxSearch'), textEffectGrid, '.anim-card', '.anim-label');
     }
 
+    /* ── Progress style grid ── */
+    progressStyleGrid = document.getElementById('progressStyleGrid');
+    if (progressStyleGrid) {
+      progressStyleGrid.innerHTML = '';
+      Renderer.PROGRESS_BAR_LIST.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'anim-card' + (p.id === currentProgressStyle ? ' active' : '');
+        card.dataset.ps = p.id;
+        card.innerHTML = `<span class="anim-emoji">${p.emoji}</span><span class="anim-label">${p.label}</span>`;
+        card.addEventListener('click', () => {
+          currentProgressStyle = p.id;
+          progressStyleGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ps === p.id));
+          renderPreviewFrame();
+        });
+        progressStyleGrid.appendChild(card);
+      });
+    }
+
     /* ── Zoom slider ── */
     zoomSlider = document.getElementById('zoomSlider');
     zoomVal    = document.getElementById('zoomVal');
@@ -407,11 +426,13 @@ const ExportEngine = (() => {
         currentTheme     = 'classic';
         currentFont      = 'segoe';
         currentTextEffect= 'none';
+        currentProgressStyle = 'bottom';
         if (animGrid)      animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === 'none'));
         if (overlayGrid)   overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === 'none'));
         if (themeSelector) themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === 'classic'));
         if (fontSelector)  fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'segoe'));
         if (textEffectGrid)textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === 'none'));
+        if (progressStyleGrid) progressStyleGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ps === 'bottom'));
         renderPreviewFrame();
       });
     }
@@ -481,6 +502,7 @@ const ExportEngine = (() => {
       fontFamily:            Renderer.FONT_LIST.find(f => f.id === currentFont)?.family || "'Segoe UI', sans-serif",
       activeZoom:            currentZoom,
       textEffect:            currentTextEffect,
+      progressBarStyle:      currentProgressStyle,
     };
   }
 

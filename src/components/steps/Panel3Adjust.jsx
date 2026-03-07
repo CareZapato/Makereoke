@@ -48,6 +48,15 @@ export default function Panel3Adjust({ isActive, goToStep }) {
         </div>
 
         {/* Timeline */}
+        <div className="timeline-toolbar">
+          <span className="timeline-toolbar-label">📍 Línea de tiempo</span>
+          <div className="timeline-zoom-controls">
+            <button id="adjZoomOut" className="zoom-btn" title="Alejar">−</button>
+            <span id="adjZoomLabel" className="zoom-label">1×</span>
+            <button id="adjZoomIn" className="zoom-btn" title="Acercar">+</button>
+            <button id="adjZoomFit" className="zoom-btn zoom-btn-fit" title="Canción completa">⊙</button>
+          </div>
+        </div>
         <div className="timeline-wrapper">
           <canvas id="timelineCanvas" className="timeline-canvas" />
         </div>

@@ -4,24 +4,24 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
   return (
     <section id="panel2" className={`step-panel${isActive ? ' active' : ''}`}>
       <h2 className="panel-title">🥁 Sincronizar letra</h2>
-      <p className="panel-subtitle">
+      <p className="panel-subtitle sync-subtitle">
         Reproduce la canción y pulsa <kbd>Espacio</kbd> o el botón TAP al inicio de cada frase.
       </p>
 
-      {/* ── Voice configuration ── */}
-      <div className="voice-config-panel">
+      {/* ── Voice configuration (collapsible) ── */}
+      <div className="voice-config-panel" id="voiceConfigPanel">
         <div className="voice-config-header">
-          <div>
-            <span className="voice-config-title">🎤 Cantantes</span>
-            <span className="voice-config-hint">Selecciona el cantante activo antes de tapear</span>
-          </div>
-          <div className="voice-count-selector">
-            {[1, 2, 3, 4].map(n => (
-              <button key={n} id={`voiceCountBtn_${n}`} className={`voice-count-btn${n === 2 ? ' active' : ''}`}>{n}</button>
-            ))}
+          <span className="voice-config-title">🎤 Cantantes</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="voice-count-selector">
+              {[1, 2, 3, 4].map(n => (
+                <button key={n} id={`voiceCountBtn_${n}`} className={`voice-count-btn${n === 2 ? ' active' : ''}`}>{n}</button>
+              ))}
+            </div>
+            <button id="voiceConfigToggle" className="voice-config-toggle" title="Mostrar/ocultar">▾</button>
           </div>
         </div>
-        <div className="voice-config-rows">
+        <div className="voice-config-rows" id="voiceConfigRows">
           {[
             { id: 1, name: 'Voz 1',  color: '#FF6B6B' },
             { id: 2, name: 'Voz 2',  color: '#4ECDC4' },
@@ -59,25 +59,35 @@ export default function Panel2Sync({ isActive, goToStep, syncDone }) {
         <div className="sync-player">
 
           {/* Waveform */}
-          <div className="waveform-container">
+          <div className="waveform-container" id="waveformContainer">
             <canvas id="waveformCanvas" />
             <div id="playhead" className="playhead" />
           </div>
 
-          {/* Transport bar */}
-          <div className="player-controls">
-            <button id="syncPlayBtn" className="btn btn-primary" style={{ minWidth: '44px' }}>▶</button>
-            <button id="syncRewindBtn" className="btn btn-ghost btn-sm">⟵ 5s</button>
-            <div className="time-display">
-              <span id="currentTime">0:00</span>
-              <span style={{ color: 'var(--text-dim)', margin: '0 3px' }}>/</span>
-              <span id="totalTime" style={{ color: 'var(--text-dim)' }}>0:00</span>
+          {/* Zoom controls */}
+          <div className="waveform-zoom-bar">
+            <button id="waveZoomOut" className="zoom-btn" title="Alejar (−)">−</button>
+            <span id="waveZoomLabel" className="zoom-label">1×</span>
+            <button id="waveZoomIn" className="zoom-btn" title="Acercar (+)">+</button>
+            <button id="waveZoomFit" className="zoom-btn zoom-btn-fit" title="Ver canción completa">⊙</button>
+          </div>
+
+          {/* Transport */}
+          <div className="sync-transport">
+            <div className="sync-transport-row">
+              <button id="syncPlayBtn" className="btn btn-primary sync-play-btn">▶</button>
+              <button id="syncRewindBtn" className="btn btn-ghost btn-sm">⟵ 5s</button>
+              <div className="time-display">
+                <span id="currentTime">0:00</span>
+                <span style={{ color: 'var(--text-dim)', margin: '0 3px' }}>/</span>
+                <span id="totalTime" style={{ color: 'var(--text-dim)' }}>0:00</span>
+              </div>
+              <div className="volume-wrap">
+                <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>🔊</span>
+                <input id="volumeBar" type="range" className="volume-bar" min="0" max="1" step="0.01" defaultValue="1" />
+              </div>
             </div>
             <input id="seekBar" type="range" className="seek-bar" min="0" step="0.01" defaultValue="0" />
-            <div className="volume-wrap">
-              <span style={{ fontSize: '0.9rem', lineHeight: 1 }}>🔊</span>
-              <input id="volumeBar" type="range" className="volume-bar" min="0" max="1" step="0.01" defaultValue="1" />
-            </div>
           </div>
 
           {/* Active voice selector */}

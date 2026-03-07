@@ -12,6 +12,8 @@ const Sync = (() => {
   let waveformPainted = false;
   let isInitialized = false;
   let _syncProgressListener = null;
+  let waveZoom = 1; // 1 = full song; 2/4/8/16 = zoomed in
+  const ZOOM_LEVELS = [1, 2, 4, 8, 16];
 
   /* ─── VOICE STATE (JS-authoritative, DOM is a mirror) ─── */
   const VOICE_DEFAULTS = [
@@ -217,6 +219,44 @@ const Sync = (() => {
     const allCol = document.getElementById('allVoiceColor');
     if (allCol) allCol.addEventListener('input', () => setVoiceColor(0, allCol.value));
 
+    // Waveform zoom controls
+    const zoomIn  = document.getElementById('waveZoomIn');
+    const zoomOut = document.getElementById('waveZoomOut');
+    const zoomFit = document.getElementById('waveZoomFit');
+    if (zoomIn)  zoomIn.addEventListener('click',  () => { const i = ZOOM_LEVELS.indexOf(waveZoom); if (i < ZOOM_LEVELS.length - 1) setWaveZoom(ZOOM_LEVELS[i + 1]); });
+    if (zoomOut) zoomOut.addEventListener('click', () => { const i = ZOOM_LEVELS.indexOf(waveZoom); if (i > 0) setWaveZoom(ZOOM_LEVELS[i - 1]); });
+    if (zoomFit) zoomFit.addEventListener('click', () => setWaveZoom(1));
+
+    // Touch pinch-to-zoom on waveform container
+    const waveContainer = document.getElementById('waveformContainer');
+    if (waveContainer) {
+      let _pinchDist = null;
+      waveContainer.addEventListener('touchstart', e => {
+        if (e.touches.length === 2) {
+          _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        }
+      }, { passive: true });
+      waveContainer.addEventListener('touchmove', e => {
+        if (e.touches.length === 2 && _pinchDist !== null) {
+          const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          const ratio = newDist / _pinchDist;
+          if (ratio > 1.3) { const i = ZOOM_LEVELS.indexOf(waveZoom); if (i < ZOOM_LEVELS.length - 1) { setWaveZoom(ZOOM_LEVELS[i + 1]); _pinchDist = newDist; } }
+          else if (ratio < 0.7) { const i = ZOOM_LEVELS.indexOf(waveZoom); if (i > 0) { setWaveZoom(ZOOM_LEVELS[i - 1]); _pinchDist = newDist; } }
+        }
+      }, { passive: true });
+      waveContainer.addEventListener('touchend', () => { _pinchDist = null; });
+    }
+
+    // Voice config collapse toggle
+    const vcToggle = document.getElementById('voiceConfigToggle');
+    const vcPanel  = document.getElementById('voiceConfigPanel');
+    if (vcToggle && vcPanel) {
+      vcToggle.addEventListener('click', () => {
+        const collapsed = vcPanel.classList.toggle('vc-collapsed');
+        vcToggle.textContent = collapsed ? '▸' : '▾';
+      });
+    }
+
     document.addEventListener('keydown', onKeyDown);
   }
 
@@ -246,11 +286,20 @@ const Sync = (() => {
     // Set initial TAP button color
     selectVoice(currentVoice);
 
+    // Collapse voice config panel by default on small screens to maximise tap area
+    const vcPanel  = document.getElementById('voiceConfigPanel');
+    const vcToggle = document.getElementById('voiceConfigToggle');
+    if (vcPanel && window.innerWidth < 700) {
+      vcPanel.classList.add('vc-collapsed');
+      if (vcToggle) vcToggle.textContent = '▸';
+    }
+
     buildLyricsList();
     updateProgress();
     updateGoButton();
 
     drawWaveform();
+    _updateZoomUI();
 
     els.totalTime().textContent = formatTime(Audio.duration);
     els.seekBar().max = Audio.duration;
@@ -259,17 +308,42 @@ const Sync = (() => {
   }
 
   /* ─── WAVEFORM DRAWING ─── */
+  function _updateZoomUI() {
+    const lbl = document.getElementById('waveZoomLabel');
+    if (lbl) lbl.textContent = waveZoom + '×';
+    const btnOut = document.getElementById('waveZoomOut');
+    const btnIn  = document.getElementById('waveZoomIn');
+    if (btnOut) btnOut.disabled = waveZoom <= ZOOM_LEVELS[0];
+    if (btnIn)  btnIn.disabled  = waveZoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+  }
+
+  function setWaveZoom(newZoom) {
+    waveZoom = newZoom;
+    drawWaveform();
+    // Scroll to keep the playhead centred after zoom changes
+    const container = document.getElementById('waveformContainer');
+    const canvas    = els.waveCanvas();
+    if (container && canvas) {
+      const t = Audio.getCurrentTime();
+      const pxLeft = (t / (Audio.duration || 1)) * canvas.offsetWidth;
+      container.scrollLeft = Math.max(0, pxLeft - container.offsetWidth / 2);
+    }
+    _updateZoomUI();
+  }
+
   function drawWaveform() {
-    const canvas = els.waveCanvas();
+    const canvas    = els.waveCanvas();
+    const container = document.getElementById('waveformContainer') || canvas.parentElement;
     const data = Audio.getChannelData();
     if (!data) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const W = canvas.parentElement.offsetWidth;
-    const H = 100;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.width = W + 'px';
+    const dpr        = window.devicePixelRatio || 1;
+    const containerW = container.offsetWidth;
+    const W          = Math.max(containerW, Math.round(containerW * waveZoom));
+    const H          = 100;
+    canvas.width       = W * dpr;
+    canvas.height      = H * dpr;
+    canvas.style.width  = W + 'px';
     canvas.style.height = H + 'px';
 
     const ctx = canvas.getContext('2d');
@@ -308,9 +382,16 @@ const Sync = (() => {
     els.currentTime().textContent = formatTime(t);
     els.seekBar().value = t;
 
-    const pw = els.waveCanvas().offsetWidth;
-    const pxLeft = (t / Audio.duration) * pw;
+    const canvas    = els.waveCanvas();
+    const container = document.getElementById('waveformContainer') || canvas.parentElement;
+    const canvasW   = canvas.offsetWidth;
+    const pxLeft    = (t / (Audio.duration || 1)) * canvasW;
     els.playhead().style.left = pxLeft + 'px';
+
+    // Auto-scroll to keep playhead centred when zoomed
+    if (waveZoom > 1) {
+      container.scrollLeft = Math.max(0, pxLeft - container.offsetWidth / 2);
+    }
 
     const active = Lyrics.getActiveIndex(t);
     highlightActive(active);

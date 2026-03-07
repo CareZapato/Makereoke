@@ -387,8 +387,8 @@ body::after {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  display: flex; flex-direction: column; gap: 12px;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 
 .waveform-container {
@@ -396,9 +396,43 @@ body::after {
   height: 100px;
   background: var(--bg2);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   cursor: pointer;
+  /* hide scrollbar visually but keep it functional */
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--bg2);
 }
+.waveform-container::-webkit-scrollbar { height: 4px; }
+.waveform-container::-webkit-scrollbar-track { background: var(--bg2); }
+.waveform-container::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
+
+/* Zoom controls row (used in both sync waveform and adjust timeline) */
+.waveform-zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+.zoom-btn {
+  width: 28px; height: 28px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 1rem; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.zoom-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.zoom-btn:active:not(:disabled) { transform: scale(0.92); }
+.zoom-btn:disabled { opacity: 0.3; cursor: default; }
+.zoom-btn-fit { font-size: 0.78rem; width: auto; padding: 0 8px; }
+.zoom-label { font-size: 0.7rem; color: var(--text-dim); min-width: 22px; text-align: center; font-family: monospace; }
 #waveformCanvas { width: 100%; height: 100%; display: block; }
 .playhead {
   position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
@@ -412,6 +446,12 @@ body::after {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .time-display { font-size: 0.85rem; color: var(--text-dim); white-space: nowrap; min-width: 80px; }
+
+/* Sync-specific two-row transport */
+.sync-transport { display: flex; flex-direction: column; gap: 6px; }
+.sync-transport-row { display: flex; align-items: center; gap: 8px; }
+.sync-transport-row .time-display { flex: 1; }
+.sync-play-btn { min-width: 44px; flex-shrink: 0; }
 
 .seek-bar, .volume-bar {
   -webkit-appearance: none; appearance: none;
@@ -494,21 +534,30 @@ body::after {
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 16px;
-  margin-bottom: 16px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
 }
+.voice-config-panel.vc-collapsed .voice-config-rows { display: none; }
 .voice-config-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  margin-bottom: 10px; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
 }
+.voice-config-panel:not(.vc-collapsed) .voice-config-header { margin-bottom: 8px; }
 .voice-config-title {
   font-size: 0.82rem; font-weight: 700; color: var(--text-dim);
-  letter-spacing: 0.06em; text-transform: uppercase; display: block;
+  letter-spacing: 0.06em; text-transform: uppercase;
 }
 .voice-config-hint {
   font-size: 0.72rem; color: var(--text-dim); opacity: 0.55;
   display: block; margin-top: 2px; font-style: italic;
 }
+.voice-config-toggle {
+  background: none; border: none;
+  color: var(--text-dim); font-size: 1rem;
+  cursor: pointer; padding: 2px 6px; line-height: 1;
+  transition: color 0.15s; flex-shrink: 0;
+}
+.voice-config-toggle:hover { color: var(--text); }
 .voice-count-selector {
   display: flex; gap: 4px; flex-shrink: 0;
 }
@@ -637,13 +686,33 @@ kbd {
   border-radius: var(--radius); padding: 12px 16px;
 }
 
+/* Timeline toolbar (zoom controls) */
+.timeline-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 7px 12px;
+}
+.timeline-toolbar-label {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-dim);
+}
+.timeline-zoom-controls { display: flex; align-items: center; gap: 5px; }
+
 .timeline-wrapper {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 0 0 var(--radius) var(--radius);
   overflow-x: auto;
+  overflow-y: hidden;
   min-height: 120px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--surface);
 }
+.timeline-wrapper::-webkit-scrollbar { height: 4px; }
+.timeline-wrapper::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 2px; }
 .timeline-canvas { display: block; cursor: pointer; }
 
 .adjust-list-wrap {
@@ -876,6 +945,16 @@ kbd {
 .field-input:focus, .field-select:focus { outline: none; border-color: var(--primary); }
 .field-select option { background: var(--bg2); }
 
+.title-input-row { display: flex; gap: 6px; align-items: center; }
+.title-input-row .field-input { flex: 1; width: auto; }
+.apply-title-btn {
+  flex-shrink: 0; padding: 8px 12px;
+  background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-sm); font-size: 1rem; cursor: pointer;
+  transition: background 0.15s;
+}
+.apply-title-btn:hover { background: var(--primary-dark, #7a44e0); }
+
 .slider {
   -webkit-appearance: none; width: 100%; height: 6px;
   border-radius: 3px; background: var(--border); cursor: pointer;
@@ -1086,6 +1165,7 @@ kbd {
   .sync-lyrics-panel { max-height: calc(100vh - 280px); }
   .adjust-list-wrap { max-height: 420px; }
   .waveform-container { height: 120px; }
+  .zoom-btn { width: 32px; height: 32px; }
 }
 
 /* ── ≤ 900px: tablets portrait / small laptops ── */
@@ -1114,6 +1194,7 @@ kbd {
   /* Panel titles */
   .panel-title { font-size: 1.4rem; }
   .panel-subtitle { font-size: 0.88rem; margin-bottom: 16px; }
+  .sync-subtitle { display: none; } /* hidden on ≤768px — gives more room for TAP */
 
   /* Upload */
   .upload-grid { grid-template-columns: 1fr; gap: 14px; }
@@ -1124,7 +1205,12 @@ kbd {
   /* Step 2 – Sync */
   .waveform-container { height: 72px; }
   .sync-lyrics-panel { max-height: 260px; }
-  .player-controls { gap: 8px; }
+  .zoom-btn { width: 32px; height: 32px; }
+  .voice-config-panel { padding: 8px 12px; margin-bottom: 10px; }
+  .voice-row { padding: 4px 6px 4px 8px; }
+  .sync-player { padding: 12px; gap: 8px; }
+  .sync-transport-row .time-display { font-size: 0.82rem; min-width: 72px; }
+  .volume-bar { width: 70px; }
 
   /* Step 3 – Adjust */
   .adjust-list-wrap { max-height: 280px; }
@@ -1141,8 +1227,7 @@ kbd {
   .anim-grid-row { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 
   /* Seek bar: línea completa para facilitar scrubbing */
-  .player-controls { flex-wrap: wrap; }
-  .seek-bar { width: 100%; order: 10; margin-top: 2px; }
+  .seek-bar { width: 100%; }
 }
 
 /* ── ≤ 600px: phones ── */
@@ -1179,18 +1264,26 @@ kbd {
   /* Step 2 – Sync */
   .waveform-container { height: 60px; }
   .sync-lyrics-panel { max-height: 220px; }
-  .time-display { font-size: 0.78rem; min-width: 64px; }
-  /* Volumen: compacto, siempre encima de la seek bar */
-  .volume-wrap { order: 9; width: auto; padding: 0; }
-  .volume-bar  { width: 80px; flex: none; }
   .sync-instructions { gap: 6px; }
   .sync-lyric-item { padding: 6px 8px; font-size: 0.85rem; }
 
   /* TAP button: full width, taller for fingertip */
-  .tap-btn { max-width: 100%; padding: 22px 0; border-radius: var(--radius); }
-  .tap-icon { font-size: 2.8rem; }
-  .tap-label { font-size: 1.6rem; }
+  .tap-btn { max-width: 100%; padding: 18px 0; border-radius: var(--radius); }
+  .tap-icon { font-size: 2.4rem; }
+  .tap-label { font-size: 1.4rem; }
   .tap-hint { font-size: 0.7rem; }
+
+  /* Zoom bar: larger touch targets */
+  .zoom-btn { width: 36px; height: 36px; font-size: 1.05rem; }
+  .zoom-btn-fit { width: auto; padding: 0 10px; font-size: 0.78rem; }
+
+  /* Voice config: compact */
+  .voice-config-panel { padding: 8px 12px; margin-bottom: 8px; }
+  .voice-name-input { font-size: 0.78rem; padding: 3px 6px; }
+  .voice-row { padding: 3px 6px 3px 8px; gap: 6px; }
+  .voice-row-swatch { width: 20px; height: 20px; }
+  .sync-player { padding: 10px; gap: 8px; }
+  .sync-transport { gap: 5px; }
 
   /* Step 3 – Adjust */
   .adjust-player { gap: 8px; padding: 10px 12px; }
@@ -1262,6 +1355,7 @@ kbd {
   .ctrl-btn { width: 36px; height: 36px; }
   .play-btn { width: 42px; height: 42px; font-size: 1.1rem; }
   .waveform-container { height: 52px; }
+  .zoom-btn { width: 42px; height: 42px; }
 
   /* Ocultar columna Voz (el borde de color de fila ya indica la voz) */
   .col-voice-th, .adjust-table td.col-voice { display: none; }

@@ -119,15 +119,9 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <option value="upper">Tercio superior</option>
               </select>
 
-              <div className="color-row">
-                <div className="color-item">
-                  <label className="field-label">Color activo</label>
-                  <input id="activeColorPicker" type="color" className="color-picker" defaultValue="#FFD700" />
-                </div>
-                <div className="color-item">
-                  <label className="field-label">Color inactivo</label>
-                  <input id="inactiveColorPicker" type="color" className="color-picker" defaultValue="#FFFFFF" />
-                </div>
+              <div className="color-item">
+                <label className="field-label">Color inactivo</label>
+                <input id="inactiveColorPicker" type="color" className="color-picker" defaultValue="#FFFFFF" />
               </div>
 
               <div className="typo-subgroup-label">📝 Letras secundarias</div>
@@ -156,15 +150,7 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <span id="prevOpacityVal" className="slider-val">22%</span>
               </div>
 
-              <label className="field-label" htmlFor="songTitleInput">Título de la canción</label>
-              <input id="songTitleInput" type="text" className="field-input" placeholder="Artista — Título" />
 
-              <div className="toggle-row">
-                <label className="toggle-label">
-                  <input id="showTitleToggle" type="checkbox" defaultChecked />
-                  <span>Mostrar título en video</span>
-                </label>
-              </div>
 
             </div>
           </div>

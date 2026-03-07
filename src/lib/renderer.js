@@ -1633,6 +1633,17 @@ const Renderer = (() => {
 
   function drawFrame(canvas, opts) {
     const { time=0, duration=1, lines=[], theme='classic', animation='none', fontSize=56, songTitle='', activeColorOverride, inactiveColorOverride, progressColorOverride, textPosition='center', glowIntensity=1, overlayEffect='none', showProgressBar=true, showTitle=true, voiceConfig=null, fontFamily="'Segoe UI', sans-serif", activeZoom=1, textEffect='none', progressBarStyle='bottom', progressBarOpacity=1, secondarySizeRatio=0.62, secondaryOpacity=0.65, nextLineOffset=1.05, prevLineOpacity=0.22 } = opts;
+    // Rate-limited log: fires only when activeColorOverride or songTitle changes
+    const _sig = `${activeColorOverride}|${songTitle}`;
+    if (drawFrame._lastSig !== _sig) {
+      drawFrame._lastSig = _sig;
+      let activeIdx2 = -1;
+      for (let i=0; i<lines.length; i++) { if (lines[i].time <= time) activeIdx2 = i; }
+      const currLineTxt = activeIdx2 >= 0 ? lines[activeIdx2]?.text : null;
+      console.log('[Renderer/drawFrame] value change detected \u2014 activeColorOverride:', activeColorOverride,
+        '| inactiveColorOverride:', inactiveColorOverride, '| songTitle:', `"${songTitle}"`,
+        '| currLine:', currLineTxt || 'null (no active lyric at t=' + time.toFixed(2) + ')');
+    }
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
     const T=THEMES[theme]||THEMES.classic;
     const GI=clampN(glowIntensity,0,3);
@@ -1704,7 +1715,9 @@ const Renderer = (() => {
       if (effectFn) {
         effectFn(ctx, txt, cx, midY, fsLg, lineActiveColor, GI, time);
       } else {
-        ctx.shadowColor=T.shadowActive; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY);
+        // Use lineActiveColor for shadow so user's color picker drives the glow too
+        const shadowCol = activeColorOverride ? lineActiveColor : T.shadowActive;
+        ctx.shadowColor=shadowCol; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY);
       }
       // Karaoke reveal clip — uses lineActiveColor so the color picker takes effect
       const txtW=ctx.measureText(txt).width, startX=cx-txtW/2;

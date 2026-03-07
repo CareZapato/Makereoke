@@ -13,7 +13,8 @@ const Adjust = (() => {
   let previewRaf = null;
   let isDragging = false;
   let dragIdx = -1;
-  let timelineScale = 80;
+  let _timelineZoom = 1;
+  const TIMELINE_ZOOM_LEVELS = [1, 2, 4, 8, 16];
 
   /* ─── INIT ─── */
   function init() {
@@ -37,6 +38,50 @@ const Adjust = (() => {
     window.addEventListener('mouseup', onTimelineMouseUp);
     window.addEventListener('touchmove', onTimelineTouchMove, { passive: false });
     window.addEventListener('touchend', onTimelineMouseUp);
+
+    const zoomIn  = document.getElementById('adjZoomIn');
+    const zoomOut = document.getElementById('adjZoomOut');
+    const zoomFit = document.getElementById('adjZoomFit');
+    if (zoomIn)  zoomIn.addEventListener('click',  () => { const i = TIMELINE_ZOOM_LEVELS.indexOf(_timelineZoom); if (i < TIMELINE_ZOOM_LEVELS.length - 1) setTimelineZoom(TIMELINE_ZOOM_LEVELS[i + 1]); });
+    if (zoomOut) zoomOut.addEventListener('click', () => { const i = TIMELINE_ZOOM_LEVELS.indexOf(_timelineZoom); if (i > 0) setTimelineZoom(TIMELINE_ZOOM_LEVELS[i - 1]); });
+    if (zoomFit) zoomFit.addEventListener('click', () => setTimelineZoom(1));
+
+    // Pinch-to-zoom on the timeline wrapper
+    const wrapper = canvas.parentElement;
+    let _pinchDist = null;
+    wrapper.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    }, { passive: true });
+    wrapper.addEventListener('touchmove', e => {
+      if (e.touches.length !== 2 || _pinchDist === null) return;
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      const ratio = d / _pinchDist;
+      if (ratio > 1.3) { const i = TIMELINE_ZOOM_LEVELS.indexOf(_timelineZoom); if (i < TIMELINE_ZOOM_LEVELS.length - 1) { setTimelineZoom(TIMELINE_ZOOM_LEVELS[i + 1]); _pinchDist = d; } }
+      else if (ratio < 0.7) { const i = TIMELINE_ZOOM_LEVELS.indexOf(_timelineZoom); if (i > 0) { setTimelineZoom(TIMELINE_ZOOM_LEVELS[i - 1]); _pinchDist = d; } }
+    }, { passive: true });
+    wrapper.addEventListener('touchend', () => { _pinchDist = null; });
+  }
+
+  function _updateTimelineZoomUI() {
+    const lbl = document.getElementById('adjZoomLabel');
+    if (lbl) lbl.textContent = _timelineZoom + '×';
+    const btnOut = document.getElementById('adjZoomOut');
+    const btnIn  = document.getElementById('adjZoomIn');
+    if (btnOut) btnOut.disabled = _timelineZoom <= TIMELINE_ZOOM_LEVELS[0];
+    if (btnIn)  btnIn.disabled  = _timelineZoom >= TIMELINE_ZOOM_LEVELS[TIMELINE_ZOOM_LEVELS.length - 1];
+  }
+
+  function setTimelineZoom(z) {
+    _timelineZoom = z;
+    drawTimeline();
+    const canvas  = document.getElementById('timelineCanvas');
+    const wrapper = canvas?.parentElement;
+    if (wrapper && canvas) {
+      const t = Audio.getCurrentTime();
+      const pxLeft = (t / (Audio.duration || 1)) * canvas.offsetWidth;
+      wrapper.scrollLeft = Math.max(0, pxLeft - wrapper.offsetWidth / 2);
+    }
+    _updateTimelineZoomUI();
   }
 
   /* ─── SETUP ─── */
@@ -46,6 +91,7 @@ const Adjust = (() => {
     Audio.onEnded = () => { document.getElementById('adjPlayBtn').textContent = '▶'; };
     setupVoiceConfig();    buildAdjustTable();
     drawTimeline();
+    _updateTimelineZoomUI();
     updatePreview();
 
     const dur = Audio.duration;
@@ -84,11 +130,22 @@ const Adjust = (() => {
   }
 
   function onTimeUpdate(t) {
-    document.getElementById('adjCurrentTime').textContent = formatTime(t);
-    document.getElementById('adjSeekBar').value = t;
+    const adjCurrentTime = document.getElementById('adjCurrentTime');
+    const adjSeekBar = document.getElementById('adjSeekBar');
+    if (adjCurrentTime) adjCurrentTime.textContent = formatTime(t);
+    if (adjSeekBar) adjSeekBar.value = t;
     updatePreview();
     drawTimeline();
     highlightTableRow();
+    // Auto-scroll timeline to keep playhead centred when zoomed
+    if (_timelineZoom > 1) {
+      const canvas  = document.getElementById('timelineCanvas');
+      const wrapper = canvas?.parentElement;
+      if (wrapper && canvas) {
+        const pxLeft = (t / (Audio.duration || 1)) * canvas.offsetWidth;
+        wrapper.scrollLeft = Math.max(0, pxLeft - wrapper.offsetWidth / 2);
+      }
+    }
   }
 
   /* ─── KARAOKE PREVIEW ─── */
@@ -269,7 +326,8 @@ const Adjust = (() => {
     const H = 120;
     const cfg = Sync.getVoiceConfig();
 
-    const W = Math.max(wrapper.offsetWidth, dur * timelineScale);
+    const containerW = wrapper.offsetWidth || 600;
+    const W = Math.max(containerW, Math.round(containerW * _timelineZoom));
     const dpr = window.devicePixelRatio || 1;
     canvas.width = W * dpr;
     canvas.height = H * dpr;
@@ -286,7 +344,9 @@ const Adjust = (() => {
     ctx.fillStyle = '#31316a';
     ctx.fillRect(0, 30, W, 1);
 
-    const step = timelineScale >= 60 ? 5 : 10;
+    // Choose tick interval based on visible pixels-per-second
+    const pxPerSec = dur > 0 ? W / dur : 0;
+    const step = pxPerSec >= 60 ? 5 : 10;
     for (let s = 0; s <= dur; s += step) {
       const x = (s / dur) * W;
       ctx.fillStyle = '#31316a';

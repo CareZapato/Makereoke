@@ -7,6 +7,7 @@ import Lyrics from './lyrics.js';
 import Renderer from './renderer.js';
 import Sync from './sync.js';
 import { formatTime, debounce } from './utils.js';
+import { Muxer, ArrayBufferTarget } from 'webm-muxer';
 
 const ExportEngine = (() => {
 
@@ -25,6 +26,10 @@ const ExportEngine = (() => {
   let currentSecondaryOpacity = 0.65;
   let currentNextOffset       = 1.05;
   let currentPrevOpacity      = 0.22;
+  // Tracked inactive color state — NOT read from DOM on every frame
+  let currentInactiveColor = '#ffffff';
+  // AbortController for setup() event re-wiring (prevents duplicate listeners)
+  let _setupAbortCtrl = null;
   let previewRaf       = null;
   let recording        = false;
 
@@ -39,7 +44,7 @@ const ExportEngine = (() => {
   let prevOpacitySlider, prevOpacityVal;
   let resolutionSelect, fontSizeSlider, fontSizeVal;
   let glowSlider, glowVal, textPositionSelect, fpsSelect;
-  let showProgressToggle, showTitleToggle;
+  let showProgressToggle;
   let songTitleInput, activeColorPicker, inactiveColorPicker;
   let previewCanvas, exportPlayBtn, exportSeekBar, exportCurrentTime;
   let exportVolumeSlider, exportSpeedSelect, exportFullscreenBtn;
@@ -134,8 +139,8 @@ const ExportEngine = (() => {
     resolutionSelect   = document.getElementById('resolutionSelect');
     fontSizeSlider     = document.getElementById('fontSizeSlider');
     fontSizeVal        = document.getElementById('fontSizeVal');
-    songTitleInput     = document.getElementById('songTitleInput');
-    activeColorPicker  = document.getElementById('activeColorPicker');
+    songTitleInput     = null; // removed from Step 4 UI
+    activeColorPicker  = null; // removed from Step 4 UI
     inactiveColorPicker= document.getElementById('inactiveColorPicker');
     previewCanvas      = document.getElementById('exportPreviewCanvas');
     exportPlayBtn      = document.getElementById('exportPlayBtn');
@@ -151,7 +156,13 @@ const ExportEngine = (() => {
     progressLabel      = document.getElementById('progressLabel');
 
     // Guard: export panel may not be mounted yet on first boot
-    if (!themeSelector || !animGrid || !fontSizeSlider || !exportPlayBtn || !startRecordBtn) return;
+    if (!themeSelector || !animGrid || !fontSizeSlider || !exportPlayBtn || !startRecordBtn) {
+      console.warn('[EE] init() — EARLY RETURN: critical element missing', { themeSelector: !!themeSelector, animGrid: !!animGrid, fontSizeSlider: !!fontSizeSlider, exportPlayBtn: !!exportPlayBtn, startRecordBtn: !!startRecordBtn });
+      return;
+    }
+    console.log('[EE] init() — DOM refs resolved:', {
+      inactiveColorPicker: inactiveColorPicker ? `✓ value="${inactiveColorPicker.value}"` : '✗ NULL',
+    });
 
     /* ── Build theme buttons from Renderer.THEME_LIST grouped by category ── */
     themeSelector.innerHTML = '';
@@ -174,6 +185,10 @@ const ExportEngine = (() => {
         btn.addEventListener('click', () => {
           currentTheme = t.id;
           themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t.id));
+          // Sync inactive color picker to new theme
+          const newT = Renderer.THEMES[t.id] || Renderer.THEMES.classic;
+          currentInactiveColor = _hexFromCssColor(newT.textDim);
+          if (inactiveColorPicker) inactiveColorPicker.value = currentInactiveColor;
           renderPreviewFrame();
         });
         row.appendChild(btn);
@@ -400,7 +415,6 @@ const ExportEngine = (() => {
     textPositionSelect = document.getElementById('textPositionSelect');
     fpsSelect          = document.getElementById('fpsSelect');
     showProgressToggle = document.getElementById('showProgressToggle');
-    showTitleToggle    = document.getElementById('showTitleToggle');
     if (glowSlider) {
       glowSlider.addEventListener('input', () => {
         currentGlow = parseFloat(glowSlider.value);
@@ -410,14 +424,8 @@ const ExportEngine = (() => {
     }
     if (textPositionSelect) textPositionSelect.addEventListener('change', () => { currentTextPos = textPositionSelect.value; renderPreviewFrame(); });
     if (showProgressToggle) showProgressToggle.addEventListener('change', renderPreviewFrame);
-    if (showTitleToggle)    showTitleToggle.addEventListener('change', renderPreviewFrame);
 
-    /* ── Color pickers ── */
-    activeColorPicker.addEventListener('input', renderPreviewFrame);
-    inactiveColorPicker.addEventListener('input', renderPreviewFrame);
-
-    /* ── Song title ── */
-    songTitleInput.addEventListener('input', debounce(renderPreviewFrame, 200));
+    /* ── Color pickers (inactive color listener wired in setup() via AbortController) ── */
 
     /* ── Preview player ── */
     exportPlayBtn.addEventListener('click', () => {
@@ -546,6 +554,9 @@ const ExportEngine = (() => {
         if (fontSelector)  fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'segoe'));
         if (textEffectGrid)textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === 'none'));
         if (progressStyleGrid) progressStyleGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ps === 'bottom'));
+        const _classicTheme = Renderer.THEMES.classic || {};
+        currentInactiveColor = _hexFromCssColor(_classicTheme.textDim    || '#ffffff');
+        if (inactiveColorPicker) inactiveColorPicker.value = currentInactiveColor;
         renderPreviewFrame();
       });
     }
@@ -569,6 +580,7 @@ const ExportEngine = (() => {
      setup() — called whenever panel4 becomes active
   ═══════════════════════════════════════════════════════ */
   function setup() {
+    console.log('[EE] setup() START — currentTheme:', currentTheme, '| currentInactiveColor:', currentInactiveColor);
     if (Audio.isPlaying) { Audio.pause(); exportPlayBtn.textContent = '▶'; }
     stopPreviewLoop();
     Audio.seek(0);
@@ -591,7 +603,42 @@ const ExportEngine = (() => {
     previewCanvas.width  = rW;
     previewCanvas.height = rH;
 
-    renderPreviewAt(0);
+    // Abort previous setup() listeners and create fresh ones (prevents duplicates)
+    if (_setupAbortCtrl) _setupAbortCtrl.abort();
+    _setupAbortCtrl = new AbortController();
+    const { signal } = _setupAbortCtrl;
+
+    // Always sync inactive color picker to the current theme on entry
+    const T0 = Renderer.THEMES[currentTheme] || Renderer.THEMES.classic;
+    currentInactiveColor = _hexFromCssColor(T0.textDim);
+    if (inactiveColorPicker) inactiveColorPicker.value = currentInactiveColor;
+    console.log('[EE] setup() theme-sync → inactiveColor:', currentInactiveColor,
+      '| inactiveColorPicker:', inactiveColorPicker ? '✓' : '✗ NULL');
+
+    // Wire inactive color picker listener (fresh each activation)
+    if (inactiveColorPicker) {
+      inactiveColorPicker.addEventListener('input', () => {
+        currentInactiveColor = inactiveColorPicker.value;
+        console.log('[EE] 🎨 inactiveColorPicker input → currentInactiveColor:', currentInactiveColor);
+        renderPreviewFrame();
+      }, { signal });
+    }
+
+    // Seek to middle of first lyric so active text + colors are visible immediately
+    const previewLines = Lyrics.getSyncedLines();
+    let seekTarget = 0;
+    if (previewLines.length >= 2) {
+      seekTarget = (previewLines[0].time + previewLines[1].time) / 2;
+    } else if (previewLines.length === 1) {
+      seekTarget = previewLines[0].time + 0.5;
+    }
+    console.log('[EE] setup() DONE — seekTarget:', seekTarget.toFixed(2), '| previewLines:', previewLines.length,
+      '| currentInactiveColor:', currentInactiveColor, '| signal.aborted:', signal.aborted);
+    Audio.seek(seekTarget);
+    exportSeekBar.value = Audio.duration > 0 ? (seekTarget / Audio.duration) * 100 : 0;
+    exportCurrentTime.textContent = formatTime(seekTarget);
+
+    renderPreviewAt(seekTarget);
   }
 
   /* ── Helpers ─────────────────────────────────────────── */
@@ -606,11 +653,11 @@ const ExportEngine = (() => {
       textPosition:          currentTextPos,
       glowIntensity:         currentGlow,
       fontSize:              parseInt(fontSizeSlider.value, 10),
-      songTitle:             songTitleInput.value.trim(),
-      activeColorOverride:   activeColorPicker.value,
-      inactiveColorOverride: inactiveColorPicker.value,
+      songTitle:             '',
+      activeColorOverride:   undefined,
+      inactiveColorOverride: currentInactiveColor,
       showProgressBar:       showProgressToggle ? showProgressToggle.checked : true,
-      showTitle:             showTitleToggle    ? showTitleToggle.checked    : true,
+      showTitle:             false,
       voiceConfig:           Sync.getVoiceConfig(),
       fontFamily:            Renderer.FONT_LIST.find(f => f.id === currentFont)?.family || "'Segoe UI', sans-serif",
       activeZoom:            currentZoom,
@@ -625,6 +672,24 @@ const ExportEngine = (() => {
     };
   }
 
+  /** Convert any CSS color string to a #rrggbb hex value that <input type="color"> can accept.
+   *  Handles: #rgb, #rrggbb, rgba(...), hsl(...) by painting to an offscreen 1×1 canvas. */
+  function _hexFromCssColor(color) {
+    if (!color) return '#ffffff';
+    // Fast path: already #rrggbb lowercase/uppercase
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) return color.toLowerCase();
+    // Short hex #rgb → #rrggbb
+    if (/^#[0-9a-fA-F]{3}$/.test(color))
+      return '#' + [...color.slice(1)].map(c => c + c).join('');
+    // Fallback: draw to tiny canvas
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 1;
+      const cx = c.getContext('2d'); cx.fillStyle = color; cx.fillRect(0, 0, 1, 1);
+      const [r, g, b] = cx.getImageData(0, 0, 1, 1).data;
+      return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+    } catch (_) { return '#ffffff'; }
+  }
+
   function renderPreviewFrame() { renderPreviewAt(Audio.getCurrentTime()); }
 
   function renderPreviewAt(t) {
@@ -632,7 +697,16 @@ const ExportEngine = (() => {
     if (previewCanvas.width !== rW || previewCanvas.height !== rH) {
       previewCanvas.width = rW; previewCanvas.height = rH;
     }
-    Renderer.drawFrame(previewCanvas, getRenderOpts(t));
+    const opts = getRenderOpts(t);
+    // Log only when opts change (rate-limited by value comparison)
+    if (renderPreviewAt._lastActive !== opts.activeColorOverride ||
+        renderPreviewAt._lastTitle  !== opts.songTitle) {
+      renderPreviewAt._lastActive = opts.activeColorOverride;
+      renderPreviewAt._lastTitle  = opts.songTitle;
+      console.log('[EE] renderPreviewAt — opts snapshot: activeColorOverride:', opts.activeColorOverride,
+        '| songTitle:', `"${opts.songTitle}"`, '| t:', t.toFixed(2));
+    }
+    Renderer.drawFrame(previewCanvas, opts);
   }
 
   function startPreviewLoop() {
@@ -651,6 +725,10 @@ const ExportEngine = (() => {
   /* ═══════════════════════════════════════════════════════
      startRecording()
   ═══════════════════════════════════════════════════════ */
+  /* ─────────────────────────────────────────────────────
+     Fast offline render using WebCodecs + webm-muxer.
+     Falls back to MediaRecorder when WebCodecs unavailable.
+  ───────────────────────────────────────────────────────── */
   async function startRecording() {
     if (recording) return;
     recording = true;
@@ -661,8 +739,6 @@ const ExportEngine = (() => {
     exportPlayBtn.textContent = '▶';
 
     const [rW, rH] = (resolutionSelect.value || '1920x1080').split('x').map(Number);
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = rW; recCanvas.height = rH;
 
     document.querySelector('.status-idle').classList.add('hidden');
     recordProgress.classList.remove('hidden');
@@ -670,6 +746,21 @@ const ExportEngine = (() => {
     progressLabel.textContent = 'Preparando...';
     startRecordBtn.disabled = true;
     previewExportBtn.disabled = true;
+
+    // ── Prefer fast offline WebCodecs path ──
+    const hasWebCodecs = typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined';
+    if (hasWebCodecs && Audio.rawFile) {
+      try {
+        await _startWebCodecsRecording(rW, rH);
+        return;
+      } catch (err) {
+        console.warn('[export] WebCodecs render failed, falling back to MediaRecorder:', err);
+      }
+    }
+
+    // ── Fallback: real-time MediaRecorder ──
+    const recCanvas = document.createElement('canvas');
+    recCanvas.width = rW; recCanvas.height = rH;
 
     const fps = parseInt(fpsSelect?.value || '30', 10);
     const mimeTypes = [
@@ -755,6 +846,127 @@ const ExportEngine = (() => {
     rafId = requestAnimationFrame(recLoop);
   }
 
+  /* ─── WebCodecs offline fast render ─────────────────── */
+  async function _startWebCodecsRecording(rW, rH) {
+    const fps       = parseInt(fpsSelect?.value || '30', 10);
+    const duration  = Audio.duration;
+    const totalFrames = Math.ceil(duration * fps);
+    const frameStep   = duration / totalFrames; // seconds per frame
+
+    // Decode audio to PCM using a temporary AudioContext
+    progressLabel.textContent = 'Decodificando audio...';
+    const arrayBuffer = await Audio.rawFile.arrayBuffer();
+    const tempCtx     = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+    await tempCtx.close();
+
+    const sampleRate   = audioBuffer.sampleRate;
+    const numChannels  = Math.min(audioBuffer.numberOfChannels, 2);
+    const totalSamples = audioBuffer.length;
+
+    // Try VP9 first, fall back to VP8 for broader hardware support
+    let videoCodec = 'vp09.00.10.08';
+    try {
+      const vRes = await VideoEncoder.isConfigSupported({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000 });
+      if (!vRes.supported) videoCodec = 'vp8';
+    } catch (_) { videoCodec = 'vp8'; }
+
+    const muxer = new Muxer({
+      target:  new ArrayBufferTarget(),
+      video:   { codec: videoCodec === 'vp8' ? 'V_VP8' : 'V_VP9', width: rW, height: rH, frameRate: fps },
+      audio:   { codec: 'A_OPUS', sampleRate, numberOfChannels: numChannels },
+      firstTimestampBehavior: 'offset',
+    });
+
+    const videoEncoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error:  e => { throw e; },
+    });
+    videoEncoder.configure({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000, latencyMode: 'quality' });
+
+    const audioEncoder = new AudioEncoder({
+      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+      error:  e => { throw e; },
+    });
+    audioEncoder.configure({ codec: 'opus', sampleRate, numberOfChannels: numChannels, bitrate: 128_000 });
+
+    // ── Encode video + update preview ──────────────────
+    progressLabel.textContent = 'Renderizando... 0%';
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = rW; offCanvas.height = rH;
+
+    // Update previewCanvas size if needed
+    if (previewCanvas.width !== rW || previewCanvas.height !== rH) {
+      previewCanvas.width = rW; previewCanvas.height = rH;
+    }
+    const prevCtx = previewCanvas.getContext('2d');
+
+    for (let i = 0; i < totalFrames; i++) {
+      const t         = i * frameStep;
+      const tsUs      = Math.round(t * 1_000_000); // microseconds
+
+      Renderer.drawFrame(offCanvas, getRenderOpts(t));
+      // Mirror to visible preview every frame — rAF not needed, browser paints on yield
+      prevCtx.drawImage(offCanvas, 0, 0);
+
+      const videoFrame = new VideoFrame(offCanvas, { timestamp: tsUs, duration: Math.round(frameStep * 1_000_000) });
+      videoEncoder.encode(videoFrame, { keyFrame: i % (fps * 2) === 0 });
+      videoFrame.close();
+
+      // Update progress bar and seek bar
+      const pct = Math.round(((i + 1) / totalFrames) * 100);
+      progressBarInner.style.width = pct + '%';
+      progressLabel.textContent    = `Renderizando... ${pct}%`;
+      exportSeekBar.value          = (t / duration) * 100;
+      exportCurrentTime.textContent = formatTime(t);
+
+      // Yield to browser every 8 frames so UI updates are visible
+      if (i % 8 === 7) await new Promise(r => setTimeout(r, 0));
+    }
+
+    // ── Encode audio in chunks ──────────────────────────
+    progressLabel.textContent = 'Codificando audio...';
+    const audioChunkSamples = Math.round(sampleRate / fps);
+    const channels = [];
+    for (let c = 0; c < numChannels; c++) channels.push(audioBuffer.getChannelData(c));
+
+    for (let start = 0; start < totalSamples; start += audioChunkSamples) {
+      const count    = Math.min(audioChunkSamples, totalSamples - start);
+      const tsUs     = Math.round((start / sampleRate) * 1_000_000);
+      const planar   = new Float32Array(count * numChannels);
+      for (let c = 0; c < numChannels; c++) {
+        planar.set(channels[c].subarray(start, start + count), c * count);
+      }
+      const audioData = new AudioData({
+        format: 'f32-planar', sampleRate, numberOfChannels: numChannels,
+        numberOfFrames: count, timestamp: tsUs, data: planar,
+      });
+      audioEncoder.encode(audioData);
+      audioData.close();
+    }
+
+    progressLabel.textContent = 'Finalizando...';
+    await videoEncoder.flush();
+    await audioEncoder.flush();
+    muxer.finalize();
+
+    recording = false;
+    const blob = new Blob([muxer.target.buffer], { type: 'video/webm' });
+    const rawTitle  = songTitleInput.value.trim() || 'karaoke';
+    const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = safeTitle + '.webm'; a.click();
+    URL.revokeObjectURL(url);
+
+    document.querySelector('.status-idle').classList.remove('hidden');
+    recordProgress.classList.add('hidden');
+    startRecordBtn.disabled = false;
+    previewExportBtn.disabled = false;
+    progressBarInner.style.width = '0%';
+    alert('✅ Video listo');
+  }
+
   /* ═══════════════════════════════════════════════════════
      applySettings() — restore saved project settings into UI
   ═══════════════════════════════════════════════════════ */
@@ -779,8 +991,10 @@ const ExportEngine = (() => {
     if (s.glow !== undefined && glowSlider) { currentGlow = s.glow; glowSlider.value = s.glow; if (glowVal) glowVal.textContent = parseFloat(s.glow).toFixed(1) + '×'; }
     if (s.fontSize    && fontSizeSlider)   { fontSizeSlider.value = s.fontSize; fontSizeVal.textContent = s.fontSize + 'px'; }
     if (s.resolution  && resolutionSelect)   resolutionSelect.value   = s.resolution;
-    if (s.activeColor   && activeColorPicker)   activeColorPicker.value   = s.activeColor;
-    if (s.inactiveColor && inactiveColorPicker) inactiveColorPicker.value = s.inactiveColor;
+    if (s.inactiveColor) {
+      currentInactiveColor = s.inactiveColor;
+      if (inactiveColorPicker) inactiveColorPicker.value = s.inactiveColor;
+    }
     if (s.progressBarColor && progressBarColorPicker) progressBarColorPicker.value = s.progressBarColor;
     if (s.secondarySize !== undefined && secondarySizeSlider) {
       currentSecondarySize = s.secondarySize; secondarySizeSlider.value = s.secondarySize;

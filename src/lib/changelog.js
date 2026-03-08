@@ -20,6 +20,20 @@ export const PROJECT_INFO = {
  */
 export const CHANGELOG = [
   {
+    version: '0.3.4',
+    date: '2026-03-07',
+    changes: [
+      { type: 'new',     text: '12 nuevas animaciones de fondo: Luna, Primavera, Verano, Otoño, Invierno, Campo (naturaleza), Planetas (espacio), Synthwave (digital), Anime, Metal, Cerezos y Urbano (temático).' },
+      { type: 'improve', text: 'Animaciones mejoradas: Synthwave con estrellas móviles y palmeras, Agujero Negro con disco de acreción en 3 capas, Verano con sol realista y olas rellenas.' },
+      { type: 'improve', text: 'Planetas mejorados con perspectiva gran angular, rotación visible, traslación orbital, lunas y texturas realistas.' },
+      { type: 'improve', text: 'Metal con fuego intenso y calaveras 3D como sombras, Anime convertido a estilo cómic manga con speed lines.' },
+      { type: 'improve', text: 'Urbano con edificios en 3D, sombras realistas, ventanas con reflejos y postes de luz.' },
+      { type: 'improve', text: 'Teatro mejorado con telón de terciopelo con 18 pliegues y borlas doradas animadas.' },
+      { type: 'improve', text: 'Escenario mejorado con spotlight realista, partículas de polvo y luces laterales.' },
+      { type: 'fix',     text: 'Corregido error IndexSizeError en animación de planetas cuando los anillos tenían radio negativo.' },
+    ],
+  },
+  {
     version: '0.3.3',
     date: '2026-03-07',
     changes: [

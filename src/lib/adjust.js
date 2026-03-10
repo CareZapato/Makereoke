@@ -6,6 +6,7 @@ import Audio from './audio.js';
 import Lyrics from './lyrics.js';
 import Sync from './sync.js';
 import Intro from './intro.js';
+import Outro from './outro.js';
 import { formatTime, parseTime, toast, clamp } from './utils.js';
 
 const Adjust = (() => {
@@ -116,6 +117,26 @@ const Adjust = (() => {
         const d = parseFloat(adjIntroDurSlider.value);
         Intro.set({ duration: d });
         if (adjIntroDurLabel) adjIntroDurLabel.textContent = d.toFixed(1) + 's';
+        drawTimeline();
+      };
+    }
+
+    // ── Outro timeline controls ──
+    const adjOutroEnabled   = document.getElementById('adjOutroEnabled');
+    const adjOutroDurSlider = document.getElementById('adjOutroDurationSlider');
+    const adjOutroDurLabel  = document.getElementById('adjOutroDurationLabel');
+    const oc = Outro.get();
+    if (adjOutroEnabled) {
+      adjOutroEnabled.checked = oc.enabled;
+      adjOutroEnabled.onchange = () => { Outro.set({ enabled: adjOutroEnabled.checked }); drawTimeline(); };
+    }
+    if (adjOutroDurSlider) {
+      adjOutroDurSlider.value = oc.duration;
+      if (adjOutroDurLabel) adjOutroDurLabel.textContent = oc.duration.toFixed(1) + 's';
+      adjOutroDurSlider.oninput = () => {
+        const d = parseFloat(adjOutroDurSlider.value);
+        Outro.set({ duration: d });
+        if (adjOutroDurLabel) adjOutroDurLabel.textContent = d.toFixed(1) + 's';
         drawTimeline();
       };
     }
@@ -378,6 +399,40 @@ const Adjust = (() => {
       ctx.font = 'bold 10px monospace';
       ctx.textAlign = 'left'; ctx.textBaseline = 'top';
       if (izW > 40) ctx.fillText('\uD83C\uDDEE\uD83C\uDDF3 ' + _ic.duration.toFixed(1) + 's', 4, 4);
+      ctx.restore();
+    }
+
+    // ── Outro zone tint ──
+    const _oc = Outro.get();
+    if (_oc.enabled && _oc.duration > 0 && dur > 0) {
+      ctx.save();
+      const ozStart = Math.max(0, W - (_oc.duration / dur) * W);
+      ctx.fillStyle = 'rgba(78,205,196,0.15)';
+      ctx.fillRect(ozStart, 0, W - ozStart, H);
+      ctx.strokeStyle = 'rgba(78,205,196,0.75)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(ozStart, 0); ctx.lineTo(ozStart, H); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#4ECDC4';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+      if ((W - ozStart) > 40) ctx.fillText('OUT ' + _oc.duration.toFixed(1) + 's', W - 4, 4);
+      ctx.restore();
+    }
+
+    // ── lyricsEndTime marker ──
+    const _endT = Lyrics.getEndTime();
+    if (_endT !== null && dur > 0) {
+      const endPx = (_endT / dur) * W;
+      ctx.save();
+      ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.85;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(endPx, 0); ctx.lineTo(endPx, H); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1; ctx.fillStyle = '#ff6b6b';
+      ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText('⏹', Math.min(endPx + 2, W - 16), 4);
       ctx.restore();
     }
 

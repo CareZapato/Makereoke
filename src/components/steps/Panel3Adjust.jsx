@@ -63,6 +63,22 @@ export default function Panel3Adjust({ isActive, goToStep }) {
           </div>
         </div>
 
+        {/* Outro segment control */}
+        <div className="intro-timeline-bar">
+          <label className="intro-tl-toggle">
+            <input type="checkbox" id="adjOutroEnabled" />
+            <span>🎬 Outro del video</span>
+          </label>
+          <div className="intro-tl-duration">
+            <span className="intro-tl-dur-hint">Duración:</span>
+            <input type="range" id="adjOutroDurationSlider" className="slider"
+              min="1" max="15" step="0.5" defaultValue="4"
+              style={{ flex: 1, maxWidth: 160 }}
+            />
+            <span id="adjOutroDurationLabel" className="slider-val">4.0s</span>
+          </div>
+        </div>
+
         {/* Timeline */}
         <div className="timeline-toolbar">
           <span className="timeline-toolbar-label">📍 Línea de tiempo</span>

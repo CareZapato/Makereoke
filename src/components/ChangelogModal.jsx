@@ -45,7 +45,6 @@ export default function ChangelogModal({ onClose }) {
         {/* ── Header ── */}
         <div className="cl-header">
           <div className="cl-header-left">
-            <span className="cl-logo-icon">🎤</span>
             <div className="cl-header-info">
               <h2 className="cl-title">{PROJECT_INFO.name}</h2>
               <p className="cl-desc">{PROJECT_INFO.description}</p>
@@ -99,7 +98,7 @@ export default function ChangelogModal({ onClose }) {
 
         {/* ── Footer ── */}
         <div className="cl-footer">
-          Hecho con ❤️ por {PROJECT_INFO.author} &mdash; Makereoke &copy; {new Date().getFullYear()}
+          Hecho con ❤️ por {PROJECT_INFO.author} &mdash; Karaoke Video Maker &copy; {new Date().getFullYear()}
         </div>
 
       </div>

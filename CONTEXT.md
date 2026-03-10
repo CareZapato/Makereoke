@@ -1,8 +1,8 @@
-# CONTEXT — Makereoke
+# CONTEXT — Karaoke Video Maker
 
-## ¿Qué es Makereoke?
+## ¿Qué es Karaoke Video Maker?
 
-**Makereoke** es un generador de videos de karaoke que corre en el navegador.
+**Karaoke Video Maker** es un generador de videos de karaoke que corre en el navegador.
 El usuario sube un archivo de audio (MP3/WAV/OGG/M4A/FLAC) y la letra de una canción;
 la app los sincroniza y genera un video animado listo para proyectar o compartir.
 
@@ -223,3 +223,28 @@ El refactor pendiente es:
 3. El botón "guardar" en Paso 2 escribe en IndexedDB
 4. Los videos se descargan automáticamente (ya funciona así)
 5. El botón 📂 en HTTP/LAN no pide ruta del servidor — simplemente no existe el concepto de "carpeta" when en este modo
+
+---
+
+## Versión actual: 0.3.5
+
+### Módulos nuevos / modificados en 0.3.5
+
+| Módulo | Cambio |
+|---|---|
+| `src/lib/outro.js` | **NUEVO** — estado de configuración de la carta outro, `mirrorFrom(introConfig)` |
+| `src/lib/lyrics.js` | `endTime`, `insertAfter`, `removeLine`, `toggleLabel`, `setEndTime/getEndTime/clearEndTime` |
+| `src/lib/sync.js` | Importa Intro/Outro; `buildLyricsList` reescrito con botones de acción, fila fin-letra, filas intro/outro; waveform con bandas de intro/outro y línea fin-letra |
+| `src/lib/renderer.js` | `drawOutroFrame`, `_drawWatermark`, 4 nuevos `TEXT_EFFECTS`, `FILL_EFFECT_LIST`, soporte `lyricsEndTime` (blanqueo), `fillEffect`, `outroConfig`, `showWatermark` en `drawFrame` |
+| `src/lib/export-engine.js` | Importa Outro; grilla fill effects; toggle watermark; voz-colors dinámicos; controles outro; `_buildSafeFilename(ext)` (artista - título); `getRenderOpts` actualizado |
+| `src/components/steps/Panel4Export.jsx` | Sección outro completa; grilla relleno; sección voces; toggle marca de agua |
+
+### Notas de uso de `lyricsEndTime`
+- Se marca en el Paso 2 con el botón **"⏹ Fin de letra"** al pie de la lista
+- También se puede marcar desde la nueva fila **"🎬 Inicio del outro"** que calcula la duración automáticamente
+- En el renderer, `time >= lyricsEndTime` borra todas las letras de pantalla (pantalla limpia antes del outro)
+
+### Notas de uso de intro/outro en el waveform
+- Las bandas de color solo se dibujan si `intro.enabled=true` / `outro.enabled=true` respectivamente
+- Para activar el intro desde el Paso 2: clic en "Marcar aquí" de la fila intro en cualquier momento > 0s
+- Los cambios de duración hechos en el Paso 2 se reflejan en los controles del Paso 4 al abrir la sección (via `_syncOutroUI` / `_syncIntroUI`)

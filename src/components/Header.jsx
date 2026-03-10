@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { APP_VERSION } from '../lib/utils.js';
+import logoUrl from '../logo.svg';
 
 const STEPS = [
   { n: 1, label: 'Audio' },
@@ -9,11 +10,11 @@ const STEPS = [
 ];
 
 export default function Header({ step, onShowChangelog }) {
+  const [collapsed, setCollapsed] = useState(false);
   return (
-    <header className="app-header">
+    <header className={`app-header${collapsed ? ' header-collapsed' : ''}`}>
       <div className="logo">
-        <span className="logo-icon">🎤</span>
-        <span className="logo-text">Makereoke</span>
+        <img src={logoUrl} alt="Makereoke" className="logo-img" />
         <button
           className="version-badge version-badge-btn"
           onClick={onShowChangelog}
@@ -37,6 +38,14 @@ export default function Header({ step, onShowChangelog }) {
             </React.Fragment>
           ))}
         </nav>
+        <button
+          className="header-collapse-btn"
+          onClick={() => setCollapsed(c => !c)}
+          title={collapsed ? 'Expandir cabecera' : 'Compactar cabecera'}
+          aria-label={collapsed ? 'Expandir cabecera' : 'Compactar cabecera'}
+        >
+          {collapsed ? '▾' : '▴'}
+        </button>
       </div>
     </header>
   );

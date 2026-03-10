@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import '../css/styles.css';
 
-console.log('[Makereoke] main.jsx cargado');
+console.log('[Karaoke Video Maker] main.jsx cargado');
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,7 +11,7 @@ class ErrorBoundary extends React.Component {
     this.state = { error: null };
   }
   static getDerivedStateFromError(error) {
-    console.error('[Makereoke] Error capturado por ErrorBoundary:', error);
+    console.error('[Karaoke Video Maker] Error capturado por ErrorBoundary:', error);
     return { error };
   }
   render() {
@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component {
 }
 
 const rootEl = document.getElementById('root');
-console.log('[Makereoke] #root encontrado:', !!rootEl);
+console.log('[Karaoke Video Maker] #root encontrado:', !!rootEl);
 
 ReactDOM.createRoot(rootEl).render(
   <ErrorBoundary>
@@ -39,4 +39,4 @@ ReactDOM.createRoot(rootEl).render(
   </ErrorBoundary>
 );
 
-console.log('[Makereoke] ReactDOM.createRoot render llamado');
+console.log('[Karaoke Video Maker] ReactDOM.createRoot render llamado');

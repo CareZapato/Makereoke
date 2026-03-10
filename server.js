@@ -31,7 +31,7 @@ const server = http.createServer(app);
 
 server.listen(PORT, '0.0.0.0', () => {
   const ips = _getLocalIPs();
-  console.log(`\n  Makereoke  →  http://localhost:${PORT}`);
+  console.log(`\n  Karaoke Video Maker  →  http://localhost:${PORT}`);
   ips.filter(ip => !ip.startsWith('127.')).forEach(ip =>
     console.log(`  LAN        →  http://${ip}:${PORT}`)
   );

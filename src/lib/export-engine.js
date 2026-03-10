@@ -7,9 +7,11 @@ import Lyrics from './lyrics.js';
 import Renderer from './renderer.js';
 import Sync from './sync.js';
 import Intro from './intro.js';
+import Outro from './outro.js';
 import { formatTime, debounce } from './utils.js';
 import { Muxer, ArrayBufferTarget } from 'webm-muxer';
 import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4ABTarget } from 'mp4-muxer';
+import AppModal from './app-modal.js';
 
 const ExportEngine = (() => {
 
@@ -28,6 +30,29 @@ const ExportEngine = (() => {
   let currentSecondaryOpacity = 0.65;
   let currentNextOffset       = 1.05;
   let currentPrevOpacity      = 0.22;
+  let currentFillEffect       = 'default'; // karaoke reveal style
+  let showWatermark           = false;
+  let currentWatermarkOpacity = 0.35;
+  let currentWatermarkSize    = 0.22;   // fraction of video width
+  let currentWatermarkPos     = 'br';   // tl | tr | bl | br | center | rotate
+  let watermarkAnim            = 'none'; // none | fade | slide | zoom | coin | pendulum | spin | float
+  let watermarkVisualEffect    = 'none'; // none | glow | pulse | outline | stamp | shadow
+  let watermarkRanges = [                // up to 3 optional time windows
+    { enabled: false, from: 0, to: 30 },
+    { enabled: false, from: 0, to: 30 },
+    { enabled: false, from: 0, to: 30 },
+  ];
+  let currentProgressBarThickness = 1.0;
+  let currentProgressTimeSize     = 1.0;
+  // Text shadow (active lyric line)
+  let currentTextShadowType    = 'none';
+  let currentTextShadowColor   = '#000000';
+  let currentTextShadowBlur    = 12;
+  let currentTextShadowOffsetY = 3;
+  // Stroke / contorno (active lyric line)
+  let currentStrokeWidth  = 0;
+  let currentStrokeColor  = '#000000';
+  let currentStrokeEffect = 'solid';
   // Tracked inactive color state — NOT read from DOM on every frame
   let currentInactiveColor = '#ffffff';
   // AbortController for setup() event re-wiring (prevents duplicate listeners)
@@ -37,7 +62,7 @@ const ExportEngine = (() => {
 
   /* ── DOM refs (set in init) ────────────────────────────────────── */
   let themeSelector, animGrid, overlayGrid;
-  let fontSelector, textEffectGrid, progressStyleGrid, zoomSlider, zoomVal;
+  let fontSelector, textEffectGrid, fillEffectGrid, progressStyleGrid, zoomSlider, zoomVal;
   let progressOpacitySlider, progressOpacityVal;
   let progressBarColorPicker;
   let secondarySizeSlider, secondarySizeVal;
@@ -50,8 +75,16 @@ const ExportEngine = (() => {
   let songTitleInput, activeColorPicker, inactiveColorPicker;
   let previewCanvas, exportPlayBtn, exportSeekBar, exportCurrentTime;
   let exportVolumeSlider, exportSpeedSelect, exportFullscreenBtn;
+  let fsPlayBtn, fsSeekBar, fsCurrentTime, fsSpeedSelect, fsVolumeSlider, fsExitBtn;
   let startRecordBtn, previewExportBtn;
-  let recordProgress, progressBarInner, progressLabel;
+  let recordProgress, progressBarInner, progressLabel, progressDetail;
+  let progressBarThicknessSlider, progressBarThicknessVal;
+  let progressTimeSizeSlider,     progressTimeSizeVal;
+  let watermarkOpacitySlider, watermarkOpacityVal;
+  let watermarkSizeSlider,    watermarkSizeVal;
+  let watermarkPosGrid;
+  let watermarkAnimGrid;
+  let watermarkEffectGrid;
 
   /* ═══════════════════════════════════════════════════════
      Cat-tab + search helpers
@@ -151,11 +184,17 @@ const ExportEngine = (() => {
     exportVolumeSlider = document.getElementById('exportVolumeSlider');
     exportSpeedSelect  = document.getElementById('exportSpeedSelect');
     exportFullscreenBtn= document.getElementById('exportFullscreenBtn');
+    fsPlayBtn          = document.getElementById('fsPlayBtn');
+    fsSeekBar          = document.getElementById('fsSeekBar');
+    fsCurrentTime      = document.getElementById('fsCurrentTime');
+    fsSpeedSelect      = document.getElementById('fsSpeedSelect');
+    fsExitBtn          = document.getElementById('fsExitBtn');
     startRecordBtn     = document.getElementById('startRecordBtn');
     previewExportBtn   = document.getElementById('previewExportBtn');
     recordProgress     = document.getElementById('recordProgress');
     progressBarInner   = document.getElementById('progressBarInner');
     progressLabel      = document.getElementById('progressLabel');
+    progressDetail     = document.getElementById('progressDetail');
 
     // Guard: export panel may not be mounted yet on first boot
     if (!themeSelector || !animGrid || !fontSizeSlider || !exportPlayBtn || !startRecordBtn) {
@@ -325,6 +364,27 @@ const ExportEngine = (() => {
       wireSimpleSearch(document.getElementById('textFxSearch'), textEffectGrid, '.anim-card', '.anim-label');
     }
 
+    /* ── Fill effect grid ── */
+    fillEffectGrid = document.getElementById('fillEffectGrid');
+    if (fillEffectGrid) {
+      fillEffectGrid.innerHTML = '';
+      Renderer.FILL_EFFECT_LIST.forEach(ef => {
+        const card = document.createElement('div');
+        card.className = 'anim-card' + (ef.id === currentFillEffect ? ' active' : '');
+        card.dataset.fe = ef.id;
+        card.innerHTML = `<span class="anim-emoji">${ef.emoji}</span><span class="anim-label">${ef.label}</span>`;
+        card.addEventListener('click', () => {
+          currentFillEffect = ef.id;
+          fillEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.fe === ef.id));
+          renderPreviewFrame();
+        });
+        fillEffectGrid.appendChild(card);
+      });
+    }
+
+    /* ── Voice colors in export panel ── */
+    _buildExportVoiceColors();
+
     /* ── Progress style grid ── */
     progressStyleGrid = document.getElementById('progressStyleGrid');
     if (progressStyleGrid) {
@@ -357,6 +417,28 @@ const ExportEngine = (() => {
     /* ── Progress bar color picker ── */
     progressBarColorPicker = document.getElementById('progressBarColorPicker');
     if (progressBarColorPicker) progressBarColorPicker.addEventListener('input', renderPreviewFrame);
+
+    /* ── Progress bar thickness slider ── */
+    progressBarThicknessSlider = document.getElementById('progressBarThicknessSlider');
+    progressBarThicknessVal    = document.getElementById('progressBarThicknessVal');
+    if (progressBarThicknessSlider) {
+      progressBarThicknessSlider.addEventListener('input', () => {
+        currentProgressBarThickness = parseFloat(progressBarThicknessSlider.value);
+        if (progressBarThicknessVal) progressBarThicknessVal.textContent = currentProgressBarThickness.toFixed(1) + '×';
+        renderPreviewFrame();
+      });
+    }
+
+    /* ── Progress time text size slider ── */
+    progressTimeSizeSlider = document.getElementById('progressTimeSizeSlider');
+    progressTimeSizeVal    = document.getElementById('progressTimeSizeVal');
+    if (progressTimeSizeSlider) {
+      progressTimeSizeSlider.addEventListener('input', () => {
+        currentProgressTimeSize = parseFloat(progressTimeSizeSlider.value);
+        if (progressTimeSizeVal) progressTimeSizeVal.textContent = currentProgressTimeSize.toFixed(1) + '×';
+        renderPreviewFrame();
+      });
+    }
 
     /* ── Secondary text controls ── */
     secondarySizeSlider    = document.getElementById('secondarySizeSlider');
@@ -437,7 +519,61 @@ const ExportEngine = (() => {
     if (textPositionSelect) textPositionSelect.addEventListener('change', () => { currentTextPos = textPositionSelect.value; renderPreviewFrame(); });
     if (showProgressToggle) showProgressToggle.addEventListener('change', renderPreviewFrame);
 
-    /* ── Color pickers (inactive color listener wired in setup() via AbortController) ── */
+    /* ── Text shadow controls ── */
+    const textShadowTypeGrid    = document.getElementById('textShadowTypeGrid');
+    const textShadowColorPicker = document.getElementById('textShadowColorPicker');
+    const textShadowBlurSlider  = document.getElementById('textShadowBlurSlider');
+    const textShadowBlurVal     = document.getElementById('textShadowBlurVal');
+    const textShadowOffsetYSlider = document.getElementById('textShadowOffsetYSlider');
+    const textShadowOffsetYVal  = document.getElementById('textShadowOffsetYVal');
+
+    if (textShadowTypeGrid) {
+      textShadowTypeGrid.addEventListener('click', e => {
+        const btn = e.target.closest('[data-shadow-type]');
+        if (!btn) return;
+        currentTextShadowType = btn.dataset.shadowType;
+        textShadowTypeGrid.querySelectorAll('[data-shadow-type]').forEach(b => b.classList.toggle('active', b === btn));
+        renderPreviewFrame();
+      });
+    }
+    if (textShadowColorPicker) textShadowColorPicker.addEventListener('input', () => { currentTextShadowColor = textShadowColorPicker.value; renderPreviewFrame(); });
+    if (textShadowBlurSlider) {
+      textShadowBlurSlider.addEventListener('input', () => {
+        currentTextShadowBlur = parseInt(textShadowBlurSlider.value, 10);
+        if (textShadowBlurVal) textShadowBlurVal.textContent = currentTextShadowBlur + 'px';
+        renderPreviewFrame();
+      });
+    }
+    if (textShadowOffsetYSlider) {
+      textShadowOffsetYSlider.addEventListener('input', () => {
+        currentTextShadowOffsetY = parseInt(textShadowOffsetYSlider.value, 10);
+        if (textShadowOffsetYVal) textShadowOffsetYVal.textContent = currentTextShadowOffsetY + 'px';
+        renderPreviewFrame();
+      });
+    }
+
+    /* ── Stroke / contorno controls ── */
+    const strokeEffectGrid   = document.getElementById('strokeEffectGrid');
+    const strokeColorPicker  = document.getElementById('strokeColorPicker');
+    const strokeWidthSlider  = document.getElementById('strokeWidthSlider');
+    const strokeWidthVal     = document.getElementById('strokeWidthVal');
+    if (strokeEffectGrid) {
+      strokeEffectGrid.addEventListener('click', e => {
+        const btn = e.target.closest('[data-stroke-effect]');
+        if (!btn) return;
+        currentStrokeEffect = btn.dataset.strokeEffect;
+        strokeEffectGrid.querySelectorAll('[data-stroke-effect]').forEach(b => b.classList.toggle('active', b === btn));
+        renderPreviewFrame();
+      });
+    }
+    if (strokeColorPicker)  strokeColorPicker.addEventListener('input',  () => { currentStrokeColor = strokeColorPicker.value; renderPreviewFrame(); });
+    if (strokeWidthSlider) {
+      strokeWidthSlider.addEventListener('input', () => {
+        currentStrokeWidth = parseInt(strokeWidthSlider.value, 10);
+        if (strokeWidthVal) strokeWidthVal.textContent = currentStrokeWidth + 'px';
+        renderPreviewFrame();
+      });
+    }
 
     /* ── Preview player ── */
     exportPlayBtn.addEventListener('click', () => {
@@ -492,8 +628,22 @@ const ExportEngine = (() => {
       });
       document.addEventListener('fullscreenchange', () => {
         if (!exportFullscreenBtn) return;
-        exportFullscreenBtn.textContent = document.fullscreenElement ? '✕' : '⛶';
-        exportFullscreenBtn.title = document.fullscreenElement ? 'Salir de pantalla completa' : 'Pantalla completa';
+        const isFs = !!document.fullscreenElement;
+        exportFullscreenBtn.textContent = isFs ? '✕' : '⛶';
+        exportFullscreenBtn.title = isFs ? 'Salir de pantalla completa' : 'Pantalla completa';
+        // Toggle class so CSS can reliably show/hide fs-controls
+        const wrap = document.getElementById('exportCanvasWrap');
+        wrap?.classList.toggle('is-fullscreen', isFs);
+        // Sync fs controls to current state on entry
+        if (isFs) {
+          const t = Audio.getCurrentTime?.() ?? 0;
+          const pct = Audio.duration > 0 ? (t / Audio.duration) * 100 : 0;
+          if (fsSeekBar)      fsSeekBar.value = pct;
+          if (fsCurrentTime) fsCurrentTime.textContent = formatTime(t);
+          if (fsPlayBtn)     fsPlayBtn.textContent = Audio.isPlaying ? '⏸' : '▶';
+          if (fsSpeedSelect && exportSpeedSelect) fsSpeedSelect.value = exportSpeedSelect.value;
+          if (fsVolumeSlider && exportVolumeSlider) fsVolumeSlider.value = exportVolumeSlider.value;
+        }
       });
     }
 
@@ -507,8 +657,19 @@ const ExportEngine = (() => {
       exportPlayBtn.textContent = '⏸';
     });
 
-    startRecordBtn.addEventListener('click', () => {
+    startRecordBtn.addEventListener('click', async () => {
       if (recording) return;
+      const vol = Audio.volume;
+      if (typeof vol === 'number' && vol < 1) {
+        const pct = Math.round(vol * 100);
+        const ok = await AppModal.confirm(
+          `El volumen actual está al ${pct}%. Para exportar con la mejor calidad de audio, se ajustará al 100% automáticamente.`,
+          { title: '🔊 Ajuste de volumen', icon: '🔊', confirmLabel: 'Exportar al 100%', cancelLabel: 'Cancelar' }
+        );
+        if (!ok) return;
+        Audio.setVolume(1);
+        if (exportVolumeSlider) exportVolumeSlider.value = 1;
+      }
       startRecording();
     });
 
@@ -626,6 +787,34 @@ const ExportEngine = (() => {
         introTransitionOutGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transitionOut === (ic.transitionOut || ic.transition)));
       }
       if (introTransOutLabel) introTransOutLabel.style.opacity = ic.useSameTransOut ? '0.4' : '1';
+
+      // New typography / glow / shadow sync
+      const introTitleFontSelectEl  = document.getElementById('introTitleFontSelect');
+      const introArtistFontSelectEl = document.getElementById('introArtistFontSelect');
+      if (introTitleFontSelectEl)  introTitleFontSelectEl.value  = ic.titleFont  || '';
+      if (introArtistFontSelectEl) introArtistFontSelectEl.value = ic.artistFont || '';
+
+      const introTitleGlowSliderEl  = document.getElementById('introTitleGlowSlider');
+      const introTitleGlowValEl     = document.getElementById('introTitleGlowVal');
+      const introArtistGlowSliderEl = document.getElementById('introArtistGlowSlider');
+      const introArtistGlowValEl    = document.getElementById('introArtistGlowVal');
+      if (introTitleGlowSliderEl)  { introTitleGlowSliderEl.value  = ic.titleGlow  ?? 1.0; if (introTitleGlowValEl)  introTitleGlowValEl.textContent  = (ic.titleGlow  ?? 1.0).toFixed(1) + '×'; }
+      if (introArtistGlowSliderEl) { introArtistGlowSliderEl.value = ic.artistGlow ?? 0.6; if (introArtistGlowValEl) introArtistGlowValEl.textContent = (ic.artistGlow ?? 0.6).toFixed(1) + '×'; }
+
+      const introTitleShadowColorEl   = document.getElementById('introTitleShadowColorPicker');
+      const introTitleShadowBlurEl    = document.getElementById('introTitleShadowBlurSlider');
+      const introTitleShadowBlurValEl = document.getElementById('introTitleShadowBlurVal');
+      const introTitleShadowOffsetEl  = document.getElementById('introTitleShadowOffsetSlider');
+      const introTitleShadowOffsetValEl = document.getElementById('introTitleShadowOffsetVal');
+      if (introTitleShadowColorEl)   introTitleShadowColorEl.value   = ic.titleShadowColor  || '#000000';
+      if (introTitleShadowBlurEl)    { introTitleShadowBlurEl.value    = ic.titleShadowBlur    ?? 0; if (introTitleShadowBlurValEl)    introTitleShadowBlurValEl.textContent    = (ic.titleShadowBlur    ?? 0) + 'px'; }
+      if (introTitleShadowOffsetEl)  { introTitleShadowOffsetEl.value  = ic.titleShadowOffsetY ?? 2; if (introTitleShadowOffsetValEl)  introTitleShadowOffsetValEl.textContent  = (ic.titleShadowOffsetY ?? 2) + 'px'; }
+
+      const introArtistShadowColorEl   = document.getElementById('introArtistShadowColorPicker');
+      const introArtistShadowBlurEl    = document.getElementById('introArtistShadowBlurSlider');
+      const introArtistShadowBlurValEl = document.getElementById('introArtistShadowBlurVal');
+      if (introArtistShadowColorEl)  introArtistShadowColorEl.value   = ic.artistShadowColor || '#000000';
+      if (introArtistShadowBlurEl)   { introArtistShadowBlurEl.value   = ic.artistShadowBlur  ?? 0; if (introArtistShadowBlurValEl) introArtistShadowBlurValEl.textContent = (ic.artistShadowBlur ?? 0) + 'px'; }
     }
 
     if (introEnabledToggle) introEnabledToggle.addEventListener('change', () => { Intro.set({ enabled: introEnabledToggle.checked }); renderPreviewFrame(); });
@@ -708,11 +897,198 @@ const ExportEngine = (() => {
       });
     }
     _syncIntroUI();
+
+    /* ── Intro typography / glow / shadow controls ── */
+    const introTitleFontSelect  = document.getElementById('introTitleFontSelect');
+    const introArtistFontSelect = document.getElementById('introArtistFontSelect');
+    if (introTitleFontSelect)  introTitleFontSelect.addEventListener('change',  () => { Intro.set({ titleFont:  introTitleFontSelect.value  }); renderPreviewFrame(); });
+    if (introArtistFontSelect) introArtistFontSelect.addEventListener('change', () => { Intro.set({ artistFont: introArtistFontSelect.value }); renderPreviewFrame(); });
+
+    const introTitleGlowSlider  = document.getElementById('introTitleGlowSlider');
+    const introTitleGlowVal     = document.getElementById('introTitleGlowVal');
+    const introArtistGlowSlider = document.getElementById('introArtistGlowSlider');
+    const introArtistGlowVal    = document.getElementById('introArtistGlowVal');
+    if (introTitleGlowSlider) {
+      introTitleGlowSlider.addEventListener('input', () => {
+        const v = parseFloat(introTitleGlowSlider.value);
+        Intro.set({ titleGlow: v });
+        if (introTitleGlowVal) introTitleGlowVal.textContent = v.toFixed(1) + '×';
+        renderPreviewFrame();
+      });
+    }
+    if (introArtistGlowSlider) {
+      introArtistGlowSlider.addEventListener('input', () => {
+        const v = parseFloat(introArtistGlowSlider.value);
+        Intro.set({ artistGlow: v });
+        if (introArtistGlowVal) introArtistGlowVal.textContent = v.toFixed(1) + '×';
+        renderPreviewFrame();
+      });
+    }
+
+    const introTitleShadowColorPicker  = document.getElementById('introTitleShadowColorPicker');
+    const introTitleShadowBlurSlider   = document.getElementById('introTitleShadowBlurSlider');
+    const introTitleShadowBlurVal      = document.getElementById('introTitleShadowBlurVal');
+    const introTitleShadowOffsetSlider = document.getElementById('introTitleShadowOffsetSlider');
+    const introTitleShadowOffsetVal    = document.getElementById('introTitleShadowOffsetVal');
+    if (introTitleShadowColorPicker)  introTitleShadowColorPicker.addEventListener('input',  () => { Intro.set({ titleShadowColor:  introTitleShadowColorPicker.value }); renderPreviewFrame(); });
+    if (introTitleShadowBlurSlider) {
+      introTitleShadowBlurSlider.addEventListener('input', () => {
+        const v = parseInt(introTitleShadowBlurSlider.value, 10);
+        Intro.set({ titleShadowBlur: v });
+        if (introTitleShadowBlurVal) introTitleShadowBlurVal.textContent = v + 'px';
+        renderPreviewFrame();
+      });
+    }
+    if (introTitleShadowOffsetSlider) {
+      introTitleShadowOffsetSlider.addEventListener('input', () => {
+        const v = parseInt(introTitleShadowOffsetSlider.value, 10);
+        Intro.set({ titleShadowOffsetY: v });
+        if (introTitleShadowOffsetVal) introTitleShadowOffsetVal.textContent = v + 'px';
+        renderPreviewFrame();
+      });
+    }
+
+    const introArtistShadowColorPicker = document.getElementById('introArtistShadowColorPicker');
+    const introArtistShadowBlurSlider  = document.getElementById('introArtistShadowBlurSlider');
+    const introArtistShadowBlurVal     = document.getElementById('introArtistShadowBlurVal');
+    if (introArtistShadowColorPicker)  introArtistShadowColorPicker.addEventListener('input',  () => { Intro.set({ artistShadowColor: introArtistShadowColorPicker.value }); renderPreviewFrame(); });
+    if (introArtistShadowBlurSlider) {
+      introArtistShadowBlurSlider.addEventListener('input', () => {
+        const v = parseInt(introArtistShadowBlurSlider.value, 10);
+        Intro.set({ artistShadowBlur: v });
+        if (introArtistShadowBlurVal) introArtistShadowBlurVal.textContent = v + 'px';
+        renderPreviewFrame();
+      });
+    }
+
+    /* ── Outro card controls ── */
+    function _syncOutroUI() {
+      const oc = Outro.get();
+      const outroEnabledToggle      = document.getElementById('outroEnabledToggle');
+      const outroMirrorToggle       = document.getElementById('outroMirrorToggle');
+      const outroTitleInput         = document.getElementById('outroTitleInput');
+      const outroArtistInput        = document.getElementById('outroArtistInput');
+      const outroDurationSlider     = document.getElementById('outroDurationSlider');
+      const outroDurationVal        = document.getElementById('outroDurationVal');
+      const outroTitleColorPicker   = document.getElementById('outroTitleColorPicker');
+      const outroArtistColorPicker  = document.getElementById('outroArtistColorPicker');
+      const outroTitleSizeSlider    = document.getElementById('outroTitleSizeSlider');
+      const outroTitleSizeVal       = document.getElementById('outroTitleSizeVal');
+      const outroArtistRatioSlider  = document.getElementById('outroArtistRatioSlider');
+      const outroArtistRatioVal     = document.getElementById('outroArtistRatioVal');
+      const outroShowLogoToggle     = document.getElementById('outroShowLogoToggle');
+      const outroStyleGrid          = document.getElementById('outroStyleGrid');
+      const outroTransitionGrid     = document.getElementById('outroTransitionGrid');
+      if (outroEnabledToggle)      outroEnabledToggle.checked = oc.enabled;
+      if (outroMirrorToggle)       outroMirrorToggle.checked  = oc.mirrorIntro;
+      if (outroTitleInput)         outroTitleInput.value       = oc.title;
+      if (outroArtistInput)        outroArtistInput.value      = oc.artist;
+      if (outroDurationSlider)     { outroDurationSlider.value = oc.duration; if (outroDurationVal) outroDurationVal.textContent = oc.duration.toFixed(1) + 's'; }
+      if (outroTitleColorPicker)   outroTitleColorPicker.value  = oc.titleColor;
+      if (outroArtistColorPicker)  outroArtistColorPicker.value = oc.artistColor;
+      if (outroTitleSizeSlider)    { outroTitleSizeSlider.value = oc.titleSize; if (outroTitleSizeVal) outroTitleSizeVal.textContent = oc.titleSize.toFixed(2) + '×'; }
+      if (outroArtistRatioSlider)  { outroArtistRatioSlider.value = oc.artistRatio; if (outroArtistRatioVal) outroArtistRatioVal.textContent = Math.round(oc.artistRatio * 100) + '%'; }
+      if (outroShowLogoToggle)     outroShowLogoToggle.checked  = oc.showLogo;
+      if (outroStyleGrid)     outroStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c.dataset.style === oc.style));
+      if (outroTransitionGrid) outroTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transition === oc.transition));
+      // Mirror-dependent fields opacity
+      const isLocked = oc.mirrorIntro;
+      [outroTitleInput, outroArtistInput, outroTitleColorPicker, outroArtistColorPicker, outroTitleSizeSlider, outroArtistRatioSlider, outroStyleGrid, outroTransitionGrid, outroShowLogoToggle].forEach(el => {
+        if (el) el.style.opacity = isLocked ? '0.45' : '1'; if (el) el.style.pointerEvents = isLocked ? 'none' : 'auto';
+      });
+    }
+
+    function _outroMirrorApply() {
+      Outro.mirrorFrom(Intro.get());
+      _syncOutroUI();
+      renderPreviewFrame();
+    }
+
+    const outroEnabledToggle = document.getElementById('outroEnabledToggle');
+    if (outroEnabledToggle) outroEnabledToggle.addEventListener('change', () => { Outro.set({ enabled: outroEnabledToggle.checked }); renderPreviewFrame(); });
+    const outroMirrorToggle = document.getElementById('outroMirrorToggle');
+    if (outroMirrorToggle)  outroMirrorToggle.addEventListener('change', () => { Outro.set({ mirrorIntro: outroMirrorToggle.checked }); if (outroMirrorToggle.checked) _outroMirrorApply(); else _syncOutroUI(); });
+    const outroCopyIntroBtn = document.getElementById('outroCopyIntroBtn');
+    if (outroCopyIntroBtn)  outroCopyIntroBtn.addEventListener('click', () => { _outroMirrorApply(); });
+    const outroTitleInput = document.getElementById('outroTitleInput');
+    if (outroTitleInput)    outroTitleInput.addEventListener('input', debounce(() => { Outro.set({ title: outroTitleInput.value }); renderPreviewFrame(); }, 200));
+    const outroArtistInput = document.getElementById('outroArtistInput');
+    if (outroArtistInput)   outroArtistInput.addEventListener('input', debounce(() => { Outro.set({ artist: outroArtistInput.value }); renderPreviewFrame(); }, 200));
+    const outroDurationSlider = document.getElementById('outroDurationSlider');
+    if (outroDurationSlider) outroDurationSlider.addEventListener('input', () => { const d = parseFloat(outroDurationSlider.value); Outro.set({ duration: d }); const v = document.getElementById('outroDurationVal'); if (v) v.textContent = d.toFixed(1) + 's'; renderPreviewFrame(); });
+    const outroTitleColorPicker  = document.getElementById('outroTitleColorPicker');
+    if (outroTitleColorPicker)   outroTitleColorPicker.addEventListener('input',  () => { Outro.set({ titleColor:  outroTitleColorPicker.value  }); renderPreviewFrame(); });
+    const outroArtistColorPicker = document.getElementById('outroArtistColorPicker');
+    if (outroArtistColorPicker)  outroArtistColorPicker.addEventListener('input', () => { Outro.set({ artistColor: outroArtistColorPicker.value }); renderPreviewFrame(); });
+    const outroTitleSizeSlider = document.getElementById('outroTitleSizeSlider');
+    if (outroTitleSizeSlider)  outroTitleSizeSlider.addEventListener('input', () => { const v = parseFloat(outroTitleSizeSlider.value); Outro.set({ titleSize: v }); const lbl = document.getElementById('outroTitleSizeVal'); if (lbl) lbl.textContent = v.toFixed(2) + '×'; renderPreviewFrame(); });
+    const outroArtistRatioSlider = document.getElementById('outroArtistRatioSlider');
+    if (outroArtistRatioSlider)  outroArtistRatioSlider.addEventListener('input', () => { const v = parseFloat(outroArtistRatioSlider.value); Outro.set({ artistRatio: v }); const lbl = document.getElementById('outroArtistRatioVal'); if (lbl) lbl.textContent = Math.round(v * 100) + '%'; renderPreviewFrame(); });
+    const outroShowLogoToggle = document.getElementById('outroShowLogoToggle');
+    if (outroShowLogoToggle) outroShowLogoToggle.addEventListener('change', () => { Outro.set({ showLogo: outroShowLogoToggle.checked }); renderPreviewFrame(); });
+    const outroStyleGrid = document.getElementById('outroStyleGrid');
+    if (outroStyleGrid) {
+      outroStyleGrid.addEventListener('click', e => {
+        const card = e.target.closest('.intro-style-card'); if (!card) return;
+        Outro.set({ style: card.dataset.style });
+        outroStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c === card));
+        renderPreviewFrame();
+      });
+    }
+    const outroTransitionGrid = document.getElementById('outroTransitionGrid');
+    if (outroTransitionGrid) {
+      outroTransitionGrid.addEventListener('click', e => {
+        const card = e.target.closest('.intro-trans-card'); if (!card) return;
+        Outro.set({ transition: card.dataset.transition });
+        outroTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c === card));
+        // Seek to near the end to preview outro entry
+        const t = Math.max(0, Audio.duration - (Outro.get().duration || 4));
+        Audio.seek(t); renderPreviewFrame();
+      });
+    }
+    _syncOutroUI();
   }
 
-  /* ═══════════════════════════════════════════════════════
-     setup() — called whenever panel4 becomes active
-  ═══════════════════════════════════════════════════════ */
+  function _buildExportVoiceColors() {
+    const container = document.getElementById('exportVoiceColorsWrap');
+    if (!container) return;
+    container.innerHTML = '';
+    const vc = Sync.getVoiceConfig();
+    const btnStyle = 'width:32px;height:32px;border-radius:50%;border:2px solid rgba(255,255,255,0.25);cursor:pointer;flex-shrink:0';
+    const voices = vc.count > 1 ? vc.voices : [vc.voices[0]];
+    voices.forEach((v, i) => {
+      const n = i + 1;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
+      const swatch = document.createElement('label');
+      swatch.id = `exp_voiceSwatch_${n}`;
+      swatch.htmlFor = `exp_voiceColor_${n}`;
+      swatch.style.cssText = btnStyle + `;background:${v.color};box-shadow:0 0 6px ${v.color}66`;
+      swatch.title = 'Haz clic para cambiar color';
+      const nameEl = document.createElement('span');
+      nameEl.style.cssText = 'flex:1;font-size:0.83rem;color:var(--text-dim)';
+      nameEl.textContent = v.name || `Voz ${n}`;
+      const picker = document.createElement('input');
+      picker.type = 'color'; picker.id = `exp_voiceColor_${n}`;
+      picker.className = 'color-picker'; picker.value = v.color;
+      picker.addEventListener('input', () => { Sync.setVoiceColor(n, picker.value); renderPreviewFrame(); });
+      row.append(swatch, nameEl, picker);
+      container.appendChild(row);
+    });
+    if (vc.count > 1) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
+      const swatch = document.createElement('label');
+      swatch.id = 'exp_allVoiceSwatch'; swatch.htmlFor = 'exp_allVoiceColor';
+      swatch.style.cssText = btnStyle + `;background:${vc.allColor}`;
+      const nameEl = document.createElement('span');
+      nameEl.style.cssText = 'flex:1;font-size:0.83rem;color:var(--text-dim)'; nameEl.textContent = 'Todos juntos';
+      const picker = document.createElement('input');
+      picker.type = 'color'; picker.id = 'exp_allVoiceColor'; picker.className = 'color-picker'; picker.value = vc.allColor;
+      picker.addEventListener('input', () => { Sync.setVoiceColor(0, picker.value); renderPreviewFrame(); });
+      row.append(swatch, nameEl, picker); container.appendChild(row);
+    }
+  }
   function setup() {
     if (Audio.isPlaying) { Audio.pause(); exportPlayBtn.textContent = '▶'; }
     stopPreviewLoop();
@@ -723,12 +1099,15 @@ const ExportEngine = (() => {
         const pct = Audio.duration > 0 ? (t / Audio.duration) * 100 : 0;
         exportSeekBar.value = pct;
         exportCurrentTime.textContent = formatTime(t);
+        if (fsSeekBar)      fsSeekBar.value           = pct;
+        if (fsCurrentTime) fsCurrentTime.textContent  = formatTime(t);
         renderPreviewAt(t);
       }
     };
 
     Audio.onEnded = () => {
       exportPlayBtn.textContent = '▶';
+      if (fsPlayBtn) fsPlayBtn.textContent = '▶';
       stopPreviewLoop();
     };
 
@@ -771,9 +1150,205 @@ const ExportEngine = (() => {
     exportCurrentTime.textContent = formatTime(seekTarget);
 
     renderPreviewAt(seekTarget);
+    // Refresh voice color pickers in export panel to reflect current Sync state
+    _buildExportVoiceColors();
+
+    /* ── Re-grab fs control refs (Panel4 is now mounted) ── */
+    fsPlayBtn      = document.getElementById('fsPlayBtn');
+    fsSeekBar      = document.getElementById('fsSeekBar');
+    fsCurrentTime  = document.getElementById('fsCurrentTime');
+    fsSpeedSelect  = document.getElementById('fsSpeedSelect');
+    fsVolumeSlider = document.getElementById('fsVolumeSlider');
+    fsExitBtn      = document.getElementById('fsExitBtn');
+
+    /* ── Wire fs controls (using signal so they’re cleaned up on next setup()) ── */
+    if (fsPlayBtn) {
+      fsPlayBtn.textContent = Audio.isPlaying ? '⏸' : '▶';
+      fsPlayBtn.addEventListener('click', () => {
+        if (recording) return;
+        if (Audio.isPlaying) {
+          Audio.pause(); stopPreviewLoop();
+          fsPlayBtn.textContent = '▶'; exportPlayBtn.textContent = '▶';
+        } else {
+          startPreviewLoop(); Audio.play(Audio.getCurrentTime?.() ?? 0);
+          fsPlayBtn.textContent = '⏸'; exportPlayBtn.textContent = '⏸';
+        }
+      }, { signal });
+    }
+    if (fsSeekBar) {
+      fsSeekBar.value = exportSeekBar.value;
+      fsSeekBar.addEventListener('input', () => {
+        const t = (fsSeekBar.value / 100) * Audio.duration;
+        Audio.seek(t); renderPreviewAt(t);
+        exportSeekBar.value = fsSeekBar.value;
+        exportCurrentTime.textContent = formatTime(t);
+        if (fsCurrentTime) fsCurrentTime.textContent = formatTime(t);
+      }, { signal });
+    }
+    if (fsSpeedSelect && exportSpeedSelect) {
+      fsSpeedSelect.value = exportSpeedSelect.value;
+      fsSpeedSelect.addEventListener('change', () => {
+        Audio.setPlaybackRate(parseFloat(fsSpeedSelect.value));
+        if (exportSpeedSelect) exportSpeedSelect.value = fsSpeedSelect.value;
+      }, { signal });
+    }
+    if (fsVolumeSlider && exportVolumeSlider) {
+      fsVolumeSlider.value = exportVolumeSlider.value;
+      fsVolumeSlider.addEventListener('input', () => {
+        const v = parseFloat(fsVolumeSlider.value);
+        Audio.setVolume(v);
+        if (exportVolumeSlider) exportVolumeSlider.value = v;
+        const icon = document.getElementById('exportVolIcon');
+        if (icon) icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+        const fsVolIcon = document.getElementById('fsVolIcon');
+        if (fsVolIcon) fsVolIcon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+      }, { signal });
+    }
+    if (fsExitBtn) {
+      fsExitBtn.addEventListener('click', () => document.exitFullscreen?.(), { signal });
+    }
+
+    /* ── Watermark: all controls ── */
+    const wmToggle = document.getElementById('watermarkToggle');
+    if (wmToggle) {
+      wmToggle.checked = showWatermark;
+      wmToggle.addEventListener('change', () => { showWatermark = wmToggle.checked; renderPreviewFrame(); }, { signal });
+    }
+    watermarkOpacitySlider = document.getElementById('watermarkOpacitySlider');
+    watermarkOpacityVal    = document.getElementById('watermarkOpacityVal');
+    if (watermarkOpacitySlider) {
+      watermarkOpacitySlider.value = currentWatermarkOpacity;
+      if (watermarkOpacityVal) watermarkOpacityVal.textContent = Math.round(currentWatermarkOpacity * 100) + '%';
+      watermarkOpacitySlider.addEventListener('input', () => {
+        currentWatermarkOpacity = parseFloat(watermarkOpacitySlider.value);
+        if (watermarkOpacityVal) watermarkOpacityVal.textContent = Math.round(currentWatermarkOpacity * 100) + '%';
+        renderPreviewFrame();
+      }, { signal });
+    }
+    watermarkSizeSlider = document.getElementById('watermarkSizeSlider');
+    watermarkSizeVal    = document.getElementById('watermarkSizeVal');
+    if (watermarkSizeSlider) {
+      watermarkSizeSlider.value = currentWatermarkSize;
+      if (watermarkSizeVal) watermarkSizeVal.textContent = Math.round(currentWatermarkSize * 100) + '%';
+      watermarkSizeSlider.addEventListener('input', () => {
+        currentWatermarkSize = parseFloat(watermarkSizeSlider.value);
+        if (watermarkSizeVal) watermarkSizeVal.textContent = Math.round(currentWatermarkSize * 100) + '%';
+        renderPreviewFrame();
+      }, { signal });
+    }
+    watermarkPosGrid = document.getElementById('watermarkPosGrid');
+    if (watermarkPosGrid) {
+      watermarkPosGrid.querySelectorAll('.wm-pos-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.pos === currentWatermarkPos);
+        btn.addEventListener('click', () => {
+          currentWatermarkPos = btn.dataset.pos;
+          watermarkPosGrid.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === currentWatermarkPos));
+          renderPreviewFrame();
+        }, { signal });
+      });
+    }
+    // ── Watermark time ranges (up to 3) ──
+    [1, 2, 3].forEach(n => {
+      const idx    = n - 1;
+      const toggle = document.getElementById(`wmR${n}Toggle`);
+      const panel  = document.getElementById(`wmR${n}Panel`);
+      const fromEl = document.getElementById(`wmR${n}From`);
+      const fromTx = document.getElementById(`wmR${n}FromText`);
+      const toEl   = document.getElementById(`wmR${n}To`);
+      const toTx   = document.getElementById(`wmR${n}ToText`);
+      const dur    = Math.ceil(Audio.duration || 600);
+
+      if (toggle) {
+        toggle.checked = watermarkRanges[idx].enabled;
+        if (panel) panel.style.display = watermarkRanges[idx].enabled ? '' : 'none';
+        toggle.addEventListener('change', () => {
+          watermarkRanges[idx].enabled = toggle.checked;
+          if (panel) panel.style.display = toggle.checked ? '' : 'none';
+          renderPreviewFrame();
+        }, { signal });
+      }
+
+      // Helper: wire a slider + text-input pair for a range field ('from' or 'to')
+      function _wireRangeField(sliderEl, textEl, getVal, setVal) {
+        if (!sliderEl) return;
+        sliderEl.max   = dur;
+        sliderEl.value = getVal();
+        if (textEl) textEl.value = _secToMmss(getVal());
+
+        sliderEl.addEventListener('input', () => {
+          const v = parseInt(sliderEl.value, 10);
+          setVal(v);
+          if (textEl) textEl.value = _secToMmss(v);
+          renderPreviewFrame();
+        }, { signal });
+
+        if (textEl) {
+          const commit = () => {
+            const v = _mmssToSec(textEl.value, dur);
+            setVal(v);
+            sliderEl.value = v;
+            textEl.value   = _secToMmss(v);
+            renderPreviewFrame();
+          };
+          textEl.addEventListener('change', commit, { signal });
+          textEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); textEl.blur(); } }, { signal });
+        }
+      }
+
+      _wireRangeField(fromEl, fromTx,
+        () => watermarkRanges[idx].from,
+        v  => { watermarkRanges[idx].from = v; }
+      );
+      _wireRangeField(toEl, toTx,
+        () => watermarkRanges[idx].to,
+        v  => { watermarkRanges[idx].to = v; }
+      );
+    });
+    watermarkAnimGrid = document.getElementById('watermarkAnimGrid');
+    if (watermarkAnimGrid) {
+      watermarkAnimGrid.querySelectorAll('.wm-pos-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.anim === watermarkAnim);
+        btn.addEventListener('click', () => {
+          watermarkAnim = btn.dataset.anim;
+          watermarkAnimGrid.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.anim === watermarkAnim));
+          renderPreviewFrame();
+        }, { signal });
+      });
+    }
+    watermarkEffectGrid = document.getElementById('watermarkEffectGrid');
+    if (watermarkEffectGrid) {
+      watermarkEffectGrid.querySelectorAll('.wm-pos-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.vfx === watermarkVisualEffect);
+        btn.addEventListener('click', () => {
+          watermarkVisualEffect = btn.dataset.vfx;
+          watermarkEffectGrid.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.vfx === watermarkVisualEffect));
+          renderPreviewFrame();
+        }, { signal });
+      });
+    }
   }
 
   /* ── Helpers ─────────────────────────────────────────── */
+
+  /** Seconds → "M:SS" string */
+  function _secToMmss(s) {
+    const sec = Math.max(0, Math.round(s));
+    return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  }
+
+  /** "M:SS" / "MM:SS" / bare number → integer seconds, clamped to [0, max] */
+  function _mmssToSec(str, max) {
+    const parts = String(str).trim().split(':');
+    let sec;
+    if (parts.length >= 2) {
+      sec = parseInt(parts[0], 10) * 60 + parseInt(parts[parts.length - 1], 10);
+    } else {
+      sec = parseInt(parts[0], 10);
+    }
+    if (isNaN(sec) || sec < 0) sec = 0;
+    return Math.min(sec, max != null ? max : 99999);
+  }
+
   function getRenderOpts(time) {
     return {
       time,
@@ -789,11 +1364,14 @@ const ExportEngine = (() => {
       activeColorOverride:   undefined,
       inactiveColorOverride: currentInactiveColor,
       showProgressBar:       showProgressToggle ? showProgressToggle.checked : true,
+      progressBarThickness:  currentProgressBarThickness,
+      progressTimeSize:      currentProgressTimeSize,
       showTitle:             false,
       voiceConfig:           Sync.getVoiceConfig(),
       fontFamily:            Renderer.FONT_LIST.find(f => f.id === currentFont)?.family || "'Segoe UI', sans-serif",
       activeZoom:            currentZoom,
       textEffect:            currentTextEffect,
+      fillEffect:            currentFillEffect,
       progressBarStyle:      currentProgressStyle,
       progressBarOpacity:    currentProgressOpacity,
       progressColorOverride: progressBarColorPicker?.value || null,
@@ -802,9 +1380,25 @@ const ExportEngine = (() => {
       nextLineOffset:        currentNextOffset,
       prevLineOpacity:       currentPrevOpacity,
       introConfig:           Intro.get(),
+      outroConfig:           Outro.get(),
+      showWatermark:         showWatermark,
+      watermarkOpacity:      currentWatermarkOpacity,
+      watermarkSize:         currentWatermarkSize,
+      watermarkPosition:     currentWatermarkPos,
+      watermarkRanges:       watermarkRanges,
+      watermarkAnim:         watermarkAnim,
+      watermarkVisualEffect:  watermarkVisualEffect,
+      lyricsEndTime:         Lyrics.getEndTime(),
+      textShadowType:        currentTextShadowType,
+      textShadowColor:       currentTextShadowColor,
+      textShadowBlur:        currentTextShadowBlur,
+      textShadowOffsetX:     0,
+      textShadowOffsetY:     currentTextShadowOffsetY,
+      strokeWidth:           currentStrokeWidth,
+      strokeColor:           currentStrokeColor,
+      strokeEffect:          currentStrokeEffect,
     };
   }
-
   /** Convert any CSS color string to a #rrggbb hex value that <input type="color"> can accept.
    *  Handles: #rgb, #rrggbb, rgba(...), hsl(...) by painting to an offscreen 1×1 canvas. */
   function _hexFromCssColor(color) {
@@ -821,6 +1415,15 @@ const ExportEngine = (() => {
       const [r, g, b] = cx.getImageData(0, 0, 1, 1).data;
       return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
     } catch (_) { return '#ffffff'; }
+  }
+
+  /** Build a safe download filename: "Artista - Título.ext" (or just "Título.ext"). */
+  function _buildSafeFilename(ext) {
+    const clean = s => (s || '').trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim();
+    const title  = clean(Intro.get().title)  || 'karaoke';
+    const artist = clean(Intro.get().artist);
+    const name   = artist ? artist + ' - ' + title : title;
+    return name + '.' + ext;
   }
 
   function renderPreviewFrame() { renderPreviewAt(Audio.getCurrentTime()); }
@@ -850,6 +1453,21 @@ const ExportEngine = (() => {
   /* ═══════════════════════════════════════════════════════
      startRecording()
   ═══════════════════════════════════════════════════════ */
+
+  // Near-zero delay yield via MessageChannel (avoids 4ms setTimeout minimum clamp)
+  function _msYield() {
+    return new Promise(resolve => {
+      const ch = new MessageChannel();
+      ch.port1.onmessage = () => resolve();
+      ch.port2.postMessage(null);
+    });
+  }
+  function _fmtSecs(s) {
+    if (!isFinite(s) || s <= 0) return '...';
+    const m = Math.floor(s / 60), sec = Math.round(s % 60);
+    return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  }
+
   /* ─────────────────────────────────────────────────────
      Fast offline render using WebCodecs + webm-muxer.
      Falls back to MediaRecorder when WebCodecs unavailable.
@@ -914,9 +1532,7 @@ const ExportEngine = (() => {
       recording = false;
       const blob = new Blob(chunks, { type: mimeType });
 
-      const rawTitle  = (Intro.get().title || '').trim() || 'karaoke';
-      const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
-      const filename  = safeTitle + '.' + ext;
+      const filename  = _buildSafeFilename(ext);
 
       const url = URL.createObjectURL(blob);
       const a   = document.createElement('a');
@@ -930,7 +1546,8 @@ const ExportEngine = (() => {
       startRecordBtn.disabled = false;
       previewExportBtn.disabled = false;
       progressBarInner.style.width = '0%';
-      alert('✅ Video listo');
+      if (progressDetail) progressDetail.textContent = '';
+      AppModal.alert('¡Tu video ha sido exportado y descargado correctamente!', { title: '✅ Video listo', icon: '🎬', btnLabel: '¡Genial!' });
     };
 
     recorder.onerror = err => {
@@ -940,7 +1557,7 @@ const ExportEngine = (() => {
       recordProgress.classList.add('hidden');
       startRecordBtn.disabled = false;
       previewExportBtn.disabled = false;
-      alert('❌ Error al grabar el video: ' + err.error?.message);
+      AppModal.alert('Error al grabar: ' + (err.error?.message ?? 'error desconocido'), { title: '❌ Error de exportación', icon: '⚠️', btnStyle: 'danger' });
     };
 
     recorder.start(200);
@@ -1126,6 +1743,8 @@ const ExportEngine = (() => {
       previewCanvas.width = rW; previewCanvas.height = rH;
     }
     const prevCtx = previewCanvas.getContext('2d');
+    let _lastYieldA = performance.now();
+    const _renderStartA = performance.now();
 
     for (let i = 0; i < totalFrames; i++) {
       const t = i * frameStep;
@@ -1158,11 +1777,21 @@ const ExportEngine = (() => {
       progressLabel.textContent    = `Renderizando AVI... ${pct}%`;
       exportSeekBar.value          = (t / duration) * 100;
       exportCurrentTime.textContent = formatTime(t);
-      // Yield every 4 frames so the UI stays responsive
-      if (i % 4 === 3) await new Promise(r => setTimeout(r, 0));
+      // Time-based yield — keeps UI responsive at any FPS without over-yielding
+      const _nowA = performance.now();
+      if (_nowA - _lastYieldA >= 12) {
+        const elapsed = (_nowA - _renderStartA) / 1000;
+        const rate = elapsed > 0.1 ? (i + 1) / elapsed : 0;
+        const remaining = rate > 0 ? (totalFrames - i - 1) / rate : 0;
+        if (progressDetail) progressDetail.textContent =
+          `Cuadro ${i + 1} / ${totalFrames}  ·  ${rate.toFixed(0)} fps rend.  ·  queda ~${_fmtSecs(remaining)}`;
+        await _msYield();
+        _lastYieldA = performance.now();
+      }
     }
 
     progressLabel.textContent = 'Finalizando AVI...';
+    if (progressDetail) progressDetail.textContent = 'Ensamblando contenedor RIFF/AVI…';
     console.log('[EE] AVI frames done — building RIFF container...');
     await new Promise(r => setTimeout(r, 0)); // one paint before heavy finalize
     const buffer = aviWriter.finalize();
@@ -1170,11 +1799,9 @@ const ExportEngine = (() => {
 
     recording = false;
     const blob = new Blob([buffer], { type: 'video/x-msvideo' });
-    const rawTitle  = (Intro.get().title || '').trim() || 'karaoke';
-    const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');
-    a.href = url; a.download = safeTitle + '.avi'; a.click();
+    a.href = url; a.download = _buildSafeFilename('avi'); a.click();
     URL.revokeObjectURL(url);
 
     document.querySelector('.status-idle').classList.remove('hidden');
@@ -1182,7 +1809,8 @@ const ExportEngine = (() => {
     startRecordBtn.disabled = false;
     previewExportBtn.disabled = false;
     progressBarInner.style.width = '0%';
-    alert('✅ Video AVI listo');
+    if (progressDetail) progressDetail.textContent = '';
+    AppModal.alert('¡Tu video AVI ha sido exportado y descargado correctamente!', { title: '✅ Video AVI listo', icon: '🎬', btnLabel: '¡Genial!' });
   }
 
   /* ─── WebCodecs offline fast render (WebM / MP4) ──────── */
@@ -1193,6 +1821,7 @@ const ExportEngine = (() => {
     const frameStep   = duration / totalFrames;
 
     progressLabel.textContent = 'Decodificando audio...';
+    if (progressDetail) progressDetail.textContent = 'Leyendo y decodificando el archivo de audio…';
     const arrayBuffer = await Audio.rawFile.arrayBuffer();
     const tempCtx     = new (window.AudioContext || window.webkitAudioContext)();
     const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
@@ -1211,11 +1840,13 @@ const ExportEngine = (() => {
     let muxer, videoCodec, audioCodecStr, fileExt, blobType;
 
     if (format === 'mp4') {
-      // Try H.264 profiles from highest quality to most compatible
-      const h264Profiles = ['avc1.640028', 'avc1.4d001f', 'avc1.42E01E'];
+      // Try H.264 profiles from highest level to most compatible.
+      // Level 4.2 (0x2A) is required for 1080p 60fps — Level 4.0 (0x28) caps at ~30fps
+      // and hardware decoders enforce this strictly, causing playback freezes at 60fps.
+      const h264Profiles = ['avc1.640034', 'avc1.64002A', 'avc1.640028', 'avc1.4d001f', 'avc1.42E01E'];
       for (const p of h264Profiles) {
         try {
-          const r = await VideoEncoder.isConfigSupported({ codec: p, width: rW, height: rH, bitrate: 4_000_000 });
+          const r = await VideoEncoder.isConfigSupported({ codec: p, width: rW, height: rH, bitrate: 4_000_000, framerate: fps });
           if (r.supported) { videoCodec = p; break; }
         } catch (_) {}
       }
@@ -1235,10 +1866,12 @@ const ExportEngine = (() => {
       });
       fileExt = 'mp4'; blobType = 'video/mp4';
     } else {
-      // WebM — VP9 with VP8 fallback
-      videoCodec = 'vp09.00.10.08';
+      // WebM — VP9 with VP8 fallback.
+      // Level 4.1 (41) supports 1080p 60fps; Level 1.0 (10) only covers sub-240p
+      // and causes hardware decoder freezes on higher-resolution content.
+      videoCodec = 'vp09.00.41.08';
       try {
-        const vRes = await VideoEncoder.isConfigSupported({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000 });
+        const vRes = await VideoEncoder.isConfigSupported({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000, framerate: fps });
         if (!vRes.supported) videoCodec = 'vp8';
       } catch (_) { videoCodec = 'vp8'; }
 
@@ -1259,7 +1892,10 @@ const ExportEngine = (() => {
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
       error:  e => { _vcErr = e; },
     });
-    videoEncoder.configure({ codec: videoCodec, width: rW, height: rH, bitrate: 4_000_000, latencyMode: 'quality' });
+    // Bitrate scales with resolution and frame rate (5 Mbps baseline at 1080p 30fps)
+    const videoBitrate = Math.max(2_000_000, Math.min(20_000_000,
+      Math.round(rW * rH * fps / (1920 * 1080 * 30) * 5_000_000)));
+    videoEncoder.configure({ codec: videoCodec, width: rW, height: rH, bitrate: videoBitrate, framerate: fps, latencyMode: 'quality' });
 
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
@@ -1269,9 +1905,10 @@ const ExportEngine = (() => {
 
     console.log('[EE] WebCodecs render START —', fileExt.toUpperCase(),
       '| vcodec:', videoCodec, '| acodec:', audioCodecStr,
-      '| resolution:', rW + 'x' + rH, '| fps:', fps,
+      '| resolution:', rW + 'x' + rH, '| fps:', fps, '| bitrate:', videoBitrate,
       '| duration:', duration.toFixed(2) + 's', '| frames:', totalFrames);
     progressLabel.textContent = 'Renderizando... 0%';
+    if (progressDetail) progressDetail.textContent = `Preparando ${totalFrames} cuadros a ${fps} fps…`;
     const offCanvas = document.createElement('canvas');
     offCanvas.width = rW; offCanvas.height = rH;
     if (previewCanvas.width !== rW || previewCanvas.height !== rH) {
@@ -1279,6 +1916,8 @@ const ExportEngine = (() => {
     }
     const prevCtx  = previewCanvas.getContext('2d');
     const MAX_QUEUE = 12;
+    let _lastYield = performance.now();
+    const _renderStart = performance.now();
 
     for (let i = 0; i < totalFrames; i++) {
       if (_vcErr) throw _vcErr;
@@ -1287,14 +1926,17 @@ const ExportEngine = (() => {
         if (_vcErr) throw _vcErr;
       }
 
-      const t    = i * frameStep;
-      const tsUs = Math.round(t * 1_000_000);
+      // Integer-based timestamps avoid floating-point drift over thousands of frames
+      const tsUs  = Math.round(i * 1_000_000 / fps);
+      const durUs = Math.round((i + 1) * 1_000_000 / fps) - tsUs;
+      const t     = tsUs / 1_000_000;
 
       Renderer.drawFrame(offCanvas, getRenderOpts(t));
       if (i % fps === 0) prevCtx.drawImage(offCanvas, 0, 0);
 
-      const videoFrame = new VideoFrame(offCanvas, { timestamp: tsUs, duration: Math.round(frameStep * 1_000_000) });
-      videoEncoder.encode(videoFrame, { keyFrame: i % (fps * 2) === 0 });
+      const videoFrame = new VideoFrame(offCanvas, { timestamp: tsUs, duration: durUs });
+      // Keyframe every 1 second; force first frame as keyframe unconditionally
+      videoEncoder.encode(videoFrame, { keyFrame: i === 0 || i % fps === 0 });
       videoFrame.close();
 
       const pct = Math.round(((i + 1) / totalFrames) * 100);
@@ -1303,12 +1945,23 @@ const ExportEngine = (() => {
       exportSeekBar.value          = (t / duration) * 100;
       exportCurrentTime.textContent = formatTime(t);
 
-      if (i % 8 === 7) await new Promise(r => setTimeout(r, 0));
+      // Yield to the browser using time-based check (keeps UI responsive at any FPS)
+      const _nowTs = performance.now();
+      if (_nowTs - _lastYield >= 12) {
+        const elapsed = (_nowTs - _renderStart) / 1000;
+        const rate = elapsed > 0.1 ? (i + 1) / elapsed : 0;
+        const remaining = rate > 0 ? (totalFrames - i - 1) / rate : 0;
+        if (progressDetail) progressDetail.textContent =
+          `Cuadro ${i + 1} / ${totalFrames}  ·  ${rate.toFixed(0)} fps rend.  ·  queda ~${_fmtSecs(remaining)}`;
+        await _msYield();
+        _lastYield = performance.now();
+      }
     }
     if (_vcErr) throw _vcErr;
     console.log('[EE] Video frames done — encodeQueueSize:', videoEncoder.encodeQueueSize);
 
     progressLabel.textContent = 'Codificando audio...';
+    if (progressDetail) progressDetail.textContent = 'Procesando y codificando pistas de audio…';
     const audioChunkSamples = Math.round(sampleRate / fps);
     const channels = [];
     for (let c = 0; c < numChannels; c++) channels.push(audioBuffer.getChannelData(c));
@@ -1330,6 +1983,7 @@ const ExportEngine = (() => {
 
     if (_acErr) throw _acErr;
     progressLabel.textContent = 'Finalizando...';
+    if (progressDetail) progressDetail.textContent = 'Empaquetando video y audio en el archivo…';
     console.log('[EE] Audio done — flushing encoders...');
     const FLUSH_TIMEOUT = 20_000;
     await Promise.race([
@@ -1343,11 +1997,9 @@ const ExportEngine = (() => {
 
     recording = false;
     const blob = new Blob([muxer.target.buffer], { type: blobType });
-    const rawTitle  = (Intro.get().title || '').trim() || 'karaoke';
-    const safeTitle = rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '-').trim() || 'karaoke';
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');
-    a.href = url; a.download = safeTitle + '.' + fileExt; a.click();
+    a.href = url; a.download = _buildSafeFilename(fileExt); a.click();
     URL.revokeObjectURL(url);
 
     document.querySelector('.status-idle').classList.remove('hidden');
@@ -1355,7 +2007,8 @@ const ExportEngine = (() => {
     startRecordBtn.disabled = false;
     previewExportBtn.disabled = false;
     progressBarInner.style.width = '0%';
-    alert('✅ Video listo');
+    if (progressDetail) progressDetail.textContent = '';
+    AppModal.alert('¡Tu video ha sido exportado y descargado correctamente!', { title: '✅ Video listo', icon: '🎬', btnLabel: '¡Genial!' });
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -1414,6 +2067,20 @@ const ExportEngine = (() => {
     if (s.textEffect !== undefined && textEffectGrid) {
       currentTextEffect = s.textEffect;
       textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === s.textEffect));
+    }
+    if (s.fillEffect !== undefined && fillEffectGrid) {
+      currentFillEffect = s.fillEffect;
+      fillEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.fe === s.fillEffect));
+    }
+    if (s.progressBarThickness !== undefined && progressBarThicknessSlider) {
+      currentProgressBarThickness = s.progressBarThickness;
+      progressBarThicknessSlider.value = s.progressBarThickness;
+      if (progressBarThicknessVal) progressBarThicknessVal.textContent = parseFloat(s.progressBarThickness).toFixed(1) + '×';
+    }
+    if (s.progressTimeSize !== undefined && progressTimeSizeSlider) {
+      currentProgressTimeSize = s.progressTimeSize;
+      progressTimeSizeSlider.value = s.progressTimeSize;
+      if (progressTimeSizeVal) progressTimeSizeVal.textContent = parseFloat(s.progressTimeSize).toFixed(1) + '×';
     }
   }
 

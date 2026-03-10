@@ -180,7 +180,7 @@ router.get('/browse-native', async (req, res) => {
       '$owner.WindowState = "Minimized"',
       '$owner.Show()',
       '$d = New-Object System.Windows.Forms.OpenFileDialog',
-      '$d.Title = "Seleccionar carpeta de proyectos Makereoke"',
+      '$d.Title = "Seleccionar carpeta de proyectos Karaoke Video Maker"',
       '$d.ValidateNames = $false',
       '$d.CheckFileExists = $false',
       '$d.CheckPathExists = $true',

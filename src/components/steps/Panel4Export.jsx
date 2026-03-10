@@ -73,6 +73,10 @@ export default function Panel4Export({ isActive, goToStep }) {
                   { id: 'espacial',   icon: '🌌',  label: 'Espacial'    },
                   { id: 'teatro',     icon: '🎭',  label: 'Teatro'      },
                   { id: 'escenario',  icon: '🎤',  label: 'Escenario'   },
+                  { id: 'retro_pop',  icon: '🎠',  label: 'Retro Pop'   },
+                  { id: 'invierno',   icon: '❄️',  label: 'Invierno'    },
+                  { id: 'vhs_retro',  icon: '📼',  label: 'VHS Retro'   },
+                  { id: 'neon_city',  icon: '🌇',  label: 'Neon City'   },
                 ].map(s => (
                   <button key={s.id} className={`intro-style-card${s.id === 'bold' ? ' active' : ''}`} data-style={s.id}>
                     <span className="intro-style-icon">{s.icon}</span>
@@ -149,6 +153,67 @@ export default function Panel4Export({ isActive, goToStep }) {
                 </div>
               </div>
 
+              <div className="typo-subgroup-label" style={{ marginTop: '10px' }}>🔤 Tipografía del intro</div>
+
+              <label className="field-label">Fuente del título</label>
+              <select id="introTitleFontSelect" className="field-select">
+                <option value="">— Usar fuente global —</option>
+                {['Segoe UI','Arial','Verdana','Impact','Georgia','Times New Roman','Courier New','Trebuchet MS','Futura','Comic Sans MS'].map(f => (
+                  <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+                ))}
+              </select>
+
+              <label className="field-label">Fuente del artista</label>
+              <select id="introArtistFontSelect" className="field-select">
+                <option value="">— Igual que título —</option>
+                {['Segoe UI','Arial','Verdana','Impact','Georgia','Times New Roman','Courier New','Trebuchet MS','Futura','Comic Sans MS'].map(f => (
+                  <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+                ))}
+              </select>
+
+              <label className="field-label">✨ Brillo del título</label>
+              <div className="slider-row">
+                <input id="introTitleGlowSlider" type="range" className="slider" min="0" max="3" step="0.1" defaultValue="1.0" />
+                <span id="introTitleGlowVal" className="slider-val">1.0×</span>
+              </div>
+
+              <label className="field-label">✨ Brillo del artista</label>
+              <div className="slider-row">
+                <input id="introArtistGlowSlider" type="range" className="slider" min="0" max="3" step="0.1" defaultValue="0.6" />
+                <span id="introArtistGlowVal" className="slider-val">0.6×</span>
+              </div>
+
+              <div className="typo-subgroup-label">🌑 Sombra del título</div>
+              <div className="color-row">
+                <div className="color-item">
+                  <label className="field-label">Color sombra</label>
+                  <input id="introTitleShadowColorPicker" type="color" className="color-picker" defaultValue="#000000" />
+                </div>
+              </div>
+              <label className="field-label">Difusión de sombra</label>
+              <div className="slider-row">
+                <input id="introTitleShadowBlurSlider" type="range" className="slider" min="0" max="40" step="1" defaultValue="0" />
+                <span id="introTitleShadowBlurVal" className="slider-val">0px</span>
+              </div>
+              <label className="field-label">Desplazamiento Y</label>
+              <div className="slider-row">
+                <input id="introTitleShadowOffsetSlider" type="range" className="slider" min="-20" max="20" step="1" defaultValue="2" />
+                <span id="introTitleShadowOffsetVal" className="slider-val">2px</span>
+              </div>
+
+              <div className="typo-subgroup-label">🌑 Sombra del artista</div>
+              <div className="color-row">
+                <div className="color-item">
+                  <label className="field-label">Color sombra</label>
+                  <input id="introArtistShadowColorPicker" type="color" className="color-picker" defaultValue="#000000" />
+                </div>
+              </div>
+              <label className="field-label">Difusión de sombra</label>
+              <div className="slider-row">
+                <input id="introArtistShadowBlurSlider" type="range" className="slider" min="0" max="40" step="1" defaultValue="0" />
+                <span id="introArtistShadowBlurVal" className="slider-val">0px</span>
+              </div>
+
               <label className="field-label">Tamaño del título</label>
               <div className="slider-row">
                 <input id="introTitleSizeSlider" type="range" className="slider" min="0.5" max="1.8" step="0.05" defaultValue="1.0" />
@@ -161,12 +226,116 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <span id="introArtistRatioVal" className="slider-val">45%</span>
               </div>
 
+
+            </div>
+          </div>
+
+          {/* Outro del video */}
+          <div className="settings-section collapsed" id="sec-outro">
+            <div className="settings-section-header">
+              <div className="settings-section-title">🎬 Outro del video</div>
+              <button className="sec-collapse-btn" data-sec="sec-outro" title="Colapsar">▸</button>
+            </div>
+            <div className="sec-body">
+
               <div className="toggle-row">
                 <label className="toggle-label">
-                  <input id="introShowLogoToggle" type="checkbox" defaultChecked />
-                  <span>Mostrar logo Makereoke</span>
+                  <input id="outroEnabledToggle" type="checkbox" />
+                  <span>Activar carta de cierre</span>
                 </label>
               </div>
+
+              <div className="toggle-row">
+                <label className="toggle-label">
+                  <input id="outroMirrorToggle" type="checkbox" defaultChecked />
+                  <span>Espejo del intro (misma config)</span>
+                </label>
+              </div>
+              <button id="outroCopyIntroBtn" className="btn btn-ghost btn-sm" style={{ marginBottom: '8px', width: '100%' }}>
+                ↩ Copiar configuración del intro
+              </button>
+
+              <label className="field-label">Título</label>
+              <input id="outroTitleInput" type="text" className="field-input" placeholder="Nombre de la canción..." />
+
+              <label className="field-label">Artista / Banda</label>
+              <input id="outroArtistInput" type="text" className="field-input" placeholder="Nombre del artista..." />
+
+              <label className="field-label">Duración</label>
+              <div className="slider-row">
+                <input id="outroDurationSlider" type="range" className="slider" min="2" max="12" step="0.5" defaultValue="4" />
+                <span id="outroDurationVal" className="slider-val">4.0s</span>
+              </div>
+
+              <label className="field-label">Estilo visual</label>
+              <div id="outroStyleGrid" className="intro-style-grid">
+                {[
+                  { id: 'minimal',    icon: '☁️',  label: 'Minimal'    },
+                  { id: 'bold',       icon: '★',   label: 'Bold'        },
+                  { id: 'neon',       icon: '⚡',  label: 'Neon'        },
+                  { id: 'cinematic',  icon: '🎞️', label: 'Cinematic'   },
+                  { id: 'vintage',    icon: '🎭',  label: 'Vintage'     },
+                  { id: 'frame_gold', icon: '🏆',  label: 'Frame Oro'   },
+                  { id: 'frame_neon', icon: '🔲',  label: 'Frame Neón'  },
+                  { id: 'luxury',     icon: '💎',  label: 'Luxury'      },
+                  { id: 'glitch',     icon: '📺',  label: 'Glitch'      },
+                  { id: 'aurora',     icon: '🌈',  label: 'Aurora'      },
+                  { id: 'magazine',   icon: '📰',  label: 'Magazine'    },
+                  { id: 'clasico',    icon: '📜',  label: 'Clásico'     },
+                  { id: 'gamer',      icon: '🎮',  label: 'Gamer'       },
+                  { id: 'metal',      icon: '🤘',  label: 'Metal'       },
+                  { id: 'escenario',  icon: '🎤',  label: 'Escenario'   },
+                  { id: 'retro_pop',  icon: '🎠',  label: 'Retro Pop'   },
+                  { id: 'invierno',   icon: '❄️',  label: 'Invierno'    },
+                  { id: 'vhs_retro',  icon: '📼',  label: 'VHS Retro'   },
+                  { id: 'neon_city',  icon: '🌇',  label: 'Neon City'   },
+                ].map(s => (
+                  <button key={s.id} className={`intro-style-card${s.id === 'bold' ? ' active' : ''}`} data-style={s.id}>
+                    <span className="intro-style-icon">{s.icon}</span>
+                    <span className="intro-style-label">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <label className="field-label">Transición de entrada</label>
+              <div id="outroTransitionGrid" className="intro-trans-grid">
+                {[
+                  { id: 'fade',      label: '✨ Fade'     },
+                  { id: 'slide-up',  label: '↑ Slide Up' },
+                  { id: 'slide-down',label: '↓ Slide Dn' },
+                  { id: 'zoom',      label: '🔍 Zoom'    },
+                  { id: 'blur-in',   label: '🔵 Blur'    },
+                  { id: 'bounce',    label: '🏀 Bounce'  },
+                ].map((t, i) => (
+                  <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition={t.id}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="color-row" style={{ marginTop: '8px' }}>
+                <div className="color-item">
+                  <label className="field-label">Color título</label>
+                  <input id="outroTitleColorPicker" type="color" className="color-picker" defaultValue="#ffffff" />
+                </div>
+                <div className="color-item">
+                  <label className="field-label">Color artista</label>
+                  <input id="outroArtistColorPicker" type="color" className="color-picker" defaultValue="#c0a0ff" />
+                </div>
+              </div>
+
+              <label className="field-label">Tamaño del título</label>
+              <div className="slider-row">
+                <input id="outroTitleSizeSlider" type="range" className="slider" min="0.5" max="1.8" step="0.05" defaultValue="1.0" />
+                <span id="outroTitleSizeVal" className="slider-val">1.00×</span>
+              </div>
+
+              <label className="field-label">Tamaño del artista</label>
+              <div className="slider-row">
+                <input id="outroArtistRatioSlider" type="range" className="slider" min="0.2" max="0.8" step="0.05" defaultValue="0.45" />
+                <span id="outroArtistRatioVal" className="slider-val">45%</span>
+              </div>
+
 
             </div>
           </div>
@@ -186,10 +355,10 @@ export default function Panel4Export({ isActive, goToStep }) {
             </div>
           </div>
 
-          {/* Animación de fondo */}
+          {/* Fondo del video */}
           <div className="settings-section collapsed" id="sec-anim">
             <div className="settings-section-header">
-              <div className="settings-section-title">🌌 Animación de fondo</div>
+              <div className="settings-section-title">🖼️ Fondo del video</div>
               <button className="sec-collapse-btn" data-sec="sec-anim" title="Colapsar">▸</button>
             </div>
             <div className="sec-body">
@@ -237,6 +406,10 @@ export default function Panel4Export({ isActive, goToStep }) {
               </div>
               <div id="textEffectGrid" className="anim-grid-row" />
 
+              {/* ─── Estilo de relleno ─── */}
+              <div className="typo-subgroup-label">🎯 Relleno karaoke</div>
+              <div id="fillEffectGrid" className="anim-grid-row" />
+
               {/* ─── Parámetros ─── */}
               <div className="typo-subgroup-label">⚙️ Parámetros</div>
 
@@ -258,6 +431,71 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <span id="glowVal" className="slider-val">1.0×</span>
               </div>
 
+              {/* ─── Sombra del texto ─── */}
+              <div className="typo-subgroup-label">🌑 Sombra del texto activo</div>
+
+              <label className="field-label">Tipo de sombra</label>
+              <div id="textShadowTypeGrid" className="anim-grid-row">
+                {[
+                  { id: 'none',    label: '⬜ Ninguna' },
+                  { id: 'glow',    label: '✨ Halo'    },
+                  { id: 'hard',    label: '◼ Dura'    },
+                  { id: 'diffuse', label: '🔵 Difusa'  },
+                ].map((s, i) => (
+                  <button key={s.id} className={`anim-card${i === 0 ? ' active' : ''}`} data-shadow-type={s.id}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="color-row" style={{ marginTop: '6px' }}>
+                <div className="color-item">
+                  <label className="field-label">Color sombra</label>
+                  <input id="textShadowColorPicker" type="color" className="color-picker" defaultValue="#000000" />
+                </div>
+              </div>
+
+              <label className="field-label">Difusión (blur)</label>
+              <div className="slider-row">
+                <input id="textShadowBlurSlider" type="range" className="slider" min="0" max="50" step="1" defaultValue="12" />
+                <span id="textShadowBlurVal" className="slider-val">12px</span>
+              </div>
+
+              <label className="field-label">Desplazamiento Y</label>
+              <div className="slider-row">
+                <input id="textShadowOffsetYSlider" type="range" className="slider" min="-20" max="20" step="1" defaultValue="3" />
+                <span id="textShadowOffsetYVal" className="slider-val">3px</span>
+              </div>
+
+              {/* ─── Contorno del texto ─── */}
+              <div className="typo-subgroup-label">✏️ Contorno del texto activo</div>
+
+              <label className="field-label">Tipo de contorno</label>
+              <div id="strokeEffectGrid" className="anim-grid-row">
+                {[
+                  { id: 'solid', label: '▬ Sólido' },
+                  { id: 'glow',  label: '✨ Resplandor' },
+                  { id: 'doble', label: '⧈ Doble' },
+                ].map((s, i) => (
+                  <button key={s.id} className={`anim-card${i === 0 ? ' active' : ''}`} data-stroke-effect={s.id}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="color-row" style={{ marginTop: '6px' }}>
+                <div className="color-item">
+                  <label className="field-label">Color contorno</label>
+                  <input id="strokeColorPicker" type="color" className="color-picker" defaultValue="#000000" />
+                </div>
+              </div>
+
+              <label className="field-label">Grosor del contorno</label>
+              <div className="slider-row">
+                <input id="strokeWidthSlider" type="range" className="slider" min="0" max="14" step="1" defaultValue="0" />
+                <span id="strokeWidthVal" className="slider-val">0px</span>
+              </div>
+
               <label className="field-label" htmlFor="textPositionSelect">Posición del texto</label>
               <select id="textPositionSelect" className="field-select">
                 <option value="center">Centro</option>
@@ -269,6 +507,10 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <label className="field-label">Color inactivo</label>
                 <input id="inactiveColorPicker" type="color" className="color-picker" defaultValue="#FFFFFF" />
               </div>
+
+              {/* ─── Colores por voz ─── */}
+              <div className="typo-subgroup-label">🎤 Colores por voz</div>
+              <div id="exportVoiceColorsWrap" />
 
               <div className="typo-subgroup-label">📝 Letras secundarias</div>
 
@@ -301,6 +543,133 @@ export default function Panel4Export({ isActive, goToStep }) {
             </div>
           </div>
 
+          {/* Logo del video */}
+          <div className="settings-section" id="sec-logo">
+            <div className="settings-section-header">
+              <div className="settings-section-title">🖼️ Logo del video</div>
+              <button className="sec-collapse-btn" data-sec="sec-logo" title="Colapsar">▾</button>
+            </div>
+            <div className="sec-body">
+
+              <div className="toggle-row" style={{ alignItems: 'center' }}>
+                <label className="toggle-label" style={{ flex: 1 }}>
+                  <input id="watermarkToggle" type="checkbox" />
+                  <span>Mostrar logo en el video</span>
+                </label>
+                <img src={new URL('../../logo.svg', import.meta.url).href} alt="logo" className="wm-logo-thumb" />
+              </div>
+
+              <label className="field-label">Opacidad</label>
+              <div className="slider-row">
+                <input id="watermarkOpacitySlider" type="range" className="slider" min="0.03" max="1" step="0.01" defaultValue="0.35" />
+                <span id="watermarkOpacityVal" className="slider-val">35%</span>
+              </div>
+
+              <label className="field-label">Tamaño</label>
+              <div className="slider-row">
+                <input id="watermarkSizeSlider" type="range" className="slider" min="0.05" max="0.60" step="0.01" defaultValue="0.22" />
+                <span id="watermarkSizeVal" className="slider-val">22%</span>
+              </div>
+
+              <label className="field-label">Posición</label>
+              <div id="watermarkPosGrid" className="wm-pos-grid">
+                <button className="wm-pos-btn" data-pos="tl" title="Arriba izquierda">↖</button>
+                <button className="wm-pos-btn" data-pos="tr" title="Arriba derecha">↗</button>
+                <button className="wm-pos-btn" data-pos="center" title="Centro">▣</button>
+                <button className="wm-pos-btn active" data-pos="br" title="Abajo derecha">↘</button>
+                <button className="wm-pos-btn" data-pos="bl" title="Abajo izquierda">↙</button>
+                <button className="wm-pos-btn" data-pos="rotate" title="Rotar esquinas">🔄</button>
+              </div>
+
+              <label className="field-label" style={{ marginTop: '8px' }}>Efecto visual</label>
+              <div id="watermarkEffectGrid" className="wm-pos-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                <button className="wm-pos-btn active" data-vfx="none"    title="Sin efecto">⬜ Ninguno</button>
+                <button className="wm-pos-btn" data-vfx="glow"    title="Brillo suave">✨ Brillo</button>
+                <button className="wm-pos-btn" data-vfx="pulse"   title="Pulso de luz">💫 Pulso</button>
+                <button className="wm-pos-btn" data-vfx="outline" title="Contorno blanco">🔲 Contorno</button>
+                <button className="wm-pos-btn" data-vfx="stamp"   title="Sello oscilante">🔖 Sello</button>
+                <button className="wm-pos-btn" data-vfx="shadow"  title="Sombra profunda">🌑 Sombra</button>
+              </div>
+
+              <label className="field-label" style={{ marginTop: '8px' }}>Animación de entrada/salida</label>
+              <div id="watermarkAnimGrid" className="wm-pos-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                <button className="wm-pos-btn active" data-anim="none"      title="Sin animación">⬜</button>
+                <button className="wm-pos-btn" data-anim="fade"      title="Fundido">🌫️</button>
+                <button className="wm-pos-btn" data-anim="slide"     title="Deslizar">➡️</button>
+                <button className="wm-pos-btn" data-anim="zoom"      title="Zoom">🔍</button>
+                <button className="wm-pos-btn" data-anim="coin"      title="Voltear (moneda/medalla)">🪙</button>
+                <button className="wm-pos-btn" data-anim="pendulum"  title="Péndulo (medalla colgante)">🏅</button>
+                <button className="wm-pos-btn" data-anim="spin"      title="Girar 360°">🌀</button>
+                <button className="wm-pos-btn" data-anim="float"     title="Flotar (suave)">🪸</button>
+              </div>
+
+              <div className="typo-subgroup-label" style={{ marginTop: '10px' }}>⏱️ Cuándo aparece</div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.40)', marginBottom: '6px', lineHeight: 1.4 }}>
+                Sin rangos activos: el logo aparece durante todo el video (incluido intro/outro).
+              </div>
+
+              {/* Rango 1 */}
+              <div className="toggle-row" style={{ marginTop: '4px' }}>
+                <label className="toggle-label">
+                  <input id="wmR1Toggle" type="checkbox" />
+                  <span>Rango 1</span>
+                </label>
+              </div>
+              <div id="wmR1Panel" style={{ display: 'none', paddingLeft: '8px', borderLeft: '2px solid rgba(255,255,255,0.12)', marginBottom: '4px' }}>
+                <label className="field-label">Desde</label>
+                <div className="slider-row">
+                  <input id="wmR1From" type="range" className="slider" min="0" max="600" step="1" defaultValue="0" />
+                  <input id="wmR1FromText" type="text" className="slider-val time-text-input" defaultValue="0:00" title="Escribe como M:SS o MM:SS" />
+                </div>
+                <label className="field-label">Hasta</label>
+                <div className="slider-row">
+                  <input id="wmR1To" type="range" className="slider" min="0" max="600" step="1" defaultValue="30" />
+                  <input id="wmR1ToText" type="text" className="slider-val time-text-input" defaultValue="0:30" title="Escribe como M:SS o MM:SS" />
+                </div>
+              </div>
+
+              {/* Rango 2 */}
+              <div className="toggle-row" style={{ marginTop: '4px' }}>
+                <label className="toggle-label">
+                  <input id="wmR2Toggle" type="checkbox" />
+                  <span>Rango 2</span>
+                </label>
+              </div>
+              <div id="wmR2Panel" style={{ display: 'none', paddingLeft: '8px', borderLeft: '2px solid rgba(255,255,255,0.12)', marginBottom: '4px' }}>
+                <label className="field-label">Desde</label>
+                <div className="slider-row">
+                  <input id="wmR2From" type="range" className="slider" min="0" max="600" step="1" defaultValue="0" />
+                  <input id="wmR2FromText" type="text" className="slider-val time-text-input" defaultValue="0:00" title="Escribe como M:SS o MM:SS" />
+                </div>
+                <label className="field-label">Hasta</label>
+                <div className="slider-row">
+                  <input id="wmR2To" type="range" className="slider" min="0" max="600" step="1" defaultValue="30" />
+                  <input id="wmR2ToText" type="text" className="slider-val time-text-input" defaultValue="0:30" title="Escribe como M:SS o MM:SS" />
+                </div>
+              </div>
+
+              {/* Rango 3 */}
+              <div className="toggle-row" style={{ marginTop: '4px' }}>
+                <label className="toggle-label">
+                  <input id="wmR3Toggle" type="checkbox" />
+                  <span>Rango 3</span>
+                </label>
+              </div>
+              <div id="wmR3Panel" style={{ display: 'none', paddingLeft: '8px', borderLeft: '2px solid rgba(255,255,255,0.12)', marginBottom: '4px' }}>
+                <label className="field-label">Desde</label>
+                <div className="slider-row">
+                  <input id="wmR3From" type="range" className="slider" min="0" max="600" step="1" defaultValue="0" />
+                  <input id="wmR3FromText" type="text" className="slider-val time-text-input" defaultValue="0:00" title="Escribe como M:SS o MM:SS" />
+                </div>
+                <label className="field-label">Hasta</label>
+                <div className="slider-row">
+                  <input id="wmR3To" type="range" className="slider" min="0" max="600" step="1" defaultValue="30" />
+                  <input id="wmR3ToText" type="text" className="slider-val time-text-input" defaultValue="0:30" title="Escribe como M:SS o MM:SS" />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Barra de progreso */}
           <div className="settings-section collapsed" id="sec-progress">
             <div className="settings-section-header">
@@ -330,6 +699,18 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <label className="field-label">Color</label>
                 <input id="progressBarColorPicker" type="color" className="color-picker" defaultValue="#9c6dff" />
               </div>
+            </div>
+
+            <label className="field-label">Grosor de barra</label>
+            <div className="slider-row">
+              <input id="progressBarThicknessSlider" type="range" className="slider" min="0.5" max="4" step="0.25" defaultValue="1" />
+              <span id="progressBarThicknessVal" className="slider-val">1.0×</span>
+            </div>
+
+            <label className="field-label">Tamaño del tiempo</label>
+            <div className="slider-row">
+              <input id="progressTimeSizeSlider" type="range" className="slider" min="0.5" max="2.5" step="0.1" defaultValue="1" />
+              <span id="progressTimeSizeVal" className="slider-val">1.0×</span>
             </div>
 
             </div>
@@ -379,6 +760,25 @@ export default function Panel4Export({ isActive, goToStep }) {
           <div id="exportCanvasWrap" className="export-canvas-wrap">
             <canvas id="exportPreviewCanvas" className="export-canvas" />
             <button id="exportFullscreenBtn" className="export-fullscreen-btn" title="Pantalla completa">⛶</button>
+
+            {/* ── Pantalla completa: barra de control ── */}
+            <div id="fsControls" className="fs-controls">
+              <button id="fsPlayBtn" className="fs-btn" title="Reproducir / Pausar">▶</button>
+              <input  id="fsSeekBar" type="range" className="fs-seek" min="0" max="100" step="0.1" defaultValue="0" />
+              <span  id="fsCurrentTime" className="fs-time">0:00</span>
+              <span  id="fsVolIcon" className="fs-icon">🔊</span>
+              <input  id="fsVolumeSlider" type="range" className="fs-vol" min="0" max="1" step="0.05" defaultValue="1" title="Volumen" />
+              <select id="fsSpeedSelect" className="fs-speed" defaultValue="1" title="Velocidad">
+                <option value="0.25">×0.25</option>
+                <option value="0.5">×0.5</option>
+                <option value="0.75">×0.75</option>
+                <option value="1" selected>×1</option>
+                <option value="1.25">×1.25</option>
+                <option value="1.5">×1.5</option>
+                <option value="2">×2</option>
+              </select>
+              <button id="fsExitBtn" className="fs-btn" title="Salir de pantalla completa">✕</button>
+            </div>
           </div>
 
           <div className="export-player">
@@ -416,6 +816,7 @@ export default function Panel4Export({ isActive, goToStep }) {
               <div className="progress-bar-outer">
                 <div id="progressBarInner" className="progress-bar-inner" />
               </div>
+              <p id="progressDetail" className="progress-detail"></p>
             </div>
           </div>
 

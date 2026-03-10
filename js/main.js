@@ -424,7 +424,7 @@
     Export.init();
     initProjects();
     initResizeObserver();
-    console.log(`%c🎤 Makereoke v${APP_VERSION}`, 'color:#b47aff;font-size:14px;font-weight:700');
+    console.log(`%c� Karaoke Video Maker v${APP_VERSION}`, 'color:#b47aff;font-size:14px;font-weight:700');
   });
 
 })();

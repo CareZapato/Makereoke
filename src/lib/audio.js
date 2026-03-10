@@ -165,6 +165,7 @@ const Audio = (() => {
     get duration()   { return duration; },
     get isPlaying()  { return isPlaying; },
     get rawFile()    { return rawFile; },
+    get volume()     { return _volume; },
     set onTimeUpdate(fn) { onTimeUpdate = fn; },
     set onEnded(fn)      { onEnded = fn; },
   };

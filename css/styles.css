@@ -1,5 +1,5 @@
 /* ============================================================
-   MAKEREOKE — GLOBAL STYLES
+   KARAOKE VIDEO MAKER — GLOBAL STYLES
    ============================================================ */
 
 :root {
@@ -69,41 +69,73 @@ body::after {
    ============================================================ */
 .app-header {
   position: sticky; top: 0; z-index: 100;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 12px;
   justify-content: space-between;
-  padding: 10px 20px;
-  background: rgba(10,10,22,0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(49,49,106,0.6);
-  box-shadow: 0 2px 28px rgba(0,0,0,0.5);
+  padding: 0 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e0d8f0;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.08);
   flex-wrap: nowrap;
+  min-height: 130px;
+  max-height: 130px;
+  overflow: hidden;
+  transition: min-height 0.22s ease, max-height 0.22s ease;
+}
+
+/* Compact state — toggled by the ▴▾ button in the header */
+.app-header.header-collapsed {
   min-height: 56px;
+  max-height: 56px;
 }
 
+/* Logo container — column so the badge sits at the header bottom */
 .logo {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 1.4rem; font-weight: 700;
-  background: linear-gradient(135deg, var(--primary-light), var(--accent));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-  white-space: nowrap;
+  display: flex; flex-direction: column;
+  justify-content: flex-start;
+  align-self: stretch;
+  white-space: nowrap; flex-shrink: 0;
+  padding: 8px 0;
 }
-.logo-icon { font-size: 1.6rem; filter: drop-shadow(0 0 8px var(--accent)); flex-shrink: 0; }
 
-/* Version badge */
-.version-badge {
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em;
-  background: rgba(124,77,255,0.25);
-  border: 1px solid rgba(124,77,255,0.5);
-  color: var(--primary-light);
-  padding: 2px 7px; border-radius: 20px;
-  align-self: center; margin-left: -4px;
-  white-space: nowrap;
-  /* reset gradient clipping from parent .logo */
-  -webkit-text-fill-color: var(--primary-light);
-  background-clip: unset; -webkit-background-clip: unset;
+/* SVG logo image: fills the expanded header */
+.logo-img {
+  height: 90px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+  transition: height 0.22s ease;
 }
+.app-header.header-collapsed .logo-img { height: 38px; }
+
+/* Text + badge column next to logo */
+.logo-text-wrap {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.logo-text {
+  font-size: 1.05rem; font-weight: 700;
+  background: linear-gradient(120deg, #c084fc 0%, #f472b6 60%, #fb923c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.01em;
+}
+
+/* Version badge — pushed to the bottom-right of the logo column */
+.version-badge {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em;
+  background: rgba(124,77,255,0.1);
+  border: 1px solid rgba(124,77,255,0.5);
+  color: var(--primary);
+  padding: 2px 7px; border-radius: 20px;
+  white-space: nowrap;
+  -webkit-text-fill-color: var(--primary);
+  background-clip: unset; -webkit-background-clip: unset;
+  margin-top: auto;          /* push to bottom */
+  align-self: flex-end;      /* right-align within the column */
+}
+/* Hide badge when header is collapsed (no room) */
+.app-header.header-collapsed .version-badge { display: none; }
 
 /* Header right side: projects button + steps */
 .header-right {
@@ -152,37 +184,56 @@ body::after {
 }
 .step {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  opacity: 0.35; transition: opacity var(--transition);
-  cursor: default; min-width: 62px;
+  opacity: 0.32; transition: opacity var(--transition);
+  cursor: default; min-width: 68px;
 }
 .step.active { opacity: 1; }
-.step.done { opacity: 0.7; }
+.step.done { opacity: 0.65; }
 .step-num {
-  width: 28px; height: 28px;
+  width: 36px; height: 36px;
   border-radius: 50%;
-  background: var(--surface);
-  border: 2px solid var(--border);
+  background: rgba(0,0,0,0.05);
+  border: 2px solid rgba(0,0,0,0.18);
+  color: rgba(0,0,0,0.5);
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.8rem; font-weight: 700;
-  transition: all var(--transition);
+  font-size: 0.88rem; font-weight: 700;
+  transition: all var(--transition), width 0.22s ease, height 0.22s ease;
 }
 .step.active .step-num {
   background: var(--primary);
-  border-color: var(--primary-light);
-  box-shadow: 0 0 12px var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(124,77,255,0.6);
 }
 .step.done .step-num {
   background: var(--success);
   border-color: var(--success);
   color: #000;
 }
-.step-label { font-size: 0.68rem; color: var(--text-dim); }
-.step.active .step-label { color: var(--text); }
+.step-label { font-size: 0.76rem; color: rgba(0,0,0,0.38); margin-top: 2px; transition: font-size 0.22s ease; }
+.step.active .step-label { color: rgba(0,0,0,0.75); }
 .step-line {
-  width: 32px; height: 2px;
-  background: var(--border);
-  margin-bottom: 18px;
+  width: 32px; height: 1.5px;
+  background: rgba(0,0,0,0.1);
+  margin-bottom: 26px;
+  transition: margin-bottom 0.22s ease;
 }
+/* Collapsed state — shrinks all step elements */
+.app-header.header-collapsed .step { min-width: 54px; gap: 1px; }
+.app-header.header-collapsed .step-num { width: 24px; height: 24px; font-size: 0.75rem; border-width: 1.5px; }
+.app-header.header-collapsed .step-label { font-size: 0.62rem; margin-top: 1px; }
+.app-header.header-collapsed .step-line { margin-bottom: 16px; }
+/* Header collapse/expand button */
+.header-collapse-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.12);
+  color: rgba(0,0,0,0.4); font-size: 0.9rem;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition);
+  margin-left: 8px;
+}
+.header-collapse-btn:hover { background: rgba(0,0,0,0.12); color: rgba(0,0,0,0.7); }
 
 /* ============================================================
    MAIN
@@ -915,6 +966,17 @@ kbd {
   font-size: 0.82rem; color: #aaaacc;
 }
 
+.time-text-input {
+  background: transparent; border: none; border-bottom: 1px solid rgba(170,170,204,0.35);
+  width: 46px; text-align: center; cursor: text; outline: none;
+  padding: 1px 2px; border-radius: 2px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.time-text-input:focus {
+  background: rgba(255,255,255,0.08); border-bottom-color: #9c6dff;
+  color: #ffffff;
+}
+
 .color-row { display: flex; gap: 16px; margin-top: 6px; margin-bottom: 6px; }
 .color-item { display: flex; flex-direction: column; gap: 4px; }
 
@@ -1058,6 +1120,82 @@ kbd {
 .anim-label { font-size: 0.68rem; color: var(--text-dim); line-height: 1.2; word-break: break-word; }
 .anim-card.active .anim-label { color: var(--text); }
 
+/* ── Fullscreen overlay controls ── */
+.fs-controls {
+  display: none;            /* hidden outside fullscreen */
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 10px 14px 14px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.80));
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  z-index: 20;
+}
+/* CSS :fullscreen (spec) */
+.export-canvas-wrap:fullscreen          .fs-controls,
+.export-canvas-wrap:-webkit-full-screen .fs-controls,
+.export-canvas-wrap:-moz-full-screen    .fs-controls,
+/* JS class added by fullscreenchange handler (most reliable) */
+.export-canvas-wrap.is-fullscreen       .fs-controls { display: flex; }
+
+.export-canvas-wrap:fullscreen          .export-canvas,
+.export-canvas-wrap:-webkit-full-screen .export-canvas,
+.export-canvas-wrap:-moz-full-screen    .export-canvas,
+.export-canvas-wrap.is-fullscreen       .export-canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 0; border: none; }
+
+/* Hide the regular corner button when fullscreen controls are showing */
+.export-canvas-wrap:fullscreen          .export-fullscreen-btn,
+.export-canvas-wrap:-webkit-full-screen .export-fullscreen-btn,
+.export-canvas-wrap:-moz-full-screen    .export-fullscreen-btn,
+.export-canvas-wrap.is-fullscreen       .export-fullscreen-btn { display: none; }
+
+.fs-seek { flex: 1; min-width: 60px; height: 6px; accent-color: var(--primary); cursor: pointer; }
+.fs-vol  { width: 72px; height: 6px; accent-color: #fff; cursor: pointer; flex-shrink: 0; }
+.fs-icon { font-size: 1rem; flex-shrink: 0; cursor: default; }
+.fs-time { color: #fff; font-size: 0.78rem; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 42px; text-align: right; flex-shrink: 0; }
+.fs-btn {
+  background: rgba(255,255,255,0.15); border: none; color: #fff;
+  border-radius: 6px; cursor: pointer; padding: 5px 11px;
+  font-size: 1rem; line-height: 1.4; transition: background 0.15s; flex-shrink: 0;
+}
+.fs-btn:hover { background: rgba(255,255,255,0.3); }
+.fs-speed {
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+  color: #fff; border-radius: 6px; padding: 4px 6px;
+  font-size: 0.78rem; cursor: pointer; flex-shrink: 0;
+}
+
+/* Watermark logo thumbnail in sidebar toggle */
+.wm-logo-thumb {
+  height: 28px; width: auto;
+  border-radius: 4px;
+  opacity: 0.85;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+/* Watermark position grid: 3x2 layout */
+.wm-pos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.wm-pos-btn {
+  display: flex; align-items: center; justify-content: center;
+  height: 36px;
+  font-size: 1.2rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.wm-pos-btn:hover { background: rgba(124,77,255,0.15); border-color: var(--primary-light); color: var(--text); }
+.wm-pos-btn.active { background: rgba(124,77,255,0.25); border-color: var(--primary-light); color: var(--text); box-shadow: 0 0 8px rgba(124,77,255,0.35); }
+
 .export-preview-wrap { display: flex; flex-direction: column; gap: 12px; }
 
 /* Canvas wrapper (for fullscreen button overlay) */
@@ -1190,9 +1328,15 @@ kbd {
   .app-main { padding: 16px 14px 72px; }
 
   /* Header */
-  .app-header { padding: 10px 14px; gap: 8px; }
-  .step-line { width: 20px; }
-  .step { min-width: 48px; }
+  .app-header { padding: 0 14px; gap: 8px; }
+  .logo-img { height: 68px; }
+  .app-header.header-collapsed .logo-img { height: 34px; }
+  .step-num { width: 30px; height: 30px; font-size: 0.82rem; }
+  .app-header.header-collapsed .step-num { width: 22px; height: 22px; font-size: 0.72rem; }
+  .step-label { font-size: 0.7rem; }
+  .step-line { width: 22px; }
+  .step { min-width: 60px; }
+  .app-header.header-collapsed .step { min-width: 46px; }
 
   /* Panel titles */
   .panel-title { font-size: 1.4rem; }
@@ -1235,11 +1379,11 @@ kbd {
 
 /* ── ≤ 600px: phones ── */
 @media (max-width: 600px) {
-  .app-header { padding: 8px 12px; flex-wrap: nowrap; }
-
-  /* Logo: hide text, keep icon + version */
-  .logo-text { display: none; }
-  .version-badge { font-size: 0.6rem; margin-left: 0; }
+  /* Header: always compact on phones */
+  .app-header { padding: 0 12px; flex-wrap: nowrap; min-height: 56px !important; max-height: 56px !important; }
+  .logo-img { height: 32px !important; }
+  .header-collapse-btn { display: none; }
+  .version-badge { font-size: 0.58rem; }
 
   /* Project indicator: shrink to just dot + abbreviated name */
   .project-indicator { max-width: 120px; padding: 4px 8px 4px 8px; }
@@ -1249,11 +1393,11 @@ kbd {
   /* Header right */
   .header-right { gap: 8px; }
 
-  /* Steps: shrink to just circles */
-  .step-label { display: none; }
-  .step-line { width: 14px; }
-  .step { min-width: 36px; }
-  .step-num { width: 24px; height: 24px; font-size: 0.72rem; }
+  /* Steps: always compact circles on phones */
+  .step-label { display: none !important; }
+  .step-line { width: 14px; margin-bottom: 14px !important; }
+  .step { min-width: 36px !important; gap: 1px !important; }
+  .step-num { width: 22px !important; height: 22px !important; font-size: 0.72rem !important; }
 
   /* Main */
   .app-main { padding: 14px 10px 80px; }
@@ -1786,7 +1930,6 @@ kbd {
 .cl-header-left {
   display: flex; align-items: flex-start; gap: 14px; flex: 1; min-width: 0;
 }
-.cl-logo-icon { font-size: 2.2rem; flex-shrink: 0; filter: drop-shadow(0 0 10px var(--accent)); }
 .cl-header-info { min-width: 0; }
 .cl-title {
   font-size: 1.3rem; font-weight: 800;
@@ -1975,3 +2118,38 @@ kbd {
   .intro-timeline-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
   .intro-tl-duration { width: 100%; }
 }
+
+/* ── Inline insert-line form (Paso 2) ─────────────────── */
+@keyframes apm-fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* Recording progress detail line */
+.progress-detail {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  margin: 5px 0 0;
+  text-align: center;
+  letter-spacing: 0.02em;
+  min-height: 1.1em;
+}
+.insert-line-form { list-style: none; padding: 4px 8px; }
+.insert-line-inner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg2); border: 1px solid var(--primary);
+  border-radius: 8px; padding: 6px 10px;
+  animation: apm-fade-in 0.15s ease;
+}
+.insert-line-icon { font-size: 1rem; opacity: 0.6; flex-shrink: 0; }
+.insert-line-input {
+  flex: 1; background: transparent; border: none;
+  color: var(--text); font-size: 0.9rem; outline: none;
+}
+.insert-line-input::placeholder { color: var(--text-dim); }
+.insert-line-ok, .insert-line-cancel {
+  background: none; border: none; cursor: pointer;
+  font-size: 1.1rem; padding: 2px 6px; border-radius: 4px;
+  transition: background 0.15s; line-height: 1; flex-shrink: 0;
+}
+.insert-line-ok     { color: var(--success); }
+.insert-line-ok:hover     { background: rgba(0,230,118,0.12); }
+.insert-line-cancel { color: var(--danger); }
+.insert-line-cancel:hover { background: rgba(255,23,68,0.12); }

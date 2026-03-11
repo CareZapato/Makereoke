@@ -238,7 +238,7 @@ body::after {
 /* ============================================================
    MAIN
    ============================================================ */
-.app-main { padding: 24px 20px 60px; max-width: 1200px; margin: 0 auto; }
+.app-main { padding: 24px 20px 60px; max-width: 1600px; margin: 0 auto; }
 
 .step-panel { display: none; animation: fadeIn 0.3s ease; }
 .step-panel.active { display: block; }
@@ -851,7 +851,7 @@ kbd {
    STEP 4 — EXPORT
    ============================================================ */
 .export-layout {
-  display: grid; grid-template-columns: 380px 1fr; gap: 24px; margin-bottom: 20px; align-items: start;
+  display: grid; grid-template-columns: 440px 1fr; gap: 24px; margin-bottom: 20px; align-items: start;
 }
 /* stacking handled in responsive section */
 
@@ -927,7 +927,7 @@ kbd {
 
 /* Collapsible body */
 .sec-body {
-  padding: 0 16px 14px 16px;
+  padding: 0 20px 14px 28px;
   display: flex; flex-direction: column; gap: 8px;
 }
 .settings-section.collapsed .sec-body { display: none; }
@@ -1118,7 +1118,55 @@ kbd {
 }
 .anim-emoji { font-size: 1.35rem; line-height: 1; }
 .anim-label { font-size: 0.68rem; color: var(--text-dim); line-height: 1.2; word-break: break-word; }
-.anim-card.active .anim-label { color: var(--text); }
+/* ── Picker-nav widget (compact carousel + dropdown selector) ── */
+.picker-nav {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.picker-row-wrap { position: relative; }
+.picker-row {
+  display: flex; align-items: stretch; gap: 0;
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.picker-btn {
+  background: var(--bg3); border: none; color: var(--text-dim);
+  padding: 7px 12px; cursor: pointer; font-size: 0.82rem;
+  transition: background var(--transition), color var(--transition);
+  flex-shrink: 0; line-height: 1;
+}
+.picker-btn:hover { background: rgba(124,77,255,0.15); color: var(--text); }
+.picker-display {
+  flex: 1; background: var(--bg2); color: var(--text);
+  padding: 7px 10px; font-size: 0.82rem;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; font-weight: 500; min-width: 0;
+  border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; transition: background var(--transition);
+}
+.picker-display:hover { background: rgba(124,77,255,0.1); }
+.picker-dropdown {
+  display: none; position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 300;
+  max-height: 220px; overflow-y: auto; overflow-x: hidden;
+}
+.picker-dropdown.open { display: block; }
+.picker-dropdown-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+  width: 100%; background: transparent; border: none; color: var(--text);
+  cursor: pointer; font-size: 0.82rem; text-align: left;
+  transition: background var(--transition);
+}
+.picker-dropdown-item:hover { background: rgba(124,77,255,0.15); }
+.picker-dropdown-item.active { color: var(--primary); font-weight: 600; background: rgba(124,77,255,0.08); }
+.picker-dd-emoji { flex-shrink: 0; width: 1.6em; text-align: center; }
+.picker-search {
+  background: var(--bg2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 5px 10px; font-size: 0.8rem; width: 100%; box-sizing: border-box;
+}
+.picker-search:focus { outline: none; border-color: var(--primary); }
+.picker-search::placeholder { color: var(--text-dim); opacity: 0.6; }
 
 /* ── Fullscreen overlay controls ── */
 .fs-controls {
@@ -1142,7 +1190,7 @@ kbd {
 .export-canvas-wrap:fullscreen          .export-canvas,
 .export-canvas-wrap:-webkit-full-screen .export-canvas,
 .export-canvas-wrap:-moz-full-screen    .export-canvas,
-.export-canvas-wrap.is-fullscreen       .export-canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 0; border: none; }
+.export-canvas-wrap.is-fullscreen       .export-canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 0; border: none; pointer-events: none; }
 
 /* Hide the regular corner button when fullscreen controls are showing */
 .export-canvas-wrap:fullscreen          .export-fullscreen-btn,

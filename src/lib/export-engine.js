@@ -86,6 +86,15 @@ const ExportEngine = (() => {
   let watermarkAnimGrid;
   let watermarkEffectGrid;
 
+  /* ── Picker instances (set in init, used across init+setup) ── */
+  let themePicker, animPicker, overlayPicker, fontPicker, textFxPicker, fillFxPicker, progressPicker;
+  let introStylePic, introTransPic, introTransOutPic, outroStylePic, outroTransPic;
+  let textShadowPic, strokePic;
+  let _pickerDocListenerAdded = false;
+  // Refs to sync functions defined inside init(), called by setup() on step re-entry
+  let _syncIntroUIRef = null;
+  let _syncOutroUIRef = null;
+
   /* ═══════════════════════════════════════════════════════
      Cat-tab + search helpers
   ═══════════════════════════════════════════════════════ */
@@ -165,6 +174,134 @@ const ExportEngine = (() => {
     });
   }
 
+  /* ─────────────────────────────────────────────────────────
+     _buildPickerNav — compact carousel + dropdown selector
+     items: [{id, emoji, label}]
+     Returns controller: { getValue(), setValue(id) }
+  ───────────────────────────────────────────────────────── */
+  function _buildPickerNav(containerEl, items, initialId, onChange) {
+    if (!containerEl || !items.length) return { getValue: () => initialId, setValue: () => {} };
+
+    // Single global listener to close any open dropdown when clicking elsewhere
+    if (!_pickerDocListenerAdded) {
+      _pickerDocListenerAdded = true;
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.picker-dropdown.open')
+          .forEach(d => d.classList.remove('open'));
+      });
+    }
+
+    let filteredItems = items.slice();
+    let currentId = items.find(x => x.id === initialId) ? initialId : items[0].id;
+
+    containerEl.innerHTML = '';
+    containerEl.className = 'picker-nav';
+
+    // Wrapper gives the dropdown a relative anchor without affecting flex layout
+    const rowWrap = document.createElement('div');
+    rowWrap.className = 'picker-row-wrap';
+
+    const row = document.createElement('div');
+    row.className = 'picker-row';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'picker-btn'; prevBtn.type = 'button'; prevBtn.textContent = '◀'; prevBtn.title = 'Anterior';
+
+    const display = document.createElement('div');
+    display.className = 'picker-display';
+    display.title = 'Clic para ver todas las opciones';
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'picker-btn'; nextBtn.type = 'button'; nextBtn.textContent = '▶'; nextBtn.title = 'Siguiente';
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'picker-dropdown';
+
+    row.append(prevBtn, display, nextBtn);
+    rowWrap.append(row, dropdown);
+
+    const searchInp = document.createElement('input');
+    searchInp.type = 'text'; searchInp.className = 'picker-search'; searchInp.placeholder = '🔍 Buscar...';
+
+    containerEl.append(rowWrap, searchInp);
+
+    function updateDisplay() {
+      const item = items.find(x => x.id === currentId);
+      display.textContent = item ? (item.emoji + ' ' + item.label) : currentId;
+    }
+
+    function buildDropdownItems() {
+      dropdown.innerHTML = '';
+      const q = searchInp.value.toLowerCase().trim();
+      const list = q ? items.filter(x => x.label.toLowerCase().includes(q)) : items;
+      list.forEach(it => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.dataset.id = it.id;
+        btn.className = 'picker-dropdown-item' + (it.id === currentId ? ' active' : '');
+        const em = document.createElement('span'); em.className = 'picker-dd-emoji'; em.textContent = it.emoji;
+        const lb = document.createElement('span'); lb.textContent = it.label;
+        btn.append(em, lb);
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          selectItem(it.id);
+          dropdown.classList.remove('open');
+        });
+        dropdown.appendChild(btn);
+      });
+    }
+
+    function selectItem(id, fire = true) {
+      if (!items.find(x => x.id === id)) return;
+      currentId = id;
+      updateDisplay();
+      if (fire) onChange(id);
+      // Keep active state in sync if dropdown is currently visible
+      dropdown.querySelectorAll('.picker-dropdown-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.id === id);
+      });
+    }
+
+    display.addEventListener('click', e => {
+      e.stopPropagation();
+      if (dropdown.classList.contains('open')) {
+        dropdown.classList.remove('open');
+      } else {
+        document.querySelectorAll('.picker-dropdown.open')
+          .forEach(d => { if (d !== dropdown) d.classList.remove('open'); });
+        buildDropdownItems();
+        dropdown.classList.add('open');
+        requestAnimationFrame(() => {
+          const active = dropdown.querySelector('.picker-dropdown-item.active');
+          if (active) active.scrollIntoView({ block: 'nearest' });
+        });
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      const i = filteredItems.findIndex(x => x.id === currentId);
+      const j = (i <= 0 ? filteredItems.length : i) - 1;
+      if (filteredItems[j]) selectItem(filteredItems[j].id);
+    });
+
+    nextBtn.addEventListener('click', () => {
+      const i = filteredItems.findIndex(x => x.id === currentId);
+      const j = (i + 1) % filteredItems.length;
+      if (filteredItems[j]) selectItem(filteredItems[j].id);
+    });
+
+    searchInp.addEventListener('input', () => {
+      const q = searchInp.value.toLowerCase().trim();
+      filteredItems = q ? items.filter(x => x.label.toLowerCase().includes(q)) : items.slice();
+      if (filteredItems.length && !filteredItems.find(x => x.id === currentId)) {
+        selectItem(filteredItems[0].id);
+      }
+      if (dropdown.classList.contains('open')) buildDropdownItems();
+    });
+
+    updateDisplay();
+    return { getValue: () => currentId, setValue: id => selectItem(id, false) };
+  }
+
   /* ═══════════════════════════════════════════════════════
      init() — called once on app boot
   ═══════════════════════════════════════════════════════ */
@@ -201,124 +338,36 @@ const ExportEngine = (() => {
       console.warn('[EE] init() — EARLY RETURN: critical element missing', { themeSelector: !!themeSelector, animGrid: !!animGrid, fontSizeSlider: !!fontSizeSlider, exportPlayBtn: !!exportPlayBtn, startRecordBtn: !!startRecordBtn });
       return;
     }
-    /* ── Build theme buttons from Renderer.THEME_LIST grouped by category ── */
-    themeSelector.innerHTML = '';
-    Renderer.THEME_CATEGORIES.forEach(cat => {
-      const items = Renderer.THEME_LIST.filter(t => t.cat === cat.id);
-      if (!items.length) return;
-      const grpLabel = document.createElement('div');
-      grpLabel.className = 'selector-cat-label';
-      grpLabel.textContent = cat.label;
-      themeSelector.appendChild(grpLabel);
-      const row = document.createElement('div');
-      row.className = 'theme-selector-row';
-      row.dataset.cat = cat.id;
-      items.forEach(t => {
-        const btn = document.createElement('button');
-        btn.className = 'theme-btn' + (t.id === currentTheme ? ' active' : '');
-        btn.dataset.theme = t.id;
-        btn.dataset.cat = cat.id;
-        btn.innerHTML = `<span class="theme-btn-emoji">${t.emoji}</span><span class="theme-btn-label">${t.label}</span>`;
-        btn.addEventListener('click', () => {
-          currentTheme = t.id;
-          themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t.id));
-          // Sync inactive color picker to new theme
-          const newT = Renderer.THEMES[t.id] || Renderer.THEMES.classic;
-          currentInactiveColor = _hexFromCssColor(newT.textDim);
-          if (inactiveColorPicker) inactiveColorPicker.value = currentInactiveColor;
-          renderPreviewFrame();
-        });
-        row.appendChild(btn);
-      });
-      themeSelector.appendChild(row);
-    });
-    buildCatTabsEl(
-      document.getElementById('themeCatTabs'), themeSelector,
-      Renderer.THEME_CATEGORIES, '.theme-selector-row',
-      document.getElementById('themeSearch')
+    /* ── Build theme picker ── */
+    themePicker = _buildPickerNav(
+      themeSelector,
+      Renderer.THEME_LIST.map(t => ({ id: t.id, emoji: t.emoji, label: t.label })),
+      currentTheme,
+      id => {
+        currentTheme = id;
+        const newT = Renderer.THEMES[id] || Renderer.THEMES.classic;
+        currentInactiveColor = _hexFromCssColor(newT.textDim);
+        if (inactiveColorPicker) inactiveColorPicker.value = currentInactiveColor;
+        renderPreviewFrame();
+      }
     );
 
-    /* ── Build animation grid from Renderer.ANIMATION_LIST grouped by category ── */
-    animGrid.innerHTML = '';
-    Renderer.ANIMATION_CATEGORIES.forEach(cat => {
-      const items = Renderer.ANIMATION_LIST.filter(a => a.cat === cat.id);
-      if (!items.length) return;
-      const grpLabel = document.createElement('div');
-      grpLabel.className = 'selector-cat-label';
-      grpLabel.textContent = cat.label;
-      animGrid.appendChild(grpLabel);
-      const row = document.createElement('div');
-      row.className = 'anim-grid-row';
-      row.dataset.cat = cat.id;
-      items.forEach(a => {
-        const card = document.createElement('div');
-        card.className = 'anim-card' + (a.id === currentAnimation ? ' active' : '');
-        card.dataset.anim = a.id;
-        card.dataset.cat = cat.id;
-        card.innerHTML = `<span class="anim-emoji">${a.emoji}</span><span class="anim-label">${a.label}</span>`;
-        card.addEventListener('click', () => {
-          currentAnimation = a.id;
-          animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === a.id));
-          renderPreviewFrame();
-        });
-        row.appendChild(card);
-      });
-      animGrid.appendChild(row);
-    });
-    const animSearch = document.getElementById('animSearch');
-    if (animSearch) {
-      animSearch.addEventListener('input', () => {
-        const q = animSearch.value.toLowerCase().trim();
-        animGrid.querySelectorAll('.anim-grid-row').forEach(row => {
-          if (!q) { row.style.display = ''; row.querySelectorAll('.anim-card').forEach(c => c.style.display = ''); return; }
-          let anyVis = false;
-          row.querySelectorAll('.anim-card').forEach(c => {
-            const lbl = c.querySelector('.anim-label')?.textContent.toLowerCase() || '';
-            const vis = lbl.includes(q);
-            c.style.display = vis ? '' : 'none';
-            if (vis) anyVis = true;
-          });
-          row.style.display = anyVis ? '' : 'none';
-        });
-        animGrid.querySelectorAll('.selector-cat-label').forEach(lbl => lbl.style.display = q ? 'none' : '');
-      });
-    }
+    /* ── Build animation picker ── */
+    animPicker = _buildPickerNav(
+      animGrid,
+      Renderer.ANIMATION_LIST.map(a => ({ id: a.id, emoji: a.emoji, label: a.label })),
+      currentAnimation,
+      id => { currentAnimation = id; renderPreviewFrame(); }
+    );
 
-    /* ── Build overlay grid from Renderer.OVERLAY_LIST grouped by category ── */
+    /* ── Build overlay picker ── */
     overlayGrid = document.getElementById('overlayGrid');
-    if (overlayGrid) {
-      overlayGrid.innerHTML = '';
-      Renderer.OVERLAY_CATEGORIES.forEach(cat => {
-        const items = Renderer.OVERLAY_LIST.filter(o => o.cat === cat.id);
-        if (!items.length) return;
-        const grpLabel = document.createElement('div');
-        grpLabel.className = 'selector-cat-label';
-        grpLabel.textContent = cat.label;
-        overlayGrid.appendChild(grpLabel);
-        const row = document.createElement('div');
-        row.className = 'anim-grid-row';
-        row.dataset.cat = cat.id;
-        items.forEach(o => {
-          const card = document.createElement('div');
-          card.className = 'anim-card' + (o.id === currentOverlay ? ' active' : '');
-          card.dataset.ov = o.id;
-          card.dataset.cat = cat.id;
-          card.innerHTML = `<span class="anim-emoji">${o.emoji}</span><span class="anim-label">${o.label}</span>`;
-          card.addEventListener('click', () => {
-            currentOverlay = o.id;
-            overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === o.id));
-            renderPreviewFrame();
-          });
-          row.appendChild(card);
-        });
-        overlayGrid.appendChild(row);
-      });
-      buildCatTabsEl(
-        document.getElementById('overlayCatTabs'), overlayGrid,
-        Renderer.OVERLAY_CATEGORIES, '.anim-grid-row',
-        document.getElementById('overlaySearch')
-      );
-    }
+    overlayPicker = _buildPickerNav(
+      overlayGrid,
+      Renderer.OVERLAY_LIST.map(o => ({ id: o.id, emoji: o.emoji, label: o.label })),
+      currentOverlay,
+      id => { currentOverlay = id; renderPreviewFrame(); }
+    );
 
     /* ── Font size ── */
     fontSizeSlider.addEventListener('input', () => {
@@ -326,82 +375,44 @@ const ExportEngine = (() => {
       renderPreviewFrame();
     });
 
-    /* ── Build font selector ── */
+    /* ── Build font picker ── */
     fontSelector = document.getElementById('fontSelector');
-    if (fontSelector) {
-      fontSelector.innerHTML = '';
-      Renderer.FONT_LIST.forEach(f => {
-        const btn = document.createElement('button');
-        btn.className = 'font-btn' + (f.id === currentFont ? ' active' : '');
-        btn.dataset.font = f.id;
-        btn.innerHTML = `<span class="font-btn-preview" style="font-family:${f.family}">${f.preview}</span><span class="font-btn-label">${f.label}</span>`;
-        btn.addEventListener('click', () => {
-          currentFont = f.id;
-          fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === f.id));
-          renderPreviewFrame();
-        });
-        fontSelector.appendChild(btn);
-      });
-      wireSimpleSearch(document.getElementById('fontSearch'), fontSelector, '.font-btn', '.font-btn-label');
-    }
+    fontPicker = _buildPickerNav(
+      fontSelector,
+      Renderer.FONT_LIST.map(f => ({ id: f.id, emoji: f.preview || '𝔉', label: f.label })),
+      currentFont,
+      id => { currentFont = id; renderPreviewFrame(); }
+    );
 
-    /* ── Build text effect grid ── */
+    /* ── Build text effect picker ── */
     textEffectGrid = document.getElementById('textEffectGrid');
-    if (textEffectGrid) {
-      textEffectGrid.innerHTML = '';
-      Renderer.TEXT_EFFECT_LIST.forEach(ef => {
-        const card = document.createElement('div');
-        card.className = 'anim-card' + (ef.id === currentTextEffect ? ' active' : '');
-        card.dataset.te = ef.id;
-        card.innerHTML = `<span class="anim-emoji">${ef.emoji}</span><span class="anim-label">${ef.label}</span>`;
-        card.addEventListener('click', () => {
-          currentTextEffect = ef.id;
-          textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === ef.id));
-          renderPreviewFrame();
-        });
-        textEffectGrid.appendChild(card);
-      });
-      wireSimpleSearch(document.getElementById('textFxSearch'), textEffectGrid, '.anim-card', '.anim-label');
-    }
+    textFxPicker = _buildPickerNav(
+      textEffectGrid,
+      Renderer.TEXT_EFFECT_LIST.map(ef => ({ id: ef.id, emoji: ef.emoji, label: ef.label })),
+      currentTextEffect,
+      id => { currentTextEffect = id; renderPreviewFrame(); }
+    );
 
-    /* ── Fill effect grid ── */
+    /* ── Build fill effect picker ── */
     fillEffectGrid = document.getElementById('fillEffectGrid');
-    if (fillEffectGrid) {
-      fillEffectGrid.innerHTML = '';
-      Renderer.FILL_EFFECT_LIST.forEach(ef => {
-        const card = document.createElement('div');
-        card.className = 'anim-card' + (ef.id === currentFillEffect ? ' active' : '');
-        card.dataset.fe = ef.id;
-        card.innerHTML = `<span class="anim-emoji">${ef.emoji}</span><span class="anim-label">${ef.label}</span>`;
-        card.addEventListener('click', () => {
-          currentFillEffect = ef.id;
-          fillEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.fe === ef.id));
-          renderPreviewFrame();
-        });
-        fillEffectGrid.appendChild(card);
-      });
-    }
+    fillFxPicker = _buildPickerNav(
+      fillEffectGrid,
+      Renderer.FILL_EFFECT_LIST.map(ef => ({ id: ef.id, emoji: ef.emoji, label: ef.label })),
+      currentFillEffect,
+      id => { currentFillEffect = id; renderPreviewFrame(); }
+    );
 
     /* ── Voice colors in export panel ── */
     _buildExportVoiceColors();
 
-    /* ── Progress style grid ── */
+    /* ── Build progress style picker ── */
     progressStyleGrid = document.getElementById('progressStyleGrid');
-    if (progressStyleGrid) {
-      progressStyleGrid.innerHTML = '';
-      Renderer.PROGRESS_BAR_LIST.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'anim-card' + (p.id === currentProgressStyle ? ' active' : '');
-        card.dataset.ps = p.id;
-        card.innerHTML = `<span class="anim-emoji">${p.emoji}</span><span class="anim-label">${p.label}</span>`;
-        card.addEventListener('click', () => {
-          currentProgressStyle = p.id;
-          progressStyleGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ps === p.id));
-          renderPreviewFrame();
-        });
-        progressStyleGrid.appendChild(card);
-      });
-    }
+    progressPicker = _buildPickerNav(
+      progressStyleGrid,
+      Renderer.PROGRESS_BAR_LIST.map(p => ({ id: p.id, emoji: p.emoji, label: p.label })),
+      currentProgressStyle,
+      id => { currentProgressStyle = id; renderPreviewFrame(); }
+    );
 
     /* ── Progress opacity slider ── */
     progressOpacitySlider = document.getElementById('progressOpacitySlider');
@@ -520,22 +531,24 @@ const ExportEngine = (() => {
     if (showProgressToggle) showProgressToggle.addEventListener('change', renderPreviewFrame);
 
     /* ── Text shadow controls ── */
-    const textShadowTypeGrid    = document.getElementById('textShadowTypeGrid');
+    const textShadowTypeGridEl  = document.getElementById('textShadowTypeGrid');
     const textShadowColorPicker = document.getElementById('textShadowColorPicker');
     const textShadowBlurSlider  = document.getElementById('textShadowBlurSlider');
     const textShadowBlurVal     = document.getElementById('textShadowBlurVal');
     const textShadowOffsetYSlider = document.getElementById('textShadowOffsetYSlider');
     const textShadowOffsetYVal  = document.getElementById('textShadowOffsetYVal');
 
-    if (textShadowTypeGrid) {
-      textShadowTypeGrid.addEventListener('click', e => {
-        const btn = e.target.closest('[data-shadow-type]');
-        if (!btn) return;
-        currentTextShadowType = btn.dataset.shadowType;
-        textShadowTypeGrid.querySelectorAll('[data-shadow-type]').forEach(b => b.classList.toggle('active', b === btn));
-        renderPreviewFrame();
-      });
-    }
+    textShadowPic = _buildPickerNav(
+      textShadowTypeGridEl,
+      [
+        { id: 'none',    emoji: '⬜', label: 'Ninguna' },
+        { id: 'glow',    emoji: '✨', label: 'Halo'    },
+        { id: 'hard',    emoji: '◼', label: 'Dura'    },
+        { id: 'diffuse', emoji: '🔵', label: 'Difusa'  },
+      ],
+      currentTextShadowType,
+      id => { currentTextShadowType = id; renderPreviewFrame(); }
+    );
     if (textShadowColorPicker) textShadowColorPicker.addEventListener('input', () => { currentTextShadowColor = textShadowColorPicker.value; renderPreviewFrame(); });
     if (textShadowBlurSlider) {
       textShadowBlurSlider.addEventListener('input', () => {
@@ -553,19 +566,20 @@ const ExportEngine = (() => {
     }
 
     /* ── Stroke / contorno controls ── */
-    const strokeEffectGrid   = document.getElementById('strokeEffectGrid');
+    const strokeEffectGridEl = document.getElementById('strokeEffectGrid');
     const strokeColorPicker  = document.getElementById('strokeColorPicker');
     const strokeWidthSlider  = document.getElementById('strokeWidthSlider');
     const strokeWidthVal     = document.getElementById('strokeWidthVal');
-    if (strokeEffectGrid) {
-      strokeEffectGrid.addEventListener('click', e => {
-        const btn = e.target.closest('[data-stroke-effect]');
-        if (!btn) return;
-        currentStrokeEffect = btn.dataset.strokeEffect;
-        strokeEffectGrid.querySelectorAll('[data-stroke-effect]').forEach(b => b.classList.toggle('active', b === btn));
-        renderPreviewFrame();
-      });
-    }
+    strokePic = _buildPickerNav(
+      strokeEffectGridEl,
+      [
+        { id: 'solid', emoji: '▬', label: 'Sólido'     },
+        { id: 'glow',  emoji: '✨', label: 'Resplandor' },
+        { id: 'doble', emoji: '⧈', label: 'Doble'      },
+      ],
+      currentStrokeEffect,
+      id => { currentStrokeEffect = id; renderPreviewFrame(); }
+    );
     if (strokeColorPicker)  strokeColorPicker.addEventListener('input',  () => { currentStrokeColor = strokeColorPicker.value; renderPreviewFrame(); });
     if (strokeWidthSlider) {
       strokeWidthSlider.addEventListener('input', () => {
@@ -577,6 +591,8 @@ const ExportEngine = (() => {
 
     /* ── Preview player ── */
     exportPlayBtn.addEventListener('click', () => {
+      // Self-heal: if recording flag is stuck but progress UI is gone, reset it
+      if (recording && recordProgress.classList.contains('hidden')) recording = false;
       if (recording) return;
       if (Audio.isPlaying) {
         Audio.pause(); stopPreviewLoop();
@@ -649,6 +665,7 @@ const ExportEngine = (() => {
 
     /* ── Export / Record ── */
     previewExportBtn.addEventListener('click', () => {
+      if (recording && recordProgress.classList.contains('hidden')) recording = false;
       if (recording) return;
       if (Audio.isPlaying) { Audio.pause(); stopPreviewLoop(); exportPlayBtn.textContent = '▶'; }
       Audio.seek(0);
@@ -658,6 +675,7 @@ const ExportEngine = (() => {
     });
 
     startRecordBtn.addEventListener('click', async () => {
+      if (recording && recordProgress.classList.contains('hidden')) recording = false;
       if (recording) return;
       const vol = Audio.volume;
       if (typeof vol === 'number' && vol < 1) {
@@ -721,12 +739,12 @@ const ExportEngine = (() => {
         if (secondaryOpacitySlider) { secondaryOpacitySlider.value = '0.65'; if (secondaryOpacityVal) secondaryOpacityVal.textContent = '65%'; }
         if (nextOffsetSlider)       { nextOffsetSlider.value       = '1.05'; if (nextOffsetVal)       nextOffsetVal.textContent       = '1.05'; }
         if (prevOpacitySlider)      { prevOpacitySlider.value      = '0.22'; if (prevOpacityVal)      prevOpacityVal.textContent      = '22%'; }
-        if (animGrid)      animGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.anim === 'none'));
-        if (overlayGrid)   overlayGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ov === 'none'));
-        if (themeSelector) themeSelector.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === 'classic'));
-        if (fontSelector)  fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'segoe'));
-        if (textEffectGrid)textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === 'none'));
-        if (progressStyleGrid) progressStyleGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.ps === 'bottom'));
+        if (animPicker)        animPicker.setValue('none');
+        if (overlayPicker)     overlayPicker.setValue('none');
+        if (themePicker)       themePicker.setValue('classic');
+        if (fontPicker)        fontPicker.setValue('segoe');
+        if (textFxPicker)      textFxPicker.setValue('none');
+        if (progressPicker)    progressPicker.setValue('bottom');
         const _classicTheme = Renderer.THEMES.classic || {};
         currentInactiveColor = _hexFromCssColor(_classicTheme.textDim    || '#ffffff');
         if (inactiveColorPicker) inactiveColorPicker.value = currentInactiveColor;
@@ -738,13 +756,7 @@ const ExportEngine = (() => {
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     if (clearFiltersBtn) {
       clearFiltersBtn.addEventListener('click', () => {
-        // Clear all search inputs
-        document.querySelectorAll('.sec-search').forEach(inp => { inp.value = ''; inp.dispatchEvent(new Event('input')); });
-        // Reset all cat-tabs to "Todos"
-        document.querySelectorAll('.cat-tabs').forEach(tabs => {
-          const allTab = tabs.querySelector('[data-cat="__all__"]');
-          if (allTab) allTab.click();
-        });
+        document.querySelectorAll('.picker-search').forEach(inp => { inp.value = ''; inp.dispatchEvent(new Event('input')); });
       });
     }
 
@@ -761,8 +773,73 @@ const ExportEngine = (() => {
     const introArtistRatioSlider = document.getElementById('introArtistRatioSlider');
     const introArtistRatioVal    = document.getElementById('introArtistRatioVal');
     const introShowLogoToggle    = document.getElementById('introShowLogoToggle');
-    const introStyleGrid         = document.getElementById('introStyleGrid');
-    const introTransitionGrid    = document.getElementById('introTransitionGrid');
+
+    /* ── Build intro style / transition pickers ── */
+    const _introStyleList = [
+      { id: 'minimal',    emoji: '☁️',  label: 'Minimal'   },
+      { id: 'bold',       emoji: '★',   label: 'Bold'       },
+      { id: 'neon',       emoji: '⚡',  label: 'Neon'       },
+      { id: 'cinematic',  emoji: '🎞️', label: 'Cinematic'  },
+      { id: 'vintage',    emoji: '🎭',  label: 'Vintage'    },
+      { id: 'frame_gold', emoji: '🏆',  label: 'Frame Oro'  },
+      { id: 'frame_neon', emoji: '🔲',  label: 'Frame Neón' },
+      { id: 'luxury',     emoji: '💎',  label: 'Luxury'     },
+      { id: 'glitch',     emoji: '📺',  label: 'Glitch'     },
+      { id: 'aurora',     emoji: '🌈',  label: 'Aurora'     },
+      { id: 'magazine',   emoji: '📰',  label: 'Magazine'   },
+      { id: 'clasico',    emoji: '📜',  label: 'Clásico'    },
+      { id: 'gamer',      emoji: '🎮',  label: 'Gamer'      },
+      { id: 'metal',      emoji: '🤘',  label: 'Metal'      },
+      { id: 'fotografia', emoji: '📷',  label: 'Fotografía' },
+      { id: 'espacial',   emoji: '🌌',  label: 'Espacial'   },
+      { id: 'teatro',     emoji: '🎭',  label: 'Teatro'     },
+      { id: 'escenario',  emoji: '🎤',  label: 'Escenario'  },
+      { id: 'retro_pop',  emoji: '🎠',  label: 'Retro Pop'  },
+      { id: 'invierno',   emoji: '❄️',  label: 'Invierno'   },
+      { id: 'vhs_retro',  emoji: '📼',  label: 'VHS Retro'  },
+      { id: 'neon_city',  emoji: '🌇',  label: 'Neon City'  },
+    ];
+    const _transitionList = [
+      { id: 'fade',          emoji: '✨',  label: 'Fade'    },
+      { id: 'slide-up',      emoji: '↑',   label: 'Slide Up'},
+      { id: 'slide-down',    emoji: '↓',   label: 'Slide Dn'},
+      { id: 'zoom',          emoji: '🔍',  label: 'Zoom'    },
+      { id: 'typewriter',    emoji: '⌨️',  label: 'Type'    },
+      { id: 'blur-in',       emoji: '🔵',  label: 'Blur'    },
+      { id: 'bounce',        emoji: '🏀',  label: 'Bounce'  },
+      { id: 'glitch-in',     emoji: '📺',  label: 'Glitch'  },
+      { id: 'swipe-left',    emoji: '←',   label: 'Swipe'   },
+      { id: 'spin-in',       emoji: '🔄',  label: 'Spin'    },
+      { id: 'wipe-right',    emoji: '→',   label: 'Wipe R'  },
+      { id: 'wipe-left',     emoji: '←',   label: 'Wipe L'  },
+      { id: 'circle-expand', emoji: '⭕',  label: 'Circle'  },
+      { id: 'curtain-open',  emoji: '🎭',  label: 'Curtain' },
+      { id: 'push-up',       emoji: '⬆️',  label: 'Push'    },
+    ];
+    const ic0 = Intro.get();
+    introStylePic = _buildPickerNav(
+      document.getElementById('introStyleGrid'),
+      _introStyleList, ic0.style || 'bold',
+      id => { Intro.set({ style: id }); renderPreviewFrame(); }
+    );
+    introTransPic = _buildPickerNav(
+      document.getElementById('introTransitionGrid'),
+      _transitionList, ic0.transition || 'fade',
+      id => { Intro.set({ transition: id }); Audio.seek(0); renderPreviewFrame(); }
+    );
+    const _introTransOutEl = document.getElementById('introTransitionOutGrid');
+    introTransOutPic = _buildPickerNav(
+      _introTransOutEl,
+      _transitionList, ic0.transitionOut || ic0.transition || 'fade',
+      id => {
+        Intro.set({ transitionOut: id });
+        const exitStart = Math.max(0, (Intro.get().duration || 4) - 1);
+        Audio.seek(exitStart); renderPreviewFrame();
+      }
+    );
+    const introTransitionOutGrid = _introTransOutEl;
+    const introSameTransOutToggle = document.getElementById('introSameTransOutToggle');
+    const introTransOutLabel = document.getElementById('introTransOutLabel');
 
     function _syncIntroUI() {
       const ic = Intro.get();
@@ -775,18 +852,17 @@ const ExportEngine = (() => {
       if (introTitleSizeSlider)   { introTitleSizeSlider.value = ic.titleSize;  if (introTitleSizeVal) introTitleSizeVal.textContent = ic.titleSize.toFixed(2) + '×'; }
       if (introArtistRatioSlider) { introArtistRatioSlider.value = ic.artistRatio; if (introArtistRatioVal) introArtistRatioVal.textContent = Math.round(ic.artistRatio * 100) + '%'; }
       if (introShowLogoToggle)    introShowLogoToggle.checked       = ic.showLogo;
-      if (introStyleGrid)      introStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c.dataset.style === ic.style));
-      if (introTransitionGrid) introTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transition === ic.transition));
-      const introTransitionOutGrid = document.getElementById('introTransitionOutGrid');
-      const introSameTransOutToggle = document.getElementById('introSameTransOutToggle');
-      const introTransOutLabel = document.getElementById('introTransOutLabel');
-      if (introSameTransOutToggle) introSameTransOutToggle.checked = ic.useSameTransOut;
+      if (introStylePic)    introStylePic.setValue(ic.style || 'bold');
+      if (introTransPic)    introTransPic.setValue(ic.transition || 'fade');
+      const introSameTransOutToggle2 = document.getElementById('introSameTransOutToggle');
+      const introTransOutLabel2 = document.getElementById('introTransOutLabel');
+      if (introSameTransOutToggle2) introSameTransOutToggle2.checked = ic.useSameTransOut;
       if (introTransitionOutGrid) {
         introTransitionOutGrid.style.opacity = ic.useSameTransOut ? '0.4' : '1';
         introTransitionOutGrid.style.pointerEvents = ic.useSameTransOut ? 'none' : 'auto';
-        introTransitionOutGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transitionOut === (ic.transitionOut || ic.transition)));
+        if (introTransOutPic) introTransOutPic.setValue(ic.transitionOut || ic.transition || 'fade');
       }
-      if (introTransOutLabel) introTransOutLabel.style.opacity = ic.useSameTransOut ? '0.4' : '1';
+      if (introTransOutLabel2) introTransOutLabel2.style.opacity = ic.useSameTransOut ? '0.4' : '1';
 
       // New typography / glow / shadow sync
       const introTitleFontSelectEl  = document.getElementById('introTitleFontSelect');
@@ -816,6 +892,7 @@ const ExportEngine = (() => {
       if (introArtistShadowColorEl)  introArtistShadowColorEl.value   = ic.artistShadowColor || '#000000';
       if (introArtistShadowBlurEl)   { introArtistShadowBlurEl.value   = ic.artistShadowBlur  ?? 0; if (introArtistShadowBlurValEl) introArtistShadowBlurValEl.textContent = (ic.artistShadowBlur ?? 0) + 'px'; }
     }
+    _syncIntroUIRef = _syncIntroUI;
 
     if (introEnabledToggle) introEnabledToggle.addEventListener('change', () => { Intro.set({ enabled: introEnabledToggle.checked }); renderPreviewFrame(); });
     if (introTitleInput)    introTitleInput.addEventListener('input',  debounce(() => { Intro.set({ title:  introTitleInput.value  }); renderPreviewFrame(); }, 200));
@@ -847,43 +924,7 @@ const ExportEngine = (() => {
       });
     }
     if (introShowLogoToggle) introShowLogoToggle.addEventListener('change', () => { Intro.set({ showLogo: introShowLogoToggle.checked }); renderPreviewFrame(); });
-    if (introStyleGrid) {
-      introStyleGrid.addEventListener('click', e => {
-        const card = e.target.closest('.intro-style-card');
-        if (!card) return;
-        Intro.set({ style: card.dataset.style });
-        introStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c === card));
-        renderPreviewFrame();
-      });
-    }
-    if (introTransitionGrid) {
-      introTransitionGrid.addEventListener('click', e => {
-        const card = e.target.closest('.intro-trans-card');
-        if (!card) return;
-        Intro.set({ transition: card.dataset.transition });
-        introTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c === card));
-        // Seek to start of intro to show entry transition
-        Audio.seek(0);
-        renderPreviewFrame();
-      });
-    }
-    const introTransitionOutGrid = document.getElementById('introTransitionOutGrid');
-    const introSameTransOutToggle = document.getElementById('introSameTransOutToggle');
-    const introTransOutLabel = document.getElementById('introTransOutLabel');
-    if (introTransitionOutGrid) {
-      introTransitionOutGrid.addEventListener('click', e => {
-        const card = e.target.closest('.intro-trans-card');
-        if (!card) return;
-        Intro.set({ transitionOut: card.dataset.transitionOut });
-        introTransitionOutGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c === card));
-        // Seek to show exit transition (go to end of intro minus exit transition duration)
-        const ic = Intro.get();
-        const introDur = ic.duration || 4;
-        const exitStartTime = Math.max(0, introDur - 1);
-        Audio.seek(exitStartTime);
-        renderPreviewFrame();
-      });
-    }
+    // intro style/transition wired above via picker onChange callbacks
     if (introSameTransOutToggle) {
       introSameTransOutToggle.addEventListener('change', () => {
         const useSame = introSameTransOutToggle.checked;
@@ -977,8 +1018,6 @@ const ExportEngine = (() => {
       const outroArtistRatioSlider  = document.getElementById('outroArtistRatioSlider');
       const outroArtistRatioVal     = document.getElementById('outroArtistRatioVal');
       const outroShowLogoToggle     = document.getElementById('outroShowLogoToggle');
-      const outroStyleGrid          = document.getElementById('outroStyleGrid');
-      const outroTransitionGrid     = document.getElementById('outroTransitionGrid');
       if (outroEnabledToggle)      outroEnabledToggle.checked = oc.enabled;
       if (outroMirrorToggle)       outroMirrorToggle.checked  = oc.mirrorIntro;
       if (outroTitleInput)         outroTitleInput.value       = oc.title;
@@ -989,14 +1028,17 @@ const ExportEngine = (() => {
       if (outroTitleSizeSlider)    { outroTitleSizeSlider.value = oc.titleSize; if (outroTitleSizeVal) outroTitleSizeVal.textContent = oc.titleSize.toFixed(2) + '×'; }
       if (outroArtistRatioSlider)  { outroArtistRatioSlider.value = oc.artistRatio; if (outroArtistRatioVal) outroArtistRatioVal.textContent = Math.round(oc.artistRatio * 100) + '%'; }
       if (outroShowLogoToggle)     outroShowLogoToggle.checked  = oc.showLogo;
-      if (outroStyleGrid)     outroStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c.dataset.style === oc.style));
-      if (outroTransitionGrid) outroTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c.dataset.transition === oc.transition));
+      if (outroStylePic)    outroStylePic.setValue(oc.style || 'bold');
+      if (outroTransPic)    outroTransPic.setValue(oc.transition || 'fade');
       // Mirror-dependent fields opacity
       const isLocked = oc.mirrorIntro;
-      [outroTitleInput, outroArtistInput, outroTitleColorPicker, outroArtistColorPicker, outroTitleSizeSlider, outroArtistRatioSlider, outroStyleGrid, outroTransitionGrid, outroShowLogoToggle].forEach(el => {
+      const outroStyleGridEl2     = document.getElementById('outroStyleGrid');
+      const outroTransitionGridEl2 = document.getElementById('outroTransitionGrid');
+      [outroTitleInput, outroArtistInput, outroTitleColorPicker, outroArtistColorPicker, outroTitleSizeSlider, outroArtistRatioSlider, outroStyleGridEl2, outroTransitionGridEl2, outroShowLogoToggle].forEach(el => {
         if (el) el.style.opacity = isLocked ? '0.45' : '1'; if (el) el.style.pointerEvents = isLocked ? 'none' : 'auto';
       });
     }
+    _syncOutroUIRef = _syncOutroUI;
 
     function _outroMirrorApply() {
       Outro.mirrorFrom(Intro.get());
@@ -1026,26 +1068,51 @@ const ExportEngine = (() => {
     if (outroArtistRatioSlider)  outroArtistRatioSlider.addEventListener('input', () => { const v = parseFloat(outroArtistRatioSlider.value); Outro.set({ artistRatio: v }); const lbl = document.getElementById('outroArtistRatioVal'); if (lbl) lbl.textContent = Math.round(v * 100) + '%'; renderPreviewFrame(); });
     const outroShowLogoToggle = document.getElementById('outroShowLogoToggle');
     if (outroShowLogoToggle) outroShowLogoToggle.addEventListener('change', () => { Outro.set({ showLogo: outroShowLogoToggle.checked }); renderPreviewFrame(); });
-    const outroStyleGrid = document.getElementById('outroStyleGrid');
-    if (outroStyleGrid) {
-      outroStyleGrid.addEventListener('click', e => {
-        const card = e.target.closest('.intro-style-card'); if (!card) return;
-        Outro.set({ style: card.dataset.style });
-        outroStyleGrid.querySelectorAll('.intro-style-card').forEach(c => c.classList.toggle('active', c === card));
-        renderPreviewFrame();
-      });
-    }
-    const outroTransitionGrid = document.getElementById('outroTransitionGrid');
-    if (outroTransitionGrid) {
-      outroTransitionGrid.addEventListener('click', e => {
-        const card = e.target.closest('.intro-trans-card'); if (!card) return;
-        Outro.set({ transition: card.dataset.transition });
-        outroTransitionGrid.querySelectorAll('.intro-trans-card').forEach(c => c.classList.toggle('active', c === card));
-        // Seek to near the end to preview outro entry
+    // Build outro style/transition pickers
+    const _outroStyleList = [
+      { id: 'minimal',    emoji: '☁️',  label: 'Minimal'   },
+      { id: 'bold',       emoji: '★',   label: 'Bold'       },
+      { id: 'neon',       emoji: '⚡',  label: 'Neon'       },
+      { id: 'cinematic',  emoji: '🎞️', label: 'Cinematic'  },
+      { id: 'vintage',    emoji: '🎭',  label: 'Vintage'    },
+      { id: 'frame_gold', emoji: '🏆',  label: 'Frame Oro'  },
+      { id: 'frame_neon', emoji: '🔲',  label: 'Frame Neón' },
+      { id: 'luxury',     emoji: '💎',  label: 'Luxury'     },
+      { id: 'glitch',     emoji: '📺',  label: 'Glitch'     },
+      { id: 'aurora',     emoji: '🌈',  label: 'Aurora'     },
+      { id: 'magazine',   emoji: '📰',  label: 'Magazine'   },
+      { id: 'clasico',    emoji: '📜',  label: 'Clásico'    },
+      { id: 'gamer',      emoji: '🎮',  label: 'Gamer'      },
+      { id: 'metal',      emoji: '🤘',  label: 'Metal'      },
+      { id: 'escenario',  emoji: '🎤',  label: 'Escenario'  },
+      { id: 'retro_pop',  emoji: '🎠',  label: 'Retro Pop'  },
+      { id: 'invierno',   emoji: '❄️',  label: 'Invierno'   },
+      { id: 'vhs_retro',  emoji: '📼',  label: 'VHS Retro'  },
+      { id: 'neon_city',  emoji: '🌇',  label: 'Neon City'  },
+    ];
+    const _outroTransList = [
+      { id: 'fade',       emoji: '✨',  label: 'Fade'     },
+      { id: 'slide-up',   emoji: '↑',   label: 'Slide Up' },
+      { id: 'slide-down', emoji: '↓',   label: 'Slide Dn' },
+      { id: 'zoom',       emoji: '🔍',  label: 'Zoom'     },
+      { id: 'blur-in',    emoji: '🔵',  label: 'Blur'     },
+      { id: 'bounce',     emoji: '🏀',  label: 'Bounce'   },
+    ];
+    const oc0 = Outro.get();
+    outroStylePic = _buildPickerNav(
+      document.getElementById('outroStyleGrid'),
+      _outroStyleList, oc0.style || 'bold',
+      id => { Outro.set({ style: id }); renderPreviewFrame(); }
+    );
+    outroTransPic = _buildPickerNav(
+      document.getElementById('outroTransitionGrid'),
+      _outroTransList, oc0.transition || 'fade',
+      id => {
+        Outro.set({ transition: id });
         const t = Math.max(0, Audio.duration - (Outro.get().duration || 4));
         Audio.seek(t); renderPreviewFrame();
-      });
-    }
+      }
+    );
     _syncOutroUI();
   }
 
@@ -1152,6 +1219,9 @@ const ExportEngine = (() => {
     renderPreviewAt(seekTarget);
     // Refresh voice color pickers in export panel to reflect current Sync state
     _buildExportVoiceColors();
+    // Refresh intro/outro UI so changes made in step 2 (sync) are visible on step 4 entry
+    if (_syncIntroUIRef) _syncIntroUIRef();
+    if (_syncOutroUIRef) _syncOutroUIRef();
 
     /* ── Re-grab fs control refs (Panel4 is now mounted) ── */
     fsPlayBtn      = document.getElementById('fsPlayBtn');
@@ -1423,7 +1493,7 @@ const ExportEngine = (() => {
     const title  = clean(Intro.get().title)  || 'karaoke';
     const artist = clean(Intro.get().artist);
     const name   = artist ? artist + ' - ' + title : title;
-    return name + '.' + ext;
+    return name + ' (Karaoke).' + ext;
   }
 
   function renderPreviewFrame() { renderPreviewAt(Audio.getCurrentTime()); }
@@ -1498,7 +1568,23 @@ const ExportEngine = (() => {
         await _startWebCodecsRecording(rW, rH, _format);
         return;
       } catch (err) {
-        console.warn('[export] WebCodecs render failed, falling back to MediaRecorder:', err);
+        // Do NOT fall through to MediaRecorder — after a failed WebCodecs render the
+        // browser may already be memory-starved; starting a second recording would freeze the tab.
+        recording = false;
+        document.querySelector('.status-idle').classList.remove('hidden');
+        recordProgress.classList.add('hidden');
+        startRecordBtn.disabled = false;
+        previewExportBtn.disabled = false;
+        progressBarInner.style.width = '0%';
+        if (progressDetail) progressDetail.textContent = '';
+        console.error('[export] WebCodecs render failed:', err);
+        AppModal.alert(
+          'No se pudo exportar el video.\n\n' +
+          'Causas comunes a 60 fps: canción muy larga, resolución alta o memoria RAM insuficiente.\n\n' +
+          'Prueba: resolución 720p, 30 fps o formato AVI.\n\nDetalle: ' + (err?.message ?? String(err)),
+          { title: '❌ Error de exportación', icon: '⚠️', btnStyle: 'danger' }
+        );
+        return;
       }
     }
 
@@ -1724,6 +1810,12 @@ const ExportEngine = (() => {
 
   /* ─── AVI MJPEG offline render ──────────────────────────── */
   async function _encodeAsAvi(rW, rH, fps, audioBuffer, totalFrames, frameStep) {
+    // AVI stores all JPEG frames in RAM before writing. Guard against OOM:
+    // rough estimate: ~150 KB/frame at 1080p quality 0.82
+    const estMB = Math.round(totalFrames * rW * rH * 4 * 0.15 / 1024 / 1024);
+    if (estMB > 1500) {
+      throw new Error(`AVI a ${fps} fps requeriría ~${estMB} MB de RAM. Usa MP4 o WebM, o reduce FPS/resolución.`);
+    }
     const sampleRate    = audioBuffer.sampleRate;
     const numChannels   = Math.min(audioBuffer.numberOfChannels, 2);
     const channels      = [];
@@ -1862,7 +1954,7 @@ const ExportEngine = (() => {
         target: new Mp4ABTarget(),
         video:  { codec: 'avc', width: rW, height: rH },
         audio:  { codec: 'aac', numberOfChannels: numChannels, sampleRate },
-        fastStart: 'in-memory',
+        fastStart: false,   // avoid double-memory peak at finalize (moov written at end)
       });
       fileExt = 'mp4'; blobType = 'video/mp4';
     } else {
@@ -1892,10 +1984,12 @@ const ExportEngine = (() => {
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
       error:  e => { _vcErr = e; },
     });
-    // Bitrate scales with resolution and frame rate (5 Mbps baseline at 1080p 30fps)
-    const videoBitrate = Math.max(2_000_000, Math.min(20_000_000,
-      Math.round(rW * rH * fps / (1920 * 1080 * 30) * 5_000_000)));
-    videoEncoder.configure({ codec: videoCodec, width: rW, height: rH, bitrate: videoBitrate, framerate: fps, latencyMode: 'quality' });
+    // Bitrate scales with resolution. At 60 fps, inter-frame motion is smaller so
+    // we apply a sub-linear fps factor (avoids doubling output size vs 30 fps).
+    const fpsBitrateFactor = fps <= 30 ? fps : 30 + (fps - 30) * 0.5;
+    const videoBitrate = Math.max(2_000_000, Math.min(16_000_000,
+      Math.round(rW * rH * fpsBitrateFactor / (1920 * 1080 * 30) * 5_000_000)));
+    videoEncoder.configure({ codec: videoCodec, width: rW, height: rH, bitrate: videoBitrate, framerate: fps, latencyMode: 'realtime' });
 
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
@@ -1921,9 +2015,15 @@ const ExportEngine = (() => {
 
     for (let i = 0; i < totalFrames; i++) {
       if (_vcErr) throw _vcErr;
+      if (videoEncoder.state !== 'configured') throw new Error('VideoEncoder cerrado inesperadamente');
+      // Drain the encoder's JS-side queue before queuing another frame.
+      // With realtime mode the queue stays near 0; this guards stalls on slow GPUs.
+      let _qWait = 0;
       while (videoEncoder.encodeQueueSize > MAX_QUEUE) {
-        await new Promise(r => setTimeout(r, 5));
+        await _msYield();
         if (_vcErr) throw _vcErr;
+        if (videoEncoder.state !== 'configured') throw new Error('VideoEncoder cerrado durante el drenaje');
+        if (++_qWait > 2000) throw new Error('VideoEncoder bloqueado: la cola no se vacía');
       }
 
       // Integer-based timestamps avoid floating-point drift over thousands of frames
@@ -1936,7 +2036,8 @@ const ExportEngine = (() => {
 
       const videoFrame = new VideoFrame(offCanvas, { timestamp: tsUs, duration: durUs });
       // Keyframe every 1 second; force first frame as keyframe unconditionally
-      videoEncoder.encode(videoFrame, { keyFrame: i === 0 || i % fps === 0 });
+      const isKeyFrame = i === 0 || i % fps === 0;
+      videoEncoder.encode(videoFrame, { keyFrame: isKeyFrame });
       videoFrame.close();
 
       const pct = Math.round(((i + 1) / totalFrames) * 100);
@@ -1945,9 +2046,11 @@ const ExportEngine = (() => {
       exportSeekBar.value          = (t / duration) * 100;
       exportCurrentTime.textContent = formatTime(t);
 
-      // Yield to the browser using time-based check (keeps UI responsive at any FPS)
+      // Yield every 4 frames so the encoder's output callback can run before
+      // the next batch is queued. This is critical at 60fps where frames come fast.
+      // Also yield on time threshold for UI responsiveness.
       const _nowTs = performance.now();
-      if (_nowTs - _lastYield >= 12) {
+      if (i % 4 === 3 || _nowTs - _lastYield >= 12) {
         const elapsed = (_nowTs - _renderStart) / 1000;
         const rate = elapsed > 0.1 ? (i + 1) / elapsed : 0;
         const remaining = rate > 0 ? (totalFrames - i - 1) / rate : 0;
@@ -1982,6 +2085,8 @@ const ExportEngine = (() => {
     }
 
     if (_acErr) throw _acErr;
+    // Release decoded audio buffers before finalize to reduce peak memory usage
+    channels.length = 0;
     progressLabel.textContent = 'Finalizando...';
     if (progressDetail) progressDetail.textContent = 'Empaquetando video y audio en el archivo…';
     console.log('[EE] Audio done — flushing encoders...');

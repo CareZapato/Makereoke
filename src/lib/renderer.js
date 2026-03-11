@@ -3499,15 +3499,18 @@ const Renderer = (() => {
 
   /* ── Fill / karaoke reveal styles ── */
   const FILL_EFFECT_LIST = [
-    { id: 'default',      label: 'Estándar',      emoji: '▶️' },
-    { id: 'glow_edge',    label: 'Filo brillante', emoji: '✨' },
-    { id: 'gradiente',    label: 'Degradado',      emoji: '🌈' },
-    { id: 'palabra',      label: 'Por palabra',    emoji: '💬' },
-    { id: 'metalico',     label: 'Metálico',      emoji: '🔨' },
-    { id: 'rayas',        label: 'Rayas',          emoji: '📄' },
-    { id: 'ondulado',     label: 'Ondulado',       emoji: '🌊' },
-    { id: 'arcoiris_fill',label: 'Arcoíris',      emoji: '🌈' },
-    { id: 'pulso_neon',   label: 'Pulso neón',    emoji: '💥' },
+    { id: 'default',      label: 'Estándar',        emoji: '▶️' },
+    { id: 'glow_edge',    label: 'Filo brillante',  emoji: '✨' },
+    { id: 'gradiente',    label: 'Degradado',        emoji: '🌈' },
+    { id: 'palabra',      label: 'Por palabra',      emoji: '💬' },
+    { id: 'metalico',     label: 'Metálico',         emoji: '🔨' },
+    { id: 'rayas',        label: 'Rayas',            emoji: '📄' },
+    { id: 'ondulado',     label: 'Ondulado',         emoji: '🌊' },
+    { id: 'arcoiris_fill',label: 'Arcoíris',         emoji: '🌈' },
+    { id: 'pulso_neon',   label: 'Pulso neón',       emoji: '💥' },
+    { id: 'completo',     label: 'Línea completa',   emoji: '💡' },
+    { id: 'pulso_linea',  label: 'Pulso total',      emoji: '🫀' },
+    { id: 'ola_total',    label: 'Ola total',        emoji: '🎨' },
   ];
 
   /* ── Progress bar styles ── */
@@ -4840,7 +4843,7 @@ const Renderer = (() => {
     for (let i=0; i<lines.length; i++) { if (lines[i].time<=time) activeIdx=i; }
     const prevLine=activeIdx>0?lines[activeIdx-1]:null;
     const currLine=activeIdx>=0?lines[activeIdx]:null;
-    const nextLine=activeIdx>=0&&activeIdx<lines.length-1?lines[activeIdx+1]:null;
+    const nextLine=activeIdx>=0?activeIdx<lines.length-1?lines[activeIdx+1]:null:lines.length>1?lines[1]:null;
     const activeColor=activeColorOverride||T.textActive, inactiveColor=inactiveColorOverride||T.textDim;
 
     // Resolve per-line voice color if voiceConfig is provided
@@ -4871,7 +4874,10 @@ const Renderer = (() => {
       ctx.save();
       ctx.globalAlpha = clampN(prevLineOpacity, 0, 1);
       ctx.font=`300 ${fsMd}px ${fontFamily}`; ctx.fillStyle=inactiveColor;
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(_fit(ctx,prevLine.text,W-80),cx,midY-fsLg*(nextLineOffset+0.6));
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const _pW=_wrapText(ctx,prevLine.text,W-80); const _pSp=fsMd*1.2;
+      const _pBY=midY-fsLg*(nextLineOffset+0.6)-_pSp*(_pW.length-1)/2;
+      _pW.forEach((ln,li)=>ctx.fillText(ln,cx,_pBY+li*_pSp));
       ctx.restore();
     }
     if (nextLine) {
@@ -4879,7 +4885,9 @@ const Renderer = (() => {
       ctx.globalAlpha = clampN(secondaryOpacity, 0, 1);
       ctx.font=`400 ${fsMd}px ${fontFamily}`; ctx.fillStyle=inactiveColor;
       ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.shadowColor='transparent'; ctx.shadowBlur=0;
-      ctx.fillText(_fit(ctx,nextLine.text,W-80),cx,midY+fsLg*nextLineOffset);
+      const _nW=_wrapText(ctx,nextLine.text,W-80); const _nSp=fsMd*1.2;
+      const _nBY=midY+fsLg*nextLineOffset-_nSp*(_nW.length-1)/2;
+      _nW.forEach((ln,li)=>ctx.fillText(ln,cx,_nBY+li*_nSp));
       ctx.restore();
     }
     // Blank lyrics after the marked end time
@@ -4901,9 +4909,14 @@ const Renderer = (() => {
       const lineEnd=nextLine?nextLine.time:(lyricsEndTime && lyricsEndTime < duration ? lyricsEndTime : duration);
       const linePct=lineEnd>currLine.time?clampN((time-currLine.time)/(lineEnd-currLine.time),0,1):1;
       const lineAge = time - currLine.time; // seconds since line became active
-      const txt=_fit(ctx,currLine.text,W-80);
       ctx.font=`700 ${fsLg}px ${fontFamily}`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      // Apply zoom transform centered on text
+      // Wrap long lines to avoid truncation
+      const wLines=_wrapText(ctx,currLine.text,W-80);
+      const wCount=wLines.length;
+      const wSpacing=fsLg*1.3;
+      const wBaseY=midY-wSpacing*(wCount-1)/2;
+      const wTotalChars=Math.max(1,wLines.reduce((a,l)=>a+l.length,0));
+      // Apply zoom transform centered on text block
       ctx.save();
       if (activeZoom !== 1) { ctx.translate(cx, midY); ctx.scale(activeZoom, activeZoom); ctx.translate(-cx, -midY); }
       // Apply text effect or default glow
@@ -4929,127 +4942,168 @@ const Renderer = (() => {
           ctx.shadowOffsetX = textShadowOffsetX; ctx.shadowOffsetY = textShadowOffsetY;
         }
       }
-      if (effectFn) {
-        effectFn(ctx, txt, cx, midY, fsLg, lineActiveColor, GI, time, lineAge);
-        _applyTextShadow();
-      } else {
-        // Use lineActiveColor for shadow so user's color picker drives the glow too
-        const shadowCol = activeColorOverride ? lineActiveColor : T.shadowActive;
-        ctx.shadowColor=shadowCol; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor;
-        _applyTextShadow();
-        ctx.fillText(txt,cx,midY);
-      }
-      // Karaoke fill reveal (style driven by fillEffect)
-      const txtW=ctx.measureText(txt).width, startX=cx-txtW/2;
-      if (fillEffect === 'glow_edge') {
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY); ctx.restore();
-        if (linePct>0.005 && linePct<0.995) {
-          const edgeX = startX + txtW*linePct, sw = Math.max(3, fsLg*0.08);
-          const sg = ctx.createLinearGradient(edgeX-sw,0,edgeX+sw,0);
-          sg.addColorStop(0,'rgba(255,255,255,0)'); sg.addColorStop(0.5,'rgba(255,255,255,0.92)'); sg.addColorStop(1,'rgba(255,255,255,0)');
-          ctx.save(); ctx.globalAlpha=0.72; ctx.fillStyle=sg;
-          ctx.fillRect(edgeX-sw,midY-fsLg*1.05,sw*2,fsLg*2.1); ctx.restore();
-        }
-      } else if (fillEffect === 'gradiente') {
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        const fg = ctx.createLinearGradient(startX,0,startX+txtW,0);
-        fg.addColorStop(0,lineActiveColor); fg.addColorStop(1,'#ffffff');
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=fg; ctx.fillText(txt,cx,midY); ctx.restore();
-      } else if (fillEffect === 'palabra') {
-        ctx.save(); ctx.textAlign='left';
-        const words=txt.split(' '), spW=ctx.measureText(' ').width;
-        let wx=startX;
-        const totalWords=words.length;
-        words.forEach((w,wi)=>{
-          const wW=ctx.measureText(w).width;
-          const revealAt=totalWords>1?wi/(totalWords-1):0;
-          if (linePct>=revealAt) { ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=lineActiveColor; }
-          else { ctx.shadowBlur=0; ctx.fillStyle=inactiveColor; }
-          ctx.fillText(w,wx,midY); wx+=wW+spW;
-        });
-        ctx.restore();
-      } else {
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY); ctx.restore();
-      }
-
-      // ── New fill effects ──
-      if (fillEffect === 'metalico') {
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        const sweepX = startX + ((time * 0.55) % 1.5) * (txtW + 120) - 60;
-        const mg = ctx.createLinearGradient(sweepX-70,0,sweepX+70,0);
-        mg.addColorStop(0,lineActiveColor); mg.addColorStop(0.4,'#d8d8d8'); mg.addColorStop(0.5,'#ffffff'); mg.addColorStop(0.6,'#b0b0b0'); mg.addColorStop(1,lineActiveColor);
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=10*GI; ctx.fillStyle=mg; ctx.fillText(txt,cx,midY); ctx.restore();
-      } else if (fillEffect === 'rayas') {
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=8*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY);
-        ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.18;
-        const sw2=fsLg*0.45, sOff=(time*50)%(sw2*2);
-        ctx.fillStyle='#ffffff';
-        for(let sx=startX-sw2*2+sOff; sx<startX+txtW+sw2; sx+=sw2*2) {
-          ctx.beginPath(); ctx.moveTo(sx,midY-fsLg*1.2); ctx.lineTo(sx+sw2,midY-fsLg*1.2); ctx.lineTo(sx+sw2-fsLg*0.7,midY+fsLg*1.2); ctx.lineTo(sx-fsLg*0.7,midY+fsLg*1.2); ctx.closePath(); ctx.fill();
-        }
-        ctx.restore();
-      } else if (fillEffect === 'ondulado') {
-        ctx.save();
-        const wAmp=fsLg*0.14;
-        ctx.beginPath();
-        const waveX1=startX-2, waveX2=startX+txtW*linePct;
-        ctx.moveTo(waveX1, midY-fsLg*1.15);
-        for(let wx=waveX1; wx<=waveX2; wx+=3) ctx.lineTo(wx, midY-fsLg*1.15+Math.sin((wx/txtW)*Math.PI*5+time*5)*wAmp);
-        ctx.lineTo(waveX2, midY+fsLg*1.15);
-        ctx.lineTo(waveX1, midY+fsLg*1.15);
-        ctx.closePath(); ctx.clip();
-        const hue1=(time*35)%360;
-        const wg=ctx.createLinearGradient(startX,0,startX+txtW,0);
-        wg.addColorStop(0,`hsl(${hue1},100%,62%)`); wg.addColorStop(0.5,`hsl(${(hue1+80)%360},100%,68%)`); wg.addColorStop(1,`hsl(${(hue1+160)%360},100%,62%)`);
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=wg; ctx.fillText(txt,cx,midY); ctx.restore();
-      } else if (fillEffect === 'arcoiris_fill') {
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        const hueS=(time*28)%360;
-        const rg2=ctx.createLinearGradient(startX,0,startX+txtW,0);
-        for(let i=0;i<=6;i++) rg2.addColorStop(i/6,`hsl(${(hueS+i*60)%360},100%,60%)`);
-        ctx.shadowColor='rgba(255,255,255,0.5)'; ctx.shadowBlur=8*GI; ctx.fillStyle=rg2; ctx.fillText(txt,cx,midY); ctx.restore();
-      } else if (fillEffect === 'pulso_neon') {
-        const pulse2=(0.5+0.5*Math.sin(time*7));
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=(18+42*pulse2)*GI;
-        ctx.fillStyle='#ffffff'; ctx.globalAlpha*=(0.25+pulse2*0.75);
-        ctx.fillText(txt,cx,midY); ctx.restore();
-        ctx.save(); ctx.beginPath(); ctx.rect(startX-2,midY-fsLg*1.1,(txtW+2)*linePct,fsLg*2.2); ctx.clip();
-        ctx.shadowColor=lineActiveColor; ctx.shadowBlur=12*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,midY); ctx.restore();
-      }
-
-      // ── Stroke / contorno ──
-      if (strokeWidth > 0) {
-        ctx.save();
-        ctx.font=`${ctx.font.split(' ').slice(0,-1).join(' ')} ${fontFamily}`.replace(/^\s+/,'');
-        ctx.font=`700 ${fsLg}px ${fontFamily}`;
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.lineJoin='round';
-        const scaledLW = Math.max(1, strokeWidth * W / 1920);
-        if (strokeEffect === 'glow') {
-          ctx.shadowColor=strokeColor; ctx.shadowBlur=scaledLW*3.5*GI;
-          ctx.strokeStyle=strokeColor; ctx.lineWidth=scaledLW;
-          ctx.strokeText(txt,cx,midY);
-          ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=scaledLW*0.35; ctx.shadowBlur=0;
-          ctx.strokeText(txt,cx,midY);
-        } else if (strokeEffect === 'doble') {
-          ctx.strokeStyle=strokeColor; ctx.lineWidth=scaledLW+2; ctx.strokeText(txt,cx,midY);
-          ctx.strokeStyle='#ffffff'; ctx.lineWidth=scaledLW*0.45; ctx.strokeText(txt,cx,midY);
+      for (let _wi=0; _wi<wCount; _wi++) {
+        const txt=wLines[_wi];
+        const wY=wBaseY+_wi*wSpacing;
+        // Per-line fill progress proportional to character count
+        const _charsBefore=wLines.slice(0,_wi).reduce((a,l)=>a+l.length,0);
+        const _lineFrac=Math.max(0.001,txt.length/wTotalChars);
+        const localPct=clampN((linePct-_charsBefore/wTotalChars)/_lineFrac,0,1);
+        if (effectFn) {
+          effectFn(ctx, txt, cx, wY, fsLg, lineActiveColor, GI, time, lineAge);
+          _applyTextShadow();
         } else {
-          ctx.strokeStyle=strokeColor; ctx.lineWidth=scaledLW;
-          ctx.strokeText(txt,cx,midY);
+          // Use lineActiveColor for shadow so user's color picker drives the glow too
+          const shadowCol = activeColorOverride ? lineActiveColor : T.shadowActive;
+          ctx.shadowColor=shadowCol; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor;
+          _applyTextShadow();
+          ctx.fillText(txt,cx,wY);
         }
-        ctx.restore();
-      }
+        // Karaoke fill reveal (style driven by fillEffect)
+        const txtW=ctx.measureText(txt).width, startX=cx-txtW/2;
+        if (fillEffect === 'glow_edge') {
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY); ctx.restore();
+          if (localPct>0.005 && localPct<0.995) {
+            const edgeX=startX+txtW*localPct, sw=Math.max(3,fsLg*0.08);
+            const sg=ctx.createLinearGradient(edgeX-sw,0,edgeX+sw,0);
+            sg.addColorStop(0,'rgba(255,255,255,0)'); sg.addColorStop(0.5,'rgba(255,255,255,0.92)'); sg.addColorStop(1,'rgba(255,255,255,0)');
+            ctx.save(); ctx.globalAlpha=0.72; ctx.fillStyle=sg;
+            ctx.fillRect(edgeX-sw,wY-fsLg*1.05,sw*2,fsLg*2.1); ctx.restore();
+          }
+        } else if (fillEffect === 'gradiente') {
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          const fg=ctx.createLinearGradient(startX,0,startX+txtW,0);
+          fg.addColorStop(0,lineActiveColor); fg.addColorStop(1,'#ffffff');
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=fg; ctx.fillText(txt,cx,wY); ctx.restore();
+        } else if (fillEffect === 'palabra') {
+          ctx.save(); ctx.textAlign='left';
+          const words=txt.split(' '), spW=ctx.measureText(' ').width;
+          let wx=startX;
+          const totalWords=words.length;
+          words.forEach((w,wi)=>{
+            const wW=ctx.measureText(w).width;
+            const revealAt=totalWords>1?wi/(totalWords-1):0;
+            if (localPct>=revealAt) { ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=lineActiveColor; }
+            else { ctx.shadowBlur=0; ctx.fillStyle=inactiveColor; }
+            ctx.fillText(w,wx,wY); wx+=wW+spW;
+          });
+          ctx.restore();
+        } else if (fillEffect === 'completo') {
+          // Whole line immediately in active color — no progressive reveal
+          ctx.save();
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=22*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY);
+          ctx.restore();
+        } else if (fillEffect === 'pulso_linea') {
+          // Whole line pulsates glow intensity
+          const _pulse=0.5+0.5*Math.sin(time*5.5);
+          ctx.save(); ctx.globalAlpha=0.65+0.35*_pulse;
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=(12+36*_pulse)*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY);
+          ctx.restore();
+        } else if (fillEffect === 'ola_total') {
+          // Moving rainbow wave across the whole line (no clip)
+          const _hOff=(time*40)%360;
+          const _wGrd=ctx.createLinearGradient(startX,0,startX+txtW,0);
+          _wGrd.addColorStop(0,`hsl(${_hOff},100%,62%)`);
+          _wGrd.addColorStop(0.5,`hsl(${(_hOff+120)%360},100%,65%)`);
+          _wGrd.addColorStop(1,`hsl(${(_hOff+240)%360},100%,62%)`);
+          ctx.save(); ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=_wGrd; ctx.fillText(txt,cx,wY); ctx.restore();
+        } else {
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=(28+Math.sin(time*4.5)*7)*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY); ctx.restore();
+        }
+
+        // ── New fill effects ──
+        if (fillEffect === 'metalico') {
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          const sweepX=startX+((time*0.55)%1.5)*(txtW+120)-60;
+          const mg=ctx.createLinearGradient(sweepX-70,0,sweepX+70,0);
+          mg.addColorStop(0,lineActiveColor); mg.addColorStop(0.4,'#d8d8d8'); mg.addColorStop(0.5,'#ffffff'); mg.addColorStop(0.6,'#b0b0b0'); mg.addColorStop(1,lineActiveColor);
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=10*GI; ctx.fillStyle=mg; ctx.fillText(txt,cx,wY); ctx.restore();
+        } else if (fillEffect === 'rayas') {
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=8*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY);
+          ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.18;
+          const sw2=fsLg*0.45, sOff=(time*50)%(sw2*2);
+          ctx.fillStyle='#ffffff';
+          for(let sx=startX-sw2*2+sOff; sx<startX+txtW+sw2; sx+=sw2*2) {
+            ctx.beginPath(); ctx.moveTo(sx,wY-fsLg*1.2); ctx.lineTo(sx+sw2,wY-fsLg*1.2); ctx.lineTo(sx+sw2-fsLg*0.7,wY+fsLg*1.2); ctx.lineTo(sx-fsLg*0.7,wY+fsLg*1.2); ctx.closePath(); ctx.fill();
+          }
+          ctx.restore();
+        } else if (fillEffect === 'ondulado') {
+          ctx.save();
+          const wAmp=fsLg*0.14;
+          ctx.beginPath();
+          const waveX1=startX-2, waveX2=startX+txtW*localPct;
+          ctx.moveTo(waveX1,wY-fsLg*1.15);
+          for(let wx=waveX1; wx<=waveX2; wx+=3) ctx.lineTo(wx,wY-fsLg*1.15+Math.sin((wx/txtW)*Math.PI*5+time*5)*wAmp);
+          ctx.lineTo(waveX2,wY+fsLg*1.15); ctx.lineTo(waveX1,wY+fsLg*1.15);
+          ctx.closePath(); ctx.clip();
+          const hue1=(time*35)%360;
+          const wg=ctx.createLinearGradient(startX,0,startX+txtW,0);
+          wg.addColorStop(0,`hsl(${hue1},100%,62%)`); wg.addColorStop(0.5,`hsl(${(hue1+80)%360},100%,68%)`); wg.addColorStop(1,`hsl(${(hue1+160)%360},100%,62%)`);
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=wg; ctx.fillText(txt,cx,wY); ctx.restore();
+        } else if (fillEffect === 'arcoiris_fill') {
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          const hueS=(time*28)%360;
+          const rg2=ctx.createLinearGradient(startX,0,startX+txtW,0);
+          for(let i=0;i<=6;i++) rg2.addColorStop(i/6,`hsl(${(hueS+i*60)%360},100%,60%)`);
+          ctx.shadowColor='rgba(255,255,255,0.5)'; ctx.shadowBlur=8*GI; ctx.fillStyle=rg2; ctx.fillText(txt,cx,wY); ctx.restore();
+        } else if (fillEffect === 'pulso_neon') {
+          const pulse2=(0.5+0.5*Math.sin(time*7));
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=(18+42*pulse2)*GI;
+          ctx.fillStyle='#ffffff'; ctx.globalAlpha*=(0.25+pulse2*0.75);
+          ctx.fillText(txt,cx,wY); ctx.restore();
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=12*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY); ctx.restore();
+        }
+
+        // ── Stroke / contorno ──
+        if (strokeWidth > 0) {
+          ctx.save();
+          ctx.font=`${ctx.font.split(' ').slice(0,-1).join(' ')} ${fontFamily}`.replace(/^\s+/,'');
+          ctx.font=`700 ${fsLg}px ${fontFamily}`;
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.lineJoin='round';
+          const scaledLW=Math.max(1,strokeWidth*W/1920);
+          if (strokeEffect === 'glow') {
+            ctx.shadowColor=strokeColor; ctx.shadowBlur=scaledLW*3.5*GI;
+            ctx.strokeStyle=strokeColor; ctx.lineWidth=scaledLW;
+            ctx.strokeText(txt,cx,wY);
+            ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=scaledLW*0.35; ctx.shadowBlur=0;
+            ctx.strokeText(txt,cx,wY);
+          } else if (strokeEffect === 'doble') {
+            ctx.strokeStyle=strokeColor; ctx.lineWidth=scaledLW+2; ctx.strokeText(txt,cx,wY);
+            ctx.strokeStyle='#ffffff'; ctx.lineWidth=scaledLW*0.45; ctx.strokeText(txt,cx,wY);
+          } else {
+            ctx.strokeStyle=strokeColor; ctx.lineWidth=scaledLW;
+            ctx.strokeText(txt,cx,wY);
+          }
+          ctx.restore();
+        }
+      } // end wrapped-lines loop
 
       ctx.restore(); // end zoom transform
       } // end currLine.isLabel else
     } else if (!(lyricsEndTime && time >= lyricsEndTime)) {
-      ctx.font=`300 ${fsMd}px ${fontFamily}`; ctx.fillStyle='rgba(255,255,255,0.22)';
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('♪  ♪  ♪',cx,midY); ctx.textBaseline='alphabetic';
+      // Before first line: show upcoming first lyric as a dim center preview (lead-in)
+      // so the singer can read and prepare before it starts
+      if (lines.length > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.38;
+        ctx.font=`700 ${fsLg}px ${fontFamily}`; ctx.fillStyle=inactiveColor;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.shadowColor='transparent'; ctx.shadowBlur=0;
+        const _liW=_wrapText(ctx,lines[0].text,W-80); const _liSp=fsLg*1.28;
+        const _liBY=midY-_liSp*(_liW.length-1)/2;
+        _liW.forEach((ln,li)=>ctx.fillText(ln,cx,_liBY+li*_liSp));
+        ctx.restore();
+        ctx.textBaseline='alphabetic';
+      } else {
+        ctx.font=`300 ${fsMd}px ${fontFamily}`; ctx.fillStyle='rgba(255,255,255,0.22)';
+        ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('♪  ♪  ♪',cx,midY); ctx.textBaseline='alphabetic';
+      }
     }
     // Foreground overlay (renders atop text)
     ctx.save(); (OVERLAYS[overlayEffect]||OVERLAYS.none)(ctx,W,H,time); ctx.restore();
@@ -5063,6 +5117,32 @@ const Renderer = (() => {
     let t=text;
     while (t.length>3&&ctx.measureText(t+'…').width>maxW) t=t.slice(0,-1);
     return t+'…';
+  }
+
+  // Wraps text to at most maxLines lines on word boundaries; last line is truncated if needed.
+  function _wrapText(ctx, text, maxW, maxLines=2) {
+    if (!text) return [''];
+    if (ctx.measureText(text).width <= maxW) return [text];
+    const words = text.split(' ');
+    const lines = [];
+    let cur = '';
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const test = cur ? cur + ' ' + word : word;
+      if (ctx.measureText(test).width <= maxW) {
+        cur = test;
+      } else {
+        if (lines.length >= maxLines - 1) {
+          // Last allowed line: collect remainder and truncate
+          const remaining = (cur ? cur + ' ' : '') + words.slice(i).join(' ');
+          cur = remaining; break;
+        }
+        if (cur) lines.push(cur);
+        cur = word;
+      }
+    }
+    if (cur) lines.push(ctx.measureText(cur).width > maxW ? _fit(ctx, cur, maxW) : cur);
+    return lines.slice(0, maxLines);
   }
 
   return { drawFrame, THEMES, ANIMATIONS, OVERLAY_LIST, OVERLAY_CATEGORIES, ANIMATION_LIST, ANIMATION_CATEGORIES, THEME_LIST, THEME_CATEGORIES, FONT_LIST, TEXT_EFFECT_LIST, FILL_EFFECT_LIST, PROGRESS_BAR_LIST };

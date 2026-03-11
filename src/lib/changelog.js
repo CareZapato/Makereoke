@@ -7,7 +7,7 @@ export const PROJECT_INFO = {
   description:
     'Crea videos karaoke desde tu navegador: carga tu audio, sincroniza las letras y exporta el video listo para compartir.',
   author: 'Zapato',
-  lastUpdate: '2026-03-10',
+  lastUpdate: '2026-03-11',
 };
 
 /**
@@ -19,6 +19,19 @@ export const PROJECT_INFO = {
  *  'mobile'  → Mejora en móvil          📱
  */
 export const CHANGELOG = [
+  {
+    version: '0.3.10',
+    date: '2026-03-11',
+    changes: [
+      { type: 'new',     text: 'Salto de línea automático: las frases muy largas se dividen en hasta 2 líneas respetando palabras. El avance karaoke continúa de forma natural entre líneas. Aplica también en frases anterior/siguiente y en la previsualización de entrada (lead-in).' },
+      { type: 'new',     text: 'Efecto de relleno «Línea completa» 💡: toda la frase aparece iluminada al instante sin revelado progresivo.' },
+      { type: 'new',     text: 'Efecto de relleno «Pulso total» 🫀: brillo pulsante sobre toda la línea simultáneamente (~5.5 Hz), sin clip de izquierda a derecha.' },
+      { type: 'new',     text: 'Efecto de relleno «Ola total» 🎨: degradado arcoíris animado que barre la línea entera de forma continua, sin revelado progresivo.' },
+      { type: 'fix',     text: 'Controles de pantalla completa no respondían: el canvas absorbía todos los eventos de puntero. Corregido añadiendo pointer-events: none al canvas en modo fullscreen.' },
+      { type: 'fix',     text: 'La configuración de intro/outro hecha en el Paso 2 no se reflejaba al entrar al Paso 4. Solucionado invocando _syncIntroUI() y _syncOutroUI() en setup() mediante referencias de módulo.' },
+      { type: 'fix',     text: 'Exportación MP4/WebM con WebCodecs se colgaba a los ~4 s: causado por latencyMode:"quality" que acumulaba un buffer de lookahead GPU. Cambiado a latencyMode:"realtime"; el encoder emite cada frame al instante. También: yield cada 4 frames, fastStart:false en MP4 y liberación del buffer de audio antes del finalize.' },
+    ],
+  },
   {
     version: '0.3.9',
     date: '2026-03-10',

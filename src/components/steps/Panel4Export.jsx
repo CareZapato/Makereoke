@@ -53,62 +53,10 @@ export default function Panel4Export({ isActive, goToStep }) {
               </div>
 
               <label className="field-label">Estilo visual</label>
-              <div id="introStyleGrid" className="intro-style-grid">
-                {[
-                  { id: 'minimal',    icon: '☁️',  label: 'Minimal'    },
-                  { id: 'bold',       icon: '★',   label: 'Bold'        },
-                  { id: 'neon',       icon: '⚡',  label: 'Neon'        },
-                  { id: 'cinematic',  icon: '🎞️', label: 'Cinematic'   },
-                  { id: 'vintage',    icon: '🎭',  label: 'Vintage'     },
-                  { id: 'frame_gold', icon: '🏆',  label: 'Frame Oro'   },
-                  { id: 'frame_neon', icon: '🔲',  label: 'Frame Neón'  },
-                  { id: 'luxury',     icon: '💎',  label: 'Luxury'      },
-                  { id: 'glitch',     icon: '📺',  label: 'Glitch'      },
-                  { id: 'aurora',     icon: '🌈',  label: 'Aurora'      },
-                  { id: 'magazine',   icon: '📰',  label: 'Magazine'    },
-                  { id: 'clasico',    icon: '📜',  label: 'Clásico'     },
-                  { id: 'gamer',      icon: '🎮',  label: 'Gamer'       },
-                  { id: 'metal',      icon: '🤘',  label: 'Metal'       },
-                  { id: 'fotografia', icon: '📷',  label: 'Fotografía'  },
-                  { id: 'espacial',   icon: '🌌',  label: 'Espacial'    },
-                  { id: 'teatro',     icon: '🎭',  label: 'Teatro'      },
-                  { id: 'escenario',  icon: '🎤',  label: 'Escenario'   },
-                  { id: 'retro_pop',  icon: '🎠',  label: 'Retro Pop'   },
-                  { id: 'invierno',   icon: '❄️',  label: 'Invierno'    },
-                  { id: 'vhs_retro',  icon: '📼',  label: 'VHS Retro'   },
-                  { id: 'neon_city',  icon: '🌇',  label: 'Neon City'   },
-                ].map(s => (
-                  <button key={s.id} className={`intro-style-card${s.id === 'bold' ? ' active' : ''}`} data-style={s.id}>
-                    <span className="intro-style-icon">{s.icon}</span>
-                    <span className="intro-style-label">{s.label}</span>
-                  </button>
-                ))}
-              </div>
+              <div id="introStyleGrid" />
 
               <label className="field-label">Transición de entrada</label>
-              <div id="introTransitionGrid" className="intro-trans-grid">
-                {[
-                  { id: 'fade',         label: '✨ Fade'      },
-                  { id: 'slide-up',     label: '↑ Slide Up'  },
-                  { id: 'slide-down',   label: '↓ Slide Dn'  },
-                  { id: 'zoom',         label: '🔍 Zoom'     },
-                  { id: 'typewriter',   label: '⌨️ Type'     },
-                  { id: 'blur-in',      label: '🔵 Blur'     },
-                  { id: 'bounce',       label: '🏀 Bounce'   },
-                  { id: 'glitch-in',    label: '📺 Glitch'   },
-                  { id: 'swipe-left',   label: '← Swipe'     },
-                  { id: 'spin-in',      label: '🔄 Spin'     },
-                  { id: 'wipe-right',   label: '→ Wipe R'    },
-                  { id: 'wipe-left',    label: '← Wipe L'    },
-                  { id: 'circle-expand',label: '⭕ Circle'   },
-                  { id: 'curtain-open', label: '🎭 Curtain'  },
-                  { id: 'push-up',      label: '⬆️ Push'     },
-                ].map((t, i) => (
-                  <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition={t.id}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <div id="introTransitionGrid" />
 
               <div className="toggle-row" style={{ marginTop: '8px' }}>
                 <label className="toggle-label">
@@ -118,29 +66,7 @@ export default function Panel4Export({ isActive, goToStep }) {
               </div>
 
               <label className="field-label" id="introTransOutLabel" style={{ opacity: 0.4 }}>Trans. de salida</label>
-              <div id="introTransitionOutGrid" className="intro-trans-grid" style={{ opacity: 0.4, pointerEvents: 'none' }}>
-                {[
-                  { id: 'fade',         label: '✨ Fade'      },
-                  { id: 'slide-up',     label: '↑ Slide Up'  },
-                  { id: 'slide-down',   label: '↓ Slide Dn'  },
-                  { id: 'zoom',         label: '🔍 Zoom'     },
-                  { id: 'typewriter',   label: '⌨️ Type'     },
-                  { id: 'blur-in',      label: '🔵 Blur'     },
-                  { id: 'bounce',       label: '🏀 Bounce'   },
-                  { id: 'glitch-in',    label: '📺 Glitch'   },
-                  { id: 'swipe-left',   label: '← Swipe'     },
-                  { id: 'spin-in',      label: '🔄 Spin'     },
-                  { id: 'wipe-right',   label: '→ Wipe R'    },
-                  { id: 'wipe-left',    label: '← Wipe L'    },
-                  { id: 'circle-expand',label: '⭕ Circle'   },
-                  { id: 'curtain-open', label: '🎭 Curtain'  },
-                  { id: 'push-up',      label: '⬆️ Push'     },
-                ].map((t, i) => (
-                  <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition-out={t.id}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <div id="introTransitionOutGrid" style={{ opacity: 0.4, pointerEvents: 'none' }} />
 
               <div className="color-row" style={{ marginTop: '8px' }}>
                 <div className="color-item">
@@ -268,50 +194,10 @@ export default function Panel4Export({ isActive, goToStep }) {
               </div>
 
               <label className="field-label">Estilo visual</label>
-              <div id="outroStyleGrid" className="intro-style-grid">
-                {[
-                  { id: 'minimal',    icon: '☁️',  label: 'Minimal'    },
-                  { id: 'bold',       icon: '★',   label: 'Bold'        },
-                  { id: 'neon',       icon: '⚡',  label: 'Neon'        },
-                  { id: 'cinematic',  icon: '🎞️', label: 'Cinematic'   },
-                  { id: 'vintage',    icon: '🎭',  label: 'Vintage'     },
-                  { id: 'frame_gold', icon: '🏆',  label: 'Frame Oro'   },
-                  { id: 'frame_neon', icon: '🔲',  label: 'Frame Neón'  },
-                  { id: 'luxury',     icon: '💎',  label: 'Luxury'      },
-                  { id: 'glitch',     icon: '📺',  label: 'Glitch'      },
-                  { id: 'aurora',     icon: '🌈',  label: 'Aurora'      },
-                  { id: 'magazine',   icon: '📰',  label: 'Magazine'    },
-                  { id: 'clasico',    icon: '📜',  label: 'Clásico'     },
-                  { id: 'gamer',      icon: '🎮',  label: 'Gamer'       },
-                  { id: 'metal',      icon: '🤘',  label: 'Metal'       },
-                  { id: 'escenario',  icon: '🎤',  label: 'Escenario'   },
-                  { id: 'retro_pop',  icon: '🎠',  label: 'Retro Pop'   },
-                  { id: 'invierno',   icon: '❄️',  label: 'Invierno'    },
-                  { id: 'vhs_retro',  icon: '📼',  label: 'VHS Retro'   },
-                  { id: 'neon_city',  icon: '🌇',  label: 'Neon City'   },
-                ].map(s => (
-                  <button key={s.id} className={`intro-style-card${s.id === 'bold' ? ' active' : ''}`} data-style={s.id}>
-                    <span className="intro-style-icon">{s.icon}</span>
-                    <span className="intro-style-label">{s.label}</span>
-                  </button>
-                ))}
-              </div>
+              <div id="outroStyleGrid" />
 
               <label className="field-label">Transición de entrada</label>
-              <div id="outroTransitionGrid" className="intro-trans-grid">
-                {[
-                  { id: 'fade',      label: '✨ Fade'     },
-                  { id: 'slide-up',  label: '↑ Slide Up' },
-                  { id: 'slide-down',label: '↓ Slide Dn' },
-                  { id: 'zoom',      label: '🔍 Zoom'    },
-                  { id: 'blur-in',   label: '🔵 Blur'    },
-                  { id: 'bounce',    label: '🏀 Bounce'  },
-                ].map((t, i) => (
-                  <button key={t.id} className={`intro-trans-card${i === 0 ? ' active' : ''}`} data-transition={t.id}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <div id="outroTransitionGrid" />
 
               <div className="color-row" style={{ marginTop: '8px' }}>
                 <div className="color-item">
@@ -347,11 +233,7 @@ export default function Panel4Export({ isActive, goToStep }) {
               <button className="sec-collapse-btn" data-sec="sec-theme" title="Colapsar">▾</button>
             </div>
             <div className="sec-body">
-              <div className="sec-search-wrap">
-                <input type="text" id="themeSearch" className="sec-search" placeholder="Buscar tema..." />
-              </div>
-              <div id="themeCatTabs" className="cat-tabs" />
-              <div id="themeSelector" className="theme-selector" />
+              <div id="themeSelector" />
             </div>
           </div>
 
@@ -362,10 +244,7 @@ export default function Panel4Export({ isActive, goToStep }) {
               <button className="sec-collapse-btn" data-sec="sec-anim" title="Colapsar">▸</button>
             </div>
             <div className="sec-body">
-              <div className="sec-search-wrap">
-                <input type="text" id="animSearch" className="sec-search" placeholder="Buscar animación..." />
-              </div>
-              <div id="animGrid" className="anim-grid" />
+              <div id="animGrid" />
             </div>
           </div>
 
@@ -376,11 +255,7 @@ export default function Panel4Export({ isActive, goToStep }) {
               <button className="sec-collapse-btn" data-sec="sec-overlay" title="Colapsar">▸</button>
             </div>
             <div className="sec-body">
-              <div className="sec-search-wrap">
-                <input type="text" id="overlaySearch" className="sec-search" placeholder="Buscar efecto..." />
-              </div>
-              <div id="overlayCatTabs" className="cat-tabs" />
-              <div id="overlayGrid" className="anim-grid" />
+              <div id="overlayGrid" />
             </div>
           </div>
 
@@ -394,17 +269,11 @@ export default function Panel4Export({ isActive, goToStep }) {
 
               {/* ─── Fuente ─── */}
               <div className="typo-subgroup-label">💬 Fuente</div>
-              <div className="sec-search-wrap">
-                <input type="text" id="fontSearch" className="sec-search" placeholder="Buscar fuente..." />
-              </div>
-              <div id="fontSelector" className="font-selector" />
+              <div id="fontSelector" />
 
               {/* ─── Efectos de texto ─── */}
               <div className="typo-subgroup-label">✨ Efectos</div>
-              <div className="sec-search-wrap">
-                <input type="text" id="textFxSearch" className="sec-search" placeholder="Buscar efecto..." />
-              </div>
-              <div id="textEffectGrid" className="anim-grid-row" />
+              <div id="textEffectGrid" />
 
               {/* ─── Estilo de relleno ─── */}
               <div className="typo-subgroup-label">🎯 Relleno karaoke</div>
@@ -435,18 +304,7 @@ export default function Panel4Export({ isActive, goToStep }) {
               <div className="typo-subgroup-label">🌑 Sombra del texto activo</div>
 
               <label className="field-label">Tipo de sombra</label>
-              <div id="textShadowTypeGrid" className="anim-grid-row">
-                {[
-                  { id: 'none',    label: '⬜ Ninguna' },
-                  { id: 'glow',    label: '✨ Halo'    },
-                  { id: 'hard',    label: '◼ Dura'    },
-                  { id: 'diffuse', label: '🔵 Difusa'  },
-                ].map((s, i) => (
-                  <button key={s.id} className={`anim-card${i === 0 ? ' active' : ''}`} data-shadow-type={s.id}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
+              <div id="textShadowTypeGrid" />
 
               <div className="color-row" style={{ marginTop: '6px' }}>
                 <div className="color-item">
@@ -471,17 +329,7 @@ export default function Panel4Export({ isActive, goToStep }) {
               <div className="typo-subgroup-label">✏️ Contorno del texto activo</div>
 
               <label className="field-label">Tipo de contorno</label>
-              <div id="strokeEffectGrid" className="anim-grid-row">
-                {[
-                  { id: 'solid', label: '▬ Sólido' },
-                  { id: 'glow',  label: '✨ Resplandor' },
-                  { id: 'doble', label: '⧈ Doble' },
-                ].map((s, i) => (
-                  <button key={s.id} className={`anim-card${i === 0 ? ' active' : ''}`} data-stroke-effect={s.id}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
+              <div id="strokeEffectGrid" />
 
               <div className="color-row" style={{ marginTop: '6px' }}>
                 <div className="color-item">

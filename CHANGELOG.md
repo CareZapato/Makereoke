@@ -4,6 +4,42 @@ Todas las mejoras notables de Karaoke Video Maker se documentan en este archivo.
 
 ---
 
+## [0.3.10] - 2026-03-11
+
+### ✨ Nuevas Funcionalidades
+
+#### 📝 Salto de Línea Automático en Frases Largas
+Las frases muy largas ya no se truncan con `…`. Ahora se dividen automáticamente en hasta 2 líneas respetando los límites de palabras:
+- La **frase activa** (iluminada) se reparte en varias líneas; el avance karaoke continúa de forma natural de una línea a la siguiente, proporcional al número de caracteres de cada línea
+- La **frase anterior** (tenue, arriba) y la **frase siguiente** (tenue, abajo) también aplican el mismo salto de línea
+- La **previsualización de entrada** (lead-in antes de la primera frase) respeta el mismo comportamiento
+- El truncado con `…` sigue activo únicamente para títulos/artistas de la carta de intro/outro, donde el espacio disponible es diferente
+
+#### 🎨 3 Nuevos Efectos de Relleno de Línea Completa
+Nueva categoría de efectos de relleno que iluminan **toda la frase a la vez** sin revelado progresivo de izquierda a derecha, combinables con cualquier efecto de texto:
+- **💡 Línea completa**: la frase entera aparece inmediatamente en color activo con glow estático
+- **🫀 Pulso total**: la línea completa pulsa la intensidad del brillo ~5.5 veces por segundo, dando efecto de latido sobre toda la frase
+- **🎨 Ola total**: degradado arcoíris animado que barre continuamente toda la línea sin clip progresivo
+
+### 🐛 Correcciones
+
+#### 🖥️ Controles de Pantalla Completa No Respondían
+- **Causa**: el elemento `<canvas>` en modo fullscreen ocupaba `100% × 100%` absorbiendo todos los eventos de puntero, dejando los botones de control debajo inaccesibles
+- **Solución**: se añadió `pointer-events: none` al canvas en todos los selectores de pantalla completa (`:fullscreen`, `:-webkit-full-screen`, `:-moz-full-screen`, `.is-fullscreen`). El canvas solo necesita dibujar, nunca recibir clicks
+
+#### ⚙️ Config de Intro/Outro No Se Reflejaba al Entrar al Paso 4
+- **Causa**: `_syncIntroUI()` y `_syncOutroUI()` eran funciones locales dentro de `init()` y solo se ejecutaban una vez al arrancar; al regresar al Paso 4 después de configurar el intro/outro en el Paso 2, la UI no se actualizaba
+- **Solución**: las referencias a ambas funciones se almacenan en variables de módulo (`_syncIntroUIRef`, `_syncOutroUIRef`) y se invocan al inicio de `setup()` cada vez que se activa el Paso 4
+
+#### 📹 Exportación MP4/WebM con WebCodecs Se Colgaba a los 4 Segundos
+- **Causa principal**: `latencyMode: 'quality'` en el `VideoEncoder` activa un buffer de lookahead B-frame en el codec H.264 de hardware. El encoder acumula 1–2 GOPs completos (~60–120 frames, equivalente a 2–4 s) antes de emitir cualquier salida. Una vez agotada la memoria de texturas GPU, el tab se congelaba. `encodeQueueSize` aparecía en 0 durante todo este tiempo, así que el loop de drenaje nunca bloqueaba
+- **Solución principal**: cambiado a `latencyMode: 'realtime'` — elimina el lookahead, el encoder emite cada frame inmediatamente después de codificarlo, manteniendo el uso de memoria GPU constante sin importar la duración del video
+- **Solución adicional**: el loop de frames ahora hace yield cada 4 frames (en lugar de solo cada 12 ms) para que el callback de salida del encoder tenga slot de ejecución antes de que se encole el siguiente batch
+- **Mejora de memoria**: el buffer de audio decodificado se libera (`channels.length = 0`) justo antes de `muxer.finalize()` para reducir el pico de RAM en esa fase
+- **MP4 `fastStart: false`**: eliminada la opción `in-memory` que causaba una copia completa del archivo en RAM durante el finalize para reubicar el átomo `moov`; con `false` el átomo va al final del archivo (compatible con todos los reproductores para descarga)
+
+---
+
 ## [0.3.9] - 2026-03-10
 
 ### 🐛 Correcciones

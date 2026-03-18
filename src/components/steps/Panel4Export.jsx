@@ -84,17 +84,51 @@ export default function Panel4Export({ isActive, goToStep }) {
               <label className="field-label">Fuente del título</label>
               <select id="introTitleFontSelect" className="field-select">
                 <option value="">— Usar fuente global —</option>
-                {['Segoe UI','Arial','Verdana','Impact','Georgia','Times New Roman','Courier New','Trebuchet MS','Futura','Comic Sans MS'].map(f => (
-                  <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
-                ))}
+                <optgroup label="Sistema">
+                  {['Segoe UI','Arial','Verdana','Impact','Georgia','Times New Roman','Courier New','Trebuchet MS','Comic Sans MS'].map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Google Fonts — Modernas">
+                  {['Montserrat','Oswald','Raleway','Lato','Poppins','Nunito','Anton','Russo One','Bebas Neue','Righteous','Boogaloo','Pacifico'].map(f => (
+                    <option key={f} value={`'${f}', sans-serif`}>{f}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Google Fonts — Impacto/Display">
+                  {['Bangers','Black Ops One','Teko','Exo 2','Changa One','Barlow Condensed','Fjalla One','Audiowide','Press Start 2P','Bungee','Permanent Marker','Ultra','Graduate','Rubik Mono One','Passion One','Archivo Black'].map(f => (
+                    <option key={f} value={`'${f}', sans-serif`}>{f}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Google Fonts — Serif/Clásicas">
+                  {['Playfair Display','Cinzel','Dancing Script','Caveat','Lobster','Abril Fatface','Special Elite','Lilita One','Luckiest Guy'].map(f => (
+                    <option key={f} value={`'${f}', serif`}>{f}</option>
+                  ))}
+                </optgroup>
               </select>
 
               <label className="field-label">Fuente del artista</label>
               <select id="introArtistFontSelect" className="field-select">
                 <option value="">— Igual que título —</option>
-                {['Segoe UI','Arial','Verdana','Impact','Georgia','Times New Roman','Courier New','Trebuchet MS','Futura','Comic Sans MS'].map(f => (
-                  <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
-                ))}
+                <optgroup label="Sistema">
+                  {['Segoe UI','Arial','Verdana','Impact','Georgia','Times New Roman','Courier New','Trebuchet MS','Comic Sans MS'].map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Google Fonts — Modernas">
+                  {['Montserrat','Oswald','Raleway','Lato','Poppins','Nunito','Anton','Russo One','Bebas Neue','Righteous','Boogaloo','Pacifico'].map(f => (
+                    <option key={f} value={`'${f}', sans-serif`}>{f}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Google Fonts — Impacto/Display">
+                  {['Bangers','Black Ops One','Teko','Exo 2','Changa One','Barlow Condensed','Fjalla One','Audiowide','Bungee','Permanent Marker','Ultra'].map(f => (
+                    <option key={f} value={`'${f}', sans-serif`}>{f}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Google Fonts — Serif/Cursiva">
+                  {['Playfair Display','Cinzel','Dancing Script','Caveat','Lobster','Abril Fatface','Special Elite','Lilita One'].map(f => (
+                    <option key={f} value={`'${f}', serif`}>{f}</option>
+                  ))}
+                </optgroup>
               </select>
 
               <label className="field-label">✨ Brillo del título</label>
@@ -121,6 +155,16 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <input id="introTitleShadowBlurSlider" type="range" className="slider" min="0" max="40" step="1" defaultValue="0" />
                 <span id="introTitleShadowBlurVal" className="slider-val">0px</span>
               </div>
+              <label className="field-label">Opacidad sombra</label>
+              <div className="slider-row">
+                <input id="introTitleShadowOpacitySlider" type="range" className="slider" min="0" max="1" step="0.05" defaultValue="1" />
+                <span id="introTitleShadowOpacityVal" className="slider-val">100%</span>
+              </div>
+              <label className="field-label">Desplazamiento X</label>
+              <div className="slider-row">
+                <input id="introTitleShadowOffsetXSlider" type="range" className="slider" min="-20" max="20" step="1" defaultValue="0" />
+                <span id="introTitleShadowOffsetXVal" className="slider-val">0px</span>
+              </div>
               <label className="field-label">Desplazamiento Y</label>
               <div className="slider-row">
                 <input id="introTitleShadowOffsetSlider" type="range" className="slider" min="-20" max="20" step="1" defaultValue="2" />
@@ -138,6 +182,16 @@ export default function Panel4Export({ isActive, goToStep }) {
               <div className="slider-row">
                 <input id="introArtistShadowBlurSlider" type="range" className="slider" min="0" max="40" step="1" defaultValue="0" />
                 <span id="introArtistShadowBlurVal" className="slider-val">0px</span>
+              </div>
+              <label className="field-label">Opacidad sombra</label>
+              <div className="slider-row">
+                <input id="introArtistShadowOpacitySlider" type="range" className="slider" min="0" max="1" step="0.05" defaultValue="1" />
+                <span id="introArtistShadowOpacityVal" className="slider-val">100%</span>
+              </div>
+              <label className="field-label">Desplazamiento Y</label>
+              <div className="slider-row">
+                <input id="introArtistShadowOffsetSlider" type="range" className="slider" min="-20" max="20" step="1" defaultValue="2" />
+                <span id="introArtistShadowOffsetVal" className="slider-val">2px</span>
               </div>
 
               <label className="field-label">Tamaño del título</label>
@@ -437,6 +491,9 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <button className="wm-pos-btn" data-vfx="outline" title="Contorno blanco">🔲 Contorno</button>
                 <button className="wm-pos-btn" data-vfx="stamp"   title="Sello oscilante">🔖 Sello</button>
                 <button className="wm-pos-btn" data-vfx="shadow"  title="Sombra profunda">🌑 Sombra</button>
+                <button className="wm-pos-btn" data-vfx="neon"    title="Neón (hue cíclico)">⚡ Neón</button>
+                <button className="wm-pos-btn" data-vfx="rainbow" title="Arco iris (color cíclico)">🌈 Arcoíris</button>
+                <button className="wm-pos-btn" data-vfx="retro"   title="Cine retro / sepia">🎞️ Retro</button>
               </div>
 
               <label className="field-label" style={{ marginTop: '8px' }}>Animación de entrada/salida</label>
@@ -449,6 +506,10 @@ export default function Panel4Export({ isActive, goToStep }) {
                 <button className="wm-pos-btn" data-anim="pendulum"  title="Péndulo (medalla colgante)">🏅</button>
                 <button className="wm-pos-btn" data-anim="spin"      title="Girar 360°">🌀</button>
                 <button className="wm-pos-btn" data-anim="float"     title="Flotar (suave)">🪸</button>
+                <button className="wm-pos-btn" data-anim="bounce"    title="Rebote">🏀</button>
+                <button className="wm-pos-btn" data-anim="orbit"     title="Orbitar">🪐</button>
+                <button className="wm-pos-btn" data-anim="wave"      title="Ola">🌊</button>
+                <button className="wm-pos-btn" data-anim="shake"     title="Sacudir">📳</button>
               </div>
 
               <div className="typo-subgroup-label" style={{ marginTop: '10px' }}>⏱️ Cuándo aparece</div>
@@ -658,6 +719,9 @@ export default function Panel4Export({ isActive, goToStep }) {
             <div className="export-btns status-idle">
               <button id="previewExportBtn" className="btn btn-secondary">▶ Preview completo</button>
               <button id="startRecordBtn" className="btn btn-success btn-lg">⏺ Grabar video</button>
+            </div>
+            <div className="export-session-row">
+              <button id="saveSessionBtn" className="btn btn-ghost btn-sm">💾 Guardar sesión</button>
             </div>
             <div id="recordProgress" className="progress-wrap hidden">
               <span id="progressLabel">Grabando... 0%</span>

@@ -141,6 +141,27 @@ const Renderer = (() => {
       rot: sr(i*7+2405)*6.28, spin: (sr(i*7+2406)-0.5)*0.08,
       drift: (sr(i*7+2407)-0.5)*0.015,
     })),
+    // ── Urbano
+    sprayDrops: Array.from({ length: 55 }, (_, i) => ({
+      x: sr(i*6+3000), y: sr(i*6+3001), spd: sr(i*6+3002)*0.055+0.02,
+      r: sr(i*6+3003)*1.8+0.5, hue: [0,30,60,120,200,270,320][i%7],
+      ph: sr(i*6+3004)*6.28, drift: (sr(i*6+3005)-0.5)*0.018,
+    })),
+    chainLinks: Array.from({ length: 14 }, (_, i) => ({
+      x: sr(i*5+3100), y: sr(i*5+3101), spd: sr(i*5+3102)*0.028+0.012,
+      sz: sr(i*5+3103)*0.025+0.018, ph: sr(i*5+3104)*6.28,
+      drift: (sr(i*5+3105)-0.5)*0.012,
+    })),
+    bills: Array.from({ length: 18 }, (_, i) => ({
+      x: sr(i*7+3200), y: sr(i*7+3201), spd: sr(i*7+3202)*0.04+0.015,
+      w: sr(i*7+3203)*0.055+0.04, rot: sr(i*7+3204)*6.28,
+      spin: (sr(i*7+3205)-0.5)*0.07, ph: sr(i*7+3206)*6.28,
+      drift: (sr(i*7+3207)-0.5)*0.018,
+    })),
+    cityWindows: Array.from({ length: 80 }, (_, i) => ({
+      bldg: i % 8, floor: Math.floor(i / 8),
+      phase: sr(i*3+3300)*6.28, spd: sr(i*3+3301)*1.8+0.6,
+    })),
   };
 
   const MCHARS = 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ012345679';
@@ -514,6 +535,136 @@ const Renderer = (() => {
       vg.addColorStop(0,'transparent'); vg.addColorStop(1,'rgba(2,0,8,0.70)');
       ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
     }, textActive:'#ee99ff', textDim:'rgba(230,170,255,0.58)', textPrev:'rgba(220,160,255,0.16)', progressBg:'rgba(180,60,255,0.10)', progressFg:'#aa22ee', shadowActive:'rgba(240,160,255,0.92)' },
+    // ── Urbano / Street
+    asfalto: { base: ['#0a0a0a','#181818'], bgFn(ctx,W,H) {
+      ctx.fillStyle='#0d0d0d'; ctx.fillRect(0,0,W,H);
+      // Concrete texture
+      ctx.save(); ctx.globalAlpha=0.06;
+      for(let i=0;i<300;i++){const gx=sr(i*5)*W,gy=sr(i*5+1)*H; ctx.fillStyle=sr(i*5+2)>0.5?'rgba(255,255,255,0.8)':'rgba(0,0,0,0.5)'; ctx.fillRect(gx,gy,sr(i*5+3)*3+0.5,0.5); }
+      ctx.restore();
+      // Golden accent glow bottom
+      const bg=ctx.createLinearGradient(0,H*0.7,0,H);
+      bg.addColorStop(0,'transparent'); bg.addColorStop(1,'rgba(220,180,30,0.12)');
+      ctx.fillStyle=bg; ctx.fillRect(0,H*0.7,W,H*0.3);
+      const vg=ctx.createRadialGradient(W*.5,H*.5,H*.08,W*.5,H*.5,W*.75);
+      vg.addColorStop(0,'transparent'); vg.addColorStop(1,'rgba(0,0,0,0.72)');
+      ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    }, textActive:'#FFD700', textDim:'rgba(255,210,80,0.55)', textPrev:'rgba(255,200,60,0.15)', progressBg:'rgba(220,180,0,0.10)', progressFg:'#c8a800', shadowActive:'rgba(255,215,0,0.88)' },
+    grafiti: { base: ['#0c0c0c','#141414'], bgFn(ctx,W,H) {
+      ctx.fillStyle='#0c0c0c'; ctx.fillRect(0,0,W,H);
+      // Spray bursts in corners
+      [[0.05,0.1,0,0.4],[0.95,0.08,200,0.35],[0.05,0.9,120,0.30],[0.95,0.92,320,0.32],[0.5,0.5,60,0.20]].forEach(([bx,by,bh,ba])=>{
+        const rg=ctx.createRadialGradient(bx*W,by*H,0,bx*W,by*H,W*0.38);
+        rg.addColorStop(0,`hsla(${bh},100%,60%,${ba})`); rg.addColorStop(0.4,`hsla(${bh},90%,45%,${ba*0.4})`); rg.addColorStop(1,'transparent');
+        ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      });
+      // Brick pattern suggestion
+      ctx.save(); ctx.globalAlpha=0.05;
+      for(let ry=0;ry<H;ry+=H*0.06){ ctx.strokeStyle='rgba(200,100,50,0.8)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,ry); ctx.lineTo(W,ry); ctx.stroke(); }
+      ctx.restore();
+      const vg=ctx.createRadialGradient(W*.5,H*.5,H*.06,W*.5,H*.5,W*.80);
+      vg.addColorStop(0,'transparent'); vg.addColorStop(1,'rgba(0,0,0,0.70)');
+      ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    }, textActive:'#ff3c3c', textDim:'rgba(255,120,80,0.60)', textPrev:'rgba(255,100,60,0.16)', progressBg:'rgba(255,50,30,0.10)', progressFg:'#ff2200', shadowActive:'rgba(255,60,20,0.92)' },
+    trap: { base: ['#050008','#0e001a'], bgFn(ctx,W,H) {
+      const g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#050008'); g.addColorStop(0.5,'#0a0015'); g.addColorStop(1,'#0e0020');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // Dark gold haze
+      let rg=ctx.createRadialGradient(W*.5,H*.85,0,W*.5,H*.85,W*.55);
+      rg.addColorStop(0,'rgba(180,140,0,0.22)'); rg.addColorStop(0.5,'rgba(120,80,0,0.08)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      rg=ctx.createRadialGradient(W*.5,H*.5,H*.10,W*.5,H*.5,W*.75);
+      rg.addColorStop(0,'transparent'); rg.addColorStop(1,'rgba(2,0,8,0.72)');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+    }, textActive:'#d4a800', textDim:'rgba(215,175,50,0.55)', textPrev:'rgba(210,165,40,0.16)', progressBg:'rgba(200,150,0,0.10)', progressFg:'#b88800', shadowActive:'rgba(230,190,0,0.90)' },
+    cypher: { base: ['#080008','#100014'], bgFn(ctx,W,H) {
+      ctx.fillStyle='#070007'; ctx.fillRect(0,0,W,H);
+      // Red & white aggressive splashes
+      let rg=ctx.createRadialGradient(W*.12,H*.5,0,W*.12,H*.5,W*.50);
+      rg.addColorStop(0,'rgba(200,0,30,0.32)'); rg.addColorStop(0.45,'rgba(140,0,15,0.10)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      rg=ctx.createRadialGradient(W*.88,H*.5,0,W*.88,H*.5,W*.46);
+      rg.addColorStop(0,'rgba(200,0,30,0.28)'); rg.addColorStop(0.45,'rgba(120,0,10,0.08)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      // Spotlight center
+      rg=ctx.createRadialGradient(W*.5,H*.4,0,W*.5,H*.4,W*.32);
+      rg.addColorStop(0,'rgba(255,255,255,0.06)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      const vg=ctx.createRadialGradient(W*.5,H*.5,H*.08,W*.5,H*.5,W*.78);
+      vg.addColorStop(0,'transparent'); vg.addColorStop(1,'rgba(0,0,4,0.75)');
+      ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    }, textActive:'#ff1a1a', textDim:'rgba(255,100,80,0.58)', textPrev:'rgba(255,80,60,0.16)', progressBg:'rgba(255,20,10,0.10)', progressFg:'#dd0000', shadowActive:'rgba(255,30,0,0.95)' },
+    barrio: { base: ['#04050e','#08101e'], bgFn(ctx,W,H) {
+      const g=ctx.createLinearGradient(W,0,0,H);
+      g.addColorStop(0,'#04050e'); g.addColorStop(0.5,'#060c18'); g.addColorStop(1,'#081422');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // Cold city accent
+      let rg=ctx.createRadialGradient(W*.5,H*.3,0,W*.5,H*.3,W*.48);
+      rg.addColorStop(0,'rgba(30,80,180,0.28)'); rg.addColorStop(0.5,'rgba(15,50,140,0.09)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      rg=ctx.createRadialGradient(W*.5,H*.5,H*.10,W*.5,H*.5,W*.78);
+      rg.addColorStop(0,'transparent'); rg.addColorStop(1,'rgba(0,2,8,0.72)');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+    }, textActive:'#4fbfff', textDim:'rgba(100,190,255,0.58)', textPrev:'rgba(90,180,255,0.16)', progressBg:'rgba(30,120,255,0.10)', progressFg:'#2288ee', shadowActive:'rgba(60,190,255,0.92)' },
+
+    // ── Urban extras ──
+    hormigon: { base: ['#1a1a1a','#111111'], bgFn(ctx,W,H) {
+      const g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#1a1a1a'); g.addColorStop(0.5,'#141414'); g.addColorStop(1,'#0e0e0e');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      const vgn=ctx.createRadialGradient(W*.5,H*.5,H*.1,W*.5,H*.5,W*.75);
+      vgn.addColorStop(0,'transparent'); vgn.addColorStop(1,'rgba(0,0,0,0.55)');
+      ctx.fillStyle=vgn; ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle='rgba(255,255,255,0.035)'; ctx.lineWidth=1;
+      for(let y=0;y<H;y+=H*.055){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    }, textActive:'#f0c040', textDim:'rgba(240,185,40,0.55)', textPrev:'rgba(240,180,40,0.12)', progressBg:'rgba(180,130,0,0.12)', progressFg:'#d4a800', shadowActive:'rgba(255,200,50,0.9)' },
+
+    underground: { base: ['#03000a','#07001a'], bgFn(ctx,W,H) {
+      const g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#03000a'); g.addColorStop(0.6,'#06001a'); g.addColorStop(1,'#030010');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      let rg=ctx.createRadialGradient(W*.5,H*.7,0,W*.5,H*.7,W*.55);
+      rg.addColorStop(0,'rgba(120,0,180,0.22)'); rg.addColorStop(0.5,'rgba(80,0,140,0.07)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      rg=ctx.createRadialGradient(W*.5,H*.5,H*.15,W*.5,H*.5,W*.8);
+      rg.addColorStop(0,'transparent'); rg.addColorStop(1,'rgba(0,0,0,0.7)');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+    }, textActive:'#dd22ff', textDim:'rgba(180,0,255,0.60)', textPrev:'rgba(160,0,230,0.15)', progressBg:'rgba(120,0,200,0.10)', progressFg:'#bb00ee', shadowActive:'rgba(200,0,255,0.95)' },
+
+    // ── Vintage ──
+    cassette: { base: ['#1e1208','#2e1e0a'], bgFn(ctx,W,H) {
+      const g=ctx.createLinearGradient(0,0,W,H);
+      g.addColorStop(0,'#1e1208'); g.addColorStop(0.5,'#261808'); g.addColorStop(1,'#1a1006');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      const rg=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,W*.5);
+      rg.addColorStop(0,'rgba(255,160,30,0.15)'); rg.addColorStop(0.5,'rgba(200,110,10,0.05)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      const vgn=ctx.createRadialGradient(W*.5,H*.5,H*.2,W*.5,H*.5,W*.72);
+      vgn.addColorStop(0,'transparent'); vgn.addColorStop(1,'rgba(0,0,0,0.55)');
+      ctx.fillStyle=vgn; ctx.fillRect(0,0,W,H);
+    }, textActive:'#ffcc55', textDim:'rgba(255,190,60,0.55)', textPrev:'rgba(240,170,50,0.13)', progressBg:'rgba(180,120,0,0.12)', progressFg:'#e8a800', shadowActive:'rgba(255,200,80,0.92)' },
+
+    periodico: { base: ['#f0e8d0','#e8dcc0'], bgFn(ctx,W,H) {
+      const g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#f0e8d0'); g.addColorStop(0.5,'#ece0c0'); g.addColorStop(1,'#e4d8b8');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='rgba(80,50,0,0.12)'; ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle='rgba(100,70,20,0.06)'; ctx.lineWidth=1;
+      for(let y=0;y<H;y+=H*0.04){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    }, textActive:'#1a0800', textDim:'rgba(40,20,0,0.52)', textPrev:'rgba(30,15,0,0.15)', progressBg:'rgba(80,50,10,0.14)', progressFg:'#3a2000', shadowActive:'rgba(20,10,0,0.7)' },
+
+    vinilo_retro: { base: ['#180c04','#1e1008'], bgFn(ctx,W,H) {
+      const g=ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#180c04'); g.addColorStop(0.5,'#1c1006'); g.addColorStop(1,'#140b03');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      const rg=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,W*.48);
+      rg.addColorStop(0,'rgba(220,120,30,0.18)'); rg.addColorStop(0.5,'rgba(160,80,10,0.06)'); rg.addColorStop(1,'transparent');
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle='rgba(150,80,20,0.08)'; ctx.lineWidth=1;
+      const rcx=W*.5,rcy=H*.5;
+      for(let r=H*.06;r<W*.52;r+=H*.035){ctx.beginPath();ctx.arc(rcx,rcy,r,0,Math.PI*2);ctx.stroke();}
+    }, textActive:'#ff9922', textDim:'rgba(255,140,30,0.58)', textPrev:'rgba(240,120,20,0.14)', progressBg:'rgba(180,90,0,0.12)', progressFg:'#dd6600', shadowActive:'rgba(255,130,30,0.92)' },
   };
 
   const ANIMATIONS = {
@@ -2623,6 +2774,190 @@ const Renderer = (() => {
         ctx.fillRect(0, baseY, W, thick);
       }
     },
+
+    // ── Urbano / Street ──────────────────────────────────────────────
+    ciudad: (ctx, W, H, t) => {
+      // City skyline with randomly lit windows
+      const bldgData = [
+        {x:0.00,w:0.10,h:0.55},{x:0.08,w:0.08,h:0.70},{x:0.15,w:0.12,h:0.60},
+        {x:0.26,w:0.09,h:0.80},{x:0.34,w:0.11,h:0.55},{x:0.44,w:0.08,h:0.72},
+        {x:0.51,w:0.13,h:0.85},{x:0.63,w:0.09,h:0.62},{x:0.71,w:0.10,h:0.74},
+        {x:0.80,w:0.08,h:0.58},{x:0.87,w:0.11,h:0.70},{x:0.92,w:0.10,h:0.50},
+      ];
+      bldgData.forEach((b, bi) => {
+        const bx = b.x*W, bw = b.w*W, by = H*(1-b.h), bh2 = H*b.h;
+        // Building silhouette
+        ctx.fillStyle = `rgba(12,14,22,0.92)`;
+        ctx.fillRect(bx, by, bw, bh2+2);
+        // Windows
+        const cols = Math.max(2, Math.floor(bw/12));
+        const rows = Math.max(3, Math.floor(bh2/16));
+        const ww = bw/cols*0.55, wh = bh2/rows*0.45;
+        for(let c=0;c<cols;c++) for(let r=0;r<rows;r++){
+          const wi = bi*100+c*13+r;
+          const on = Math.sin(t*(sr(wi+500)*1.2+0.4)+sr(wi+600)*6.28) > 0.05;
+          if(!on) continue;
+          const hue = [55,200,160,280,30][wi%5];
+          ctx.globalAlpha = 0.5+0.5*Math.abs(Math.sin(t*sr(wi+700)*0.8+sr(wi+800)*3));
+          ctx.fillStyle = `hsl(${hue},80%,72%)`;
+          ctx.fillRect(bx+(c+0.25)*bw/cols, by+(r+0.30)*bh2/rows, ww, wh);
+        }
+      });
+      ctx.globalAlpha=1;
+      // Street glow at bottom
+      const sg=ctx.createLinearGradient(0,H*0.82,0,H);
+      sg.addColorStop(0,'transparent'); sg.addColorStop(1,'rgba(30,90,200,0.20)');
+      ctx.fillStyle=sg; ctx.fillRect(0,H*0.82,W,H*0.18);
+    },
+
+    neon_city: (ctx, W, H, t) => {
+      // Neon sign flicker reflections on wet street
+      const signs = [
+        {x:0.12,y:0.3,hue:190,w:0.14,h:0.06},{x:0.38,y:0.25,hue:0,w:0.12,h:0.05},
+        {x:0.60,y:0.32,hue:290,w:0.15,h:0.06},{x:0.82,y:0.28,hue:60,w:0.11,h:0.05},
+        {x:0.5,y:0.15,hue:130,w:0.18,h:0.07},
+      ];
+      signs.forEach((s,si) => {
+        const flicker = Math.sin(t*7.4+si*2.1) > -0.55 ? 0.7+0.3*Math.abs(Math.sin(t*12+si)) : 0;
+        if(flicker < 0.01) return;
+        const sx=s.x*W, sy2=s.y*H, sw=s.w*W, sh2=s.h*H;
+        const g=ctx.createLinearGradient(sx,sy2,sx+sw,sy2+sh2);
+        g.addColorStop(0,`hsla(${s.hue},100%,70%,${flicker*0.32})`);
+        g.addColorStop(1,`hsla(${(s.hue+40)%360},100%,65%,${flicker*0.18})`);
+        ctx.shadowColor=`hsl(${s.hue},100%,65%)`; ctx.shadowBlur=18*flicker;
+        ctx.fillStyle=g; ctx.fillRect(sx,sy2,sw,sh2);
+        // Reflection on ground
+        ctx.save(); ctx.globalAlpha=flicker*0.18;
+        const refG=ctx.createLinearGradient(sx,H*0.78,sx,H);
+        refG.addColorStop(0,`hsl(${s.hue},100%,65%)`); refG.addColorStop(1,'transparent');
+        ctx.fillStyle=refG; ctx.fillRect(sx,H*0.78,sw,H*0.22);
+        ctx.restore();
+        ctx.shadowBlur=0;
+      });
+      ctx.globalAlpha=1;
+    },
+
+    subway: (ctx, W, H, t) => {
+      // Subway tiles + moving train light streaks
+      ctx.fillStyle='rgba(18,18,22,0.08)'; ctx.fillRect(0,0,W,H);
+      // Tile grid
+      const tw=W*0.055, th=H*0.09;
+      ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+      for(let x=0;x<W;x+=tw){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=th){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      // Moving light streaks (train windows)
+      [0,0.4,0.7].forEach((off,oi)=>{
+        const tx2=(((t*0.35+off)%1.4)-0.2)*W;
+        const stripH=H*0.12, stripY=H*(0.42+oi*0.04);
+        const hue=[55,180,260][oi];
+        const sg=ctx.createLinearGradient(tx2,0,tx2+W*0.12,0);
+        sg.addColorStop(0,'transparent');
+        sg.addColorStop(0.25,`hsla(${hue},80%,85%,0.18)`);
+        sg.addColorStop(0.5,`hsla(${hue},90%,92%,0.28)`);
+        sg.addColorStop(0.75,`hsla(${hue},80%,85%,0.18)`);
+        sg.addColorStop(1,'transparent');
+        ctx.fillStyle=sg; ctx.fillRect(tx2,stripY,W*0.12,stripH);
+      });
+    },
+
+    // ── Bola de espejos / Disco ──
+    bola_discoteca: (ctx, W, H, t) => {
+      // Mirror ball: rotating ball + scattered colored light spots
+      const bx=W*0.5, by=H*0.12, bR=Math.min(W,H)*0.045;
+      ctx.fillStyle='rgba(0,0,0,0.18)'; ctx.fillRect(0,0,W,H);
+      // Scattered light flecks on walls/floor
+      for(let i=0;i<55;i++) {
+        const ang=(i/55)*Math.PI*2+t*(0.7+(i%3)*0.12);
+        const dist=Math.min(W,H)*(0.22+sr(i*5)*0.58);
+        const hue=(i*7+t*28)%360;
+        const flicker=Math.sin(t*7+i*1.5);
+        const alpha=Math.max(0,flicker)*0.55*(0.6+0.4*sr(i*9));
+        if(alpha<0.04) continue;
+        const fx=bx+Math.cos(ang)*dist, fy=by+Math.sin(ang)*dist;
+        const sg=ctx.createRadialGradient(fx,fy,0,fx,fy,W*0.038);
+        sg.addColorStop(0,`hsla(${hue},100%,88%,${alpha})`);
+        sg.addColorStop(1,'transparent');
+        ctx.fillStyle=sg; ctx.fillRect(0,0,W,H);
+      }
+      // The mirror ball itself
+      ctx.save(); ctx.translate(bx,by); ctx.rotate(t*0.45);
+      const bg=ctx.createRadialGradient(-bR*0.35,-bR*0.35,0,0,0,bR);
+      bg.addColorStop(0,'#e0e0e0'); bg.addColorStop(0.45,'#808080'); bg.addColorStop(1,'#181818');
+      ctx.beginPath(); ctx.arc(0,0,bR,0,Math.PI*2); ctx.fillStyle=bg; ctx.fill();
+      // Facet grid
+      ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=0.7;
+      for(let f=0;f<8;f++){const a=f/8*Math.PI*2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*bR,Math.sin(a)*bR);ctx.stroke();}
+      for(let r=1;r<4;r++){ctx.beginPath();ctx.arc(0,0,bR*r/4,0,Math.PI*2);ctx.stroke();}
+      // Glinting facets
+      for(let f=0;f<14;f++){
+        const fa=(f/14)*Math.PI*2, d=bR*0.56;
+        ctx.fillStyle=`hsla(${(f*26+t*55)%360},100%,90%,0.75)`;
+        ctx.beginPath();ctx.arc(Math.cos(fa)*d,Math.sin(fa)*d,bR*0.075,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+      // Hanging wire
+      ctx.strokeStyle='rgba(160,160,160,0.45)'; ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(bx,0);ctx.lineTo(bx,by-bR*1.05);ctx.stroke();
+      ctx.globalAlpha=1;
+    },
+
+    discofloor: (ctx, W, H, t) => {
+      // Animated flashing tile grid at bottom 25% — disco dance floor
+      const rows=7, cols=14;
+      const floorY=H*0.75, floorH=H*0.25;
+      const tW=W/cols, tH=floorH/rows;
+      ctx.save();
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const idx=r*cols+c;
+          const phase=(t*(1.2+sr(idx*3)*1.8)+sr(idx*5)*6.28)%(Math.PI*2);
+          const on=Math.sin(phase)>0.15;
+          if(!on) continue;
+          const hue=(idx*22+t*38)%360;
+          const bright=0.5+0.5*Math.sin(phase);
+          ctx.save();
+          ctx.fillStyle=`hsla(${hue},100%,${50+18*bright}%,${0.22*bright})`;
+          ctx.shadowColor=`hsl(${hue},100%,65%)`; ctx.shadowBlur=9;
+          ctx.fillRect(c*tW,floorY+r*tH,tW-1,tH-1);
+          ctx.restore();
+        }
+      }
+      ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+      for(let c=0;c<=cols;c++){ctx.beginPath();ctx.moveTo(c*tW,floorY);ctx.lineTo(c*tW,floorY+floorH);ctx.stroke();}
+      for(let r=0;r<=rows;r++){ctx.beginPath();ctx.moveTo(0,floorY+r*tH);ctx.lineTo(W,floorY+r*tH);ctx.stroke();}
+      ctx.restore();
+    },
+
+    vintage_film: (ctx, W, H, t) => {
+      // Film grain + vignette + horizontal roll band — old cinema vibe
+      ctx.save();
+      // Film grain (cheap deterministic noise keyed on t)
+      ctx.globalAlpha=0.042;
+      const step=Math.max(3,Math.round(W/140));
+      for(let g2=0;g2<100;g2++){
+        const gx=sr(g2*7+t*210)*W, gy=sr(g2*11+t*210)*H;
+        const gv=Math.round(sr(g2*13+t*210)*255);
+        ctx.fillStyle=`rgb(${gv},${gv},${gv})`;
+        ctx.fillRect(gx,gy,step,step);
+      }
+      ctx.globalAlpha=1;
+      // Sepia vignette
+      const vgn=ctx.createRadialGradient(W*.5,H*.5,H*.15,W*.5,H*.5,W*.76);
+      vgn.addColorStop(0,'transparent');
+      vgn.addColorStop(0.65,'rgba(30,15,0,0.12)');
+      vgn.addColorStop(1,'rgba(50,25,5,0.42)');
+      ctx.globalAlpha=0.78; ctx.fillStyle=vgn; ctx.fillRect(0,0,W,H);
+      // Top/bottom film-burn bars
+      ctx.globalAlpha=0.2; ctx.fillStyle='rgba(0,0,0,1)';
+      ctx.fillRect(0,0,W,Math.round(H*0.014)); ctx.fillRect(0,H-Math.round(H*0.014),W,Math.round(H*0.014));
+      // Horizontal roll ghost band
+      const rollY=((t*0.14)%1)*H*1.35-H*0.1;
+      ctx.globalAlpha=0.055;
+      const rollG=ctx.createLinearGradient(0,rollY,0,rollY+H*0.07);
+      rollG.addColorStop(0,'transparent'); rollG.addColorStop(0.5,'rgba(255,255,255,1)'); rollG.addColorStop(1,'transparent');
+      ctx.fillStyle=rollG; ctx.fillRect(0,rollY,W,H*0.07);
+      ctx.restore();
+    },
   };
 
   const ANIMATION_LIST = [
@@ -2712,6 +3047,15 @@ const Renderer = (() => {
     { id: 'campo',             label: 'Campo',      emoji: '🌾', cat: 'naturaleza' },
     { id: 'cerezos',           label: 'Cerezos',    emoji: '🌸', cat: 'tematico' },
     { id: 'urbano',            label: 'Urbano',     emoji: '🏙️', cat: 'tematico' },
+    // Urbano / Street
+    { id: 'ciudad',            label: 'Ciudad',       emoji: '🏙️', cat: 'urbano' },
+    { id: 'neon_city',         label: 'Neon City',    emoji: '🌃', cat: 'urbano' },
+    { id: 'subway',            label: 'Metro',        emoji: '🚇', cat: 'urbano' },
+    // Música / Disco
+    { id: 'bola_discoteca',    label: 'Bola de Espejos', emoji: '🪩', cat: 'musica' },
+    { id: 'discofloor',        label: 'Pista de Baile',  emoji: '🕺', cat: 'festivo' },
+    // Retro
+    { id: 'vintage_film',      label: 'Película Vintage', emoji: '🎞️', cat: 'retro' },
     // Psicodélico / Hipnótico / Espacial
     { id: 'psicodelico',       label: 'Psicodélico',    emoji: '🌀', cat: 'psicodelico' },
     { id: 'hipnotico_espiral', label: 'Hipnótico',      emoji: '🔮', cat: 'psicodelico' },
@@ -2736,6 +3080,8 @@ const Renderer = (() => {
     { id: 'musica',      label: 'Música' },
     { id: 'festivo',     label: 'Festivo' },
     { id: 'tematico',    label: 'Temático' },
+    { id: 'urbano',      label: '🏙️ Urbano / Street' },
+    { id: 'retro',       label: '📼 Retro / Vintage' },
     { id: 'psicodelico', label: '🌀 Psicodélico' },
     ...(ENABLE_CANCIONES ? [{ id: 'canciones', label: '🎵 Canciones' }] : []),
   ];
@@ -2789,6 +3135,18 @@ const Renderer = (() => {
     { id: 'vintage_sepia',   label: 'Vintage Sepia',   emoji: '☕', cat: 'gradiente' },
     { id: 'nevada',          label: 'Nevada',          emoji: '❄️', cat: 'gradiente' },
     { id: 'nebulosa_cosmica',label: 'Nebulosa Cósmica', emoji: '🔮', cat: 'gradiente' },
+    // Urbano / Street
+    { id: 'asfalto',     label: 'Asfalto',      emoji: '🏙️', cat: 'urbano' },
+    { id: 'grafiti',     label: 'Grafiti',      emoji: '🎨', cat: 'urbano' },
+    { id: 'trap',        label: 'Trap',         emoji: '🟡', cat: 'urbano' },
+    { id: 'cypher',      label: 'Cypher',       emoji: '🔴', cat: 'urbano' },
+    { id: 'barrio',      label: 'Barrio',       emoji: '💙', cat: 'urbano' },
+    { id: 'hormigon',    label: 'Hormigón',     emoji: '🧱', cat: 'urbano' },
+    { id: 'underground', label: 'Underground',  emoji: '🟣', cat: 'urbano' },
+    // Vintage
+    { id: 'cassette',    label: 'Cassette',     emoji: '📼', cat: 'vintage' },
+    { id: 'periodico',   label: 'Periódico',    emoji: '📰', cat: 'vintage' },
+    { id: 'vinilo_retro',label: 'Vinilo Retro', emoji: '🟠', cat: 'vintage' },
   ];
 
   const THEME_CATEGORIES = [
@@ -2797,9 +3155,11 @@ const Renderer = (() => {
     { id: 'vibrante',  label: 'Vibrante' },
     { id: 'textura',   label: 'Efectos & Textura' },
     { id: 'gradiente', label: 'Gradientes & Motivos' },
+    { id: 'urbano',    label: '🏙️ Urbano / Street' },
+    { id: 'vintage',   label: '📼 Vintage / Retro' },
   ];
 
-  /* ── Foreground overlay effects (render AFTER text) ── */
+  /* ── Foreground overlay effects (rendered above background, below lyrics text) ── */
   const OVERLAYS = {
     none: () => {},
 
@@ -3309,6 +3669,337 @@ const Renderer = (() => {
       }
       ctx.globalAlpha = 1; ctx.restore();
     },
+
+    // ── Urbano / Street overlays ──────────────────────────────────
+    spray: (ctx, W, H, t) => {
+      // Spray-paint droplets drifting upward
+      DATA.sprayDrops.forEach(s => {
+        const y = 1 - ((s.y + t * s.spd) % 1);
+        const x = s.x + Math.sin(t * 0.8 + s.ph) * s.drift * 4;
+        const fade = Math.min(1, Math.min(y * 8, (1 - y) * 8)) * 0.48;
+        if (fade < 0.02) return;
+        const r2 = s.r * W / 1800;
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = `hsl(${s.hue},90%,62%)`;
+        ctx.shadowColor = `hsl(${s.hue},100%,55%)`; ctx.shadowBlur = r2 * 3;
+        ctx.beginPath(); ctx.arc(x*W, y*H, r2, 0, 6.28); ctx.fill();
+        // Tiny trail
+        ctx.fillStyle = `hsl(${s.hue},85%,70%)`;
+        ctx.beginPath(); ctx.arc(x*W, y*H + r2*1.8, r2*0.55, 0, 6.28); ctx.fill();
+      });
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    },
+
+    cadenas: (ctx, W, H, t) => {
+      // Retro microphone silhouettes floating upward — karaoke/music vibe
+      DATA.chainLinks.forEach((m, i) => {
+        const y = 1 - ((m.y + t * m.spd) % 1);
+        const x = m.x + Math.sin(t * 0.55 + m.ph) * m.drift * 3;
+        const fade = Math.min(1, Math.min(y * 8, (1 - y) * 8)) * 0.58;
+        if (fade < 0.02) return;
+        const sz  = m.sz * W * 0.85;
+        const mcx = x * W, mcy = y * H;
+        const hue = (i * 27 + t * 10) % 360;
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.strokeStyle = `hsl(${hue},80%,68%)`;
+        ctx.lineWidth   = Math.max(1, sz * 0.11);
+        ctx.shadowColor = `hsl(${hue},100%,72%)`;
+        ctx.shadowBlur  = sz * 0.55;
+        ctx.lineCap = 'round';
+        // Head (rounded capsule)
+        const hw = sz * 0.30, hh = sz * 0.40;
+        const hy = mcy - sz * 0.08;
+        ctx.fillStyle = `hsla(${hue},65%,18%,0.55)`;
+        ctx.beginPath(); ctx.roundRect(mcx - hw, hy - hh, hw * 2, hh * 2, hw * 0.52); ctx.fill(); ctx.stroke();
+        // Grille lines
+        ctx.lineWidth = Math.max(0.5, sz * 0.055);
+        ctx.globalAlpha = fade * 0.5;
+        for (let g = -1; g <= 1; g++) {
+          ctx.beginPath(); ctx.moveTo(mcx - hw * 0.82, hy + g * hh * 0.36); ctx.lineTo(mcx + hw * 0.82, hy + g * hh * 0.36); ctx.stroke();
+        }
+        ctx.beginPath(); ctx.moveTo(mcx, hy - hh * 0.82); ctx.lineTo(mcx, hy + hh * 0.82); ctx.stroke();
+        // Handle
+        ctx.globalAlpha = fade;
+        ctx.lineWidth = Math.max(1, sz * 0.13);
+        ctx.beginPath(); ctx.moveTo(mcx, hy + hh + sz * 0.08); ctx.lineTo(mcx, mcy + sz * 0.60); ctx.stroke();
+        // Base spread
+        ctx.lineWidth = Math.max(1, sz * 0.11);
+        ctx.beginPath(); ctx.moveTo(mcx - sz * 0.26, mcy + sz * 0.60); ctx.lineTo(mcx + sz * 0.26, mcy + sz * 0.60); ctx.stroke();
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    },
+
+    dolares: (ctx, W, H, t) => {
+      // Spinning gold coins with 3D squish / flip effect
+      DATA.bills.forEach((b, i) => {
+        const y = (b.y + t * b.spd) % 1;
+        const x = b.x + Math.sin(t * 0.5 + b.ph) * b.drift * 3.5;
+        const fade = Math.min(1, Math.min(y * 6, (1 - y) * 6)) * 0.72;
+        if (fade < 0.02) return;
+        const R  = Math.max(7, b.w * W * 0.42);
+        const ccx = x * W, ccy = y * H;
+        // 3D spin: scaleX oscillates cos → -1..1, giving the flip illusion
+        const spinAng = b.rot + t * (b.spin * 9 + 1.8);
+        const scaleX  = Math.cos(spinAng);
+        const absS    = Math.abs(scaleX);
+        const coinW   = R * Math.max(0.05, absS);
+        const coinH   = R;
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.translate(ccx, ccy);
+        // Coin disc
+        const grd = ctx.createLinearGradient(-coinW, -coinH, coinW, coinH);
+        if (scaleX >= 0) {
+          grd.addColorStop(0,    '#ffe87a'); grd.addColorStop(0.3, '#ffd700');
+          grd.addColorStop(0.65, '#c89000'); grd.addColorStop(1,   '#a07000');
+        } else {
+          grd.addColorStop(0, '#c8a800'); grd.addColorStop(0.5, '#a87800'); grd.addColorStop(1, '#7a5a00');
+        }
+        ctx.fillStyle = grd;
+        ctx.shadowColor = '#ffd700'; ctx.shadowBlur = R * 0.75;
+        ctx.beginPath(); ctx.ellipse(0, 0, coinW, coinH, 0, 0, Math.PI * 2); ctx.fill();
+        // Face details when front-facing enough
+        if (absS > 0.30) {
+          // Inner circle ridge
+          ctx.globalAlpha = fade * absS * 0.45;
+          ctx.strokeStyle = 'rgba(255,210,50,0.55)'; ctx.lineWidth = Math.max(0.8, R * 0.06);
+          ctx.shadowBlur = 0;
+          ctx.beginPath(); ctx.ellipse(0, 0, coinW * 0.76, coinH * 0.76, 0, 0, Math.PI * 2); ctx.stroke();
+          // "$" symbol
+          ctx.globalAlpha = fade * absS * 0.55;
+          ctx.fillStyle = 'rgba(90,55,0,0.85)';
+          ctx.font = `bold ${Math.round(coinH * 0.70)}px serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.shadowBlur = 0;
+          ctx.fillText('$', 0, coinH * 0.04);
+          // Specular top highlight
+          ctx.globalAlpha = fade * absS * 0.40;
+          const hl = ctx.createRadialGradient(-coinW * 0.28, -coinH * 0.32, 0, -coinW * 0.1, -coinH * 0.1, coinH * 0.6);
+          hl.addColorStop(0, 'rgba(255,255,210,0.85)'); hl.addColorStop(1, 'rgba(255,255,200,0)');
+          ctx.fillStyle = hl;
+          ctx.beginPath(); ctx.ellipse(0, 0, coinW, coinH, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    },
+
+    humo_urbano: (ctx, W, H, t) => {
+      // Thick smoke rings drifting upward — rap/hip-hop vibe
+      DATA.orbs.slice(0, 22).forEach((p, i) => {
+        const y = 1 - ((p.y + t * p.spd * 0.4) % 1);
+        const x = p.x + Math.sin(t * 0.25 + p.ph) * 0.08;
+        const fade = y * (1 - y) * 3.5;
+        if (fade < 0.01) return;
+        const ringR = (p.r * 9 + y * 55) * W / 550;
+        const thick = ringR * 0.22;
+        ctx.save();
+        ctx.globalAlpha = fade * 0.28;
+        ctx.strokeStyle = 'rgba(210,210,215,0.9)';
+        ctx.lineWidth = thick;
+        ctx.beginPath(); ctx.arc((x % 1) * W, y * H, ringR, 0, 6.28); ctx.stroke();
+        // Second smaller inner ring
+        ctx.globalAlpha = fade * 0.14;
+        ctx.beginPath(); ctx.arc((x % 1) * W, y * H, ringR * 0.55, 0, 6.28); ctx.stroke();
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1;
+    },
+
+    // ── Bola de espejos / Retro ──
+    bola_espejos: (ctx, W, H, t) => {
+      // Realistic disco mirror ball: visible sphere with mosaic tiles + sweeping light patches
+      const ballR  = Math.max(28, W * 0.042);
+      const ballX  = W * 0.5;
+      const ballY  = ballR * 0.9;
+
+      ctx.save();
+      // Ball base gradient (sphere illusion)
+      const ballGrd = ctx.createRadialGradient(
+        ballX - ballR * 0.28, ballY - ballR * 0.28, ballR * 0.04,
+        ballX, ballY, ballR);
+      ballGrd.addColorStop(0,   'rgba(230,240,255,0.92)');
+      ballGrd.addColorStop(0.3, 'rgba(160,185,220,0.78)');
+      ballGrd.addColorStop(0.7, 'rgba(80,95,130,0.60)');
+      ballGrd.addColorStop(1,   'rgba(20,22,38,0.82)');
+      ctx.fillStyle = ballGrd;
+      ctx.beginPath(); ctx.arc(ballX, ballY, ballR, 0, Math.PI * 2); ctx.fill();
+
+      // Mosaic mirror tiles via spherical grid
+      const ROWS = 9, COLS = 18;
+      for (let row = 0; row < ROWS; row++) {
+        const phi0 = (row / ROWS) * Math.PI;
+        const phi1 = ((row + 1) / ROWS) * Math.PI;
+        const midPhi = (phi0 + phi1) * 0.5;
+        const rowSin = Math.sin(midPhi);
+        for (let col = 0; col < COLS; col++) {
+          const theta = (col / COLS) * Math.PI * 2 + t * 0.55;
+          const cos_t = Math.cos(theta), sin_t = Math.sin(theta);
+          const tx3 = cos_t * rowSin;
+          const ty3 = Math.cos(midPhi);
+          const tz3 = sin_t * rowSin;
+          if (tz3 < -0.05) continue;          // back-facing tiles hidden
+          const px = ballX + tx3 * ballR;
+          const py = ballY - ty3 * ballR;
+          // Tile size: smaller near poles, larger at equator; depth-scaled
+          const tileHalf = Math.max(1.2, ballR * rowSin * 0.22 * (0.55 + tz3 * 0.45));
+          // Light contribution from a point source (upper-left)
+          const lightDot = Math.max(0, tx3 * (-0.4) + ty3 * 0.7 + tz3 * 0.6);
+          const tileBrightness = lightDot * 0.9 + 0.08;
+          const hue = (col * 20 + row * 40 + t * 28) % 360;
+          ctx.globalAlpha = (0.35 + tileBrightness * 0.55) * 0.82;
+          if (lightDot > 0.72) {
+            ctx.fillStyle = `rgba(255,255,255,${(lightDot - 0.72) * 3.2 * 0.9})`;
+          } else {
+            ctx.fillStyle = `hsl(${hue},70%,${55 + lightDot * 30}%)`;
+          }
+          ctx.fillRect(px - tileHalf, py - tileHalf, tileHalf * 2, tileHalf * 2);
+        }
+      }
+
+      // Specular highlight (top-left of sphere)
+      ctx.globalAlpha = 0.60;
+      const spec = ctx.createRadialGradient(
+        ballX - ballR * 0.32, ballY - ballR * 0.32, 0,
+        ballX - ballR * 0.12, ballY - ballR * 0.12, ballR * 0.60);
+      spec.addColorStop(0, 'rgba(255,255,255,0.98)');
+      spec.addColorStop(0.25, 'rgba(255,255,255,0.45)');
+      spec.addColorStop(1,   'rgba(255,255,255,0)');
+      ctx.fillStyle = spec;
+      ctx.beginPath(); ctx.arc(ballX, ballY, ballR, 0, Math.PI * 2); ctx.fill();
+
+      // Hanging wire
+      ctx.globalAlpha = 0.38;
+      ctx.strokeStyle = 'rgba(180,190,210,0.7)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(ballX, 0); ctx.lineTo(ballX, ballY - ballR); ctx.stroke();
+      ctx.restore();
+
+      // ── Rotating colored light patches (sweeping across the room) ──
+      const NUM_BEAMS = 8;
+      for (let b = 0; b < NUM_BEAMS; b++) {
+        // Beams sweep at slightly different angular speeds
+        const ang = (b / NUM_BEAMS) * Math.PI * 2 + t * (0.55 + b * 0.042);
+        const dist = Math.min(W, H) * (0.32 + Math.sin(t * 0.7 + b * 1.1) * 0.14);
+        const hue2 = (b * 45 + t * 22) % 360;
+        const fx2 = ballX + Math.cos(ang) * dist;
+        const fy2 = ballY + Math.sin(ang) * dist;
+        const flicker = Math.max(0, Math.sin(t * 16 + b * 3.7));
+        const alpha2  = flicker * 0.62 * (0.45 + 0.55 * sr(b * 11));
+        if (alpha2 < 0.03) continue;
+        const pW = Math.max(4, W * 0.018);
+        const pH = Math.max(2.5, W * 0.010);
+        ctx.save();
+        ctx.globalAlpha = alpha2;
+        ctx.translate(fx2, fy2); ctx.rotate(ang + Math.PI * 0.5);
+        ctx.shadowColor = `hsl(${hue2},100%,80%)`; ctx.shadowBlur = pW * 2.5;
+        const pg = ctx.createRadialGradient(0, 0, 0, 0, 0, pW * 2);
+        pg.addColorStop(0,   `hsl(${hue2},100%,96%)`);
+        pg.addColorStop(0.45,`hsl(${hue2},90%,72%)`);
+        pg.addColorStop(1,   `hsla(${hue2},80%,55%,0)`);
+        ctx.fillStyle = pg;
+        ctx.fillRect(-pW, -pH, pW * 2, pH * 2);
+        ctx.restore();
+      }
+
+      // ── Small scattered sparkle flecks ──
+      for (let i = 0; i < 55; i++) {
+        const ang3 = (i / 55) * Math.PI * 2 + t * (0.48 + sr(i * 3) * 0.38);
+        const dist3 = Math.min(W, H) * (0.10 + sr(i * 5) * 0.80);
+        const hue3  = (i * 7 + t * 34) % 360;
+        const flk   = Math.sin(t * 11 + i * 1.9);
+        const al3   = Math.max(0, flk) * 0.55 * (0.45 + 0.55 * sr(i * 9));
+        if (al3 < 0.04) continue;
+        const fx3 = ballX + Math.cos(ang3) * dist3;
+        const fy3 = ballY + Math.sin(ang3) * dist3;
+        if (fx3 < 0 || fx3 > W || fy3 < 0 || fy3 > H) continue;
+        const fR3 = Math.max(1.2, (W / 1920) * (1.6 + sr(i * 11) * 3.2));
+        ctx.save();
+        ctx.shadowColor = `hsl(${hue3},100%,90%)`; ctx.shadowBlur = fR3 * 4;
+        ctx.globalAlpha = al3;
+        ctx.fillStyle   = `hsl(${hue3},100%,94%)`;
+        ctx.beginPath(); ctx.arc(fx3, fy3, fR3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    },
+
+    lluvia_tags: (ctx, W, H, t) => {
+      // Vinyl record silhouettes floating upward — universal music / urban vibe
+      DATA.orbs.slice(0, 18).forEach((p, i) => {
+        const y = 1 - ((p.y + t * p.spd * 0.52) % 1);
+        const x = (p.x + Math.sin(t * 0.45 + p.ph) * 0.038) % 1;
+        const fade = Math.min(1, Math.min(y * 8, (1 - y) * 8)) * 0.50;
+        if (fade < 0.02) return;
+        const R   = Math.max(10, (p.r * 5 + 13) * W / 1920);
+        const vcx = x * W, vcy = y * H;
+        const spin = t * (0.55 + sr(i * 3) * 0.38);
+        const labelHue = (i * 47 + t * 16) % 360;
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.shadowColor = `hsl(${labelHue},72%,62%)`;
+        ctx.shadowBlur  = R * 0.80;
+        ctx.translate(vcx, vcy); ctx.rotate(spin);
+        // Record disc
+        const recGrd = ctx.createRadialGradient(0, 0, R * 0.07, 0, 0, R);
+        recGrd.addColorStop(0,    'rgba(35,15,55,0.95)');
+        recGrd.addColorStop(0.27, 'rgba(18,8,28,0.90)');
+        recGrd.addColorStop(0.28, 'rgba(28,12,42,0.70)');
+        recGrd.addColorStop(0.72, 'rgba(14,7,20,0.85)');
+        recGrd.addColorStop(1,    'rgba(22,10,32,0.75)');
+        ctx.fillStyle = recGrd;
+        ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+        // Groove rings
+        ctx.strokeStyle = 'rgba(75,45,95,0.48)'; ctx.lineWidth = 0.8;
+        for (let rr = 0.34; rr < 0.96; rr += 0.087) {
+          ctx.beginPath(); ctx.arc(0, 0, R * rr, 0, Math.PI * 2); ctx.stroke();
+        }
+        // Center label
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = `hsl(${labelHue},68%,42%)`;
+        ctx.beginPath(); ctx.arc(0, 0, R * 0.27, 0, Math.PI * 2); ctx.fill();
+        // Label inner ring
+        ctx.strokeStyle = `hsl(${labelHue},50%,55%)`; ctx.lineWidth = R * 0.04;
+        ctx.beginPath(); ctx.arc(0, 0, R * 0.20, 0, Math.PI * 2); ctx.stroke();
+        // Center hole
+        ctx.fillStyle = 'rgba(0,0,0,0.92)';
+        ctx.beginPath(); ctx.arc(0, 0, R * 0.063, 0, Math.PI * 2); ctx.fill();
+        // Light sheen
+        ctx.globalAlpha = fade * 0.16;
+        const sheen = ctx.createLinearGradient(-R, -R * 0.9, R * 0.5, R * 0.4);
+        sheen.addColorStop(0, 'rgba(255,255,255,0.72)');
+        sheen.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = sheen;
+        ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    },
+
+    tv_static: (ctx, W, H, t) => {
+      // Vintage TV: static grain + scanlines + horizontal roll band
+      ctx.save();
+      const step = Math.max(3, Math.round(W / 160));
+      ctx.globalAlpha = 0.038;
+      for (let g3 = 0; g3 < 90; g3++) {
+        const gx = sr(g3 * 7 + t * 220) * W, gy = sr(g3 * 11 + t * 220) * H;
+        if (sr(g3 * 13 + t * 220) > 0.65) {
+          ctx.fillStyle = 'rgba(255,255,255,1)';
+          ctx.fillRect(gx, gy, step, step);
+        }
+      }
+      // Scanlines
+      ctx.globalAlpha = 0.065; ctx.fillStyle = 'rgba(0,0,0,1)';
+      for (let sl = 0; sl < H; sl += 3) ctx.fillRect(0, sl, W, 1);
+      // Ghost roll band
+      const ry = ((t * 0.13) % 1) * H * 1.4 - H * 0.08;
+      ctx.globalAlpha = 0.055;
+      const rg = ctx.createLinearGradient(0, ry, 0, ry + H * 0.08);
+      rg.addColorStop(0, 'transparent'); rg.addColorStop(0.5, 'rgba(255,255,255,1)'); rg.addColorStop(1, 'transparent');
+      ctx.fillStyle = rg; ctx.fillRect(0, ry, W, H * 0.08);
+      ctx.restore();
+    },
   };
 
   const OVERLAY_LIST = [
@@ -3341,6 +4032,16 @@ const Renderer = (() => {
     { id: 'aurora_boreal', label: 'Aurora Boreal', emoji: '🌌', cat: 'scifi' },
     // Retro
     { id: 'scanlines',     label: 'Scanlines',     emoji: '📺', cat: 'retro' },
+    // Urbano
+    { id: 'spray',         label: 'Spray',         emoji: '🎨', cat: 'urbano' },
+    { id: 'cadenas',       label: 'Micrófonos',      emoji: '🎤', cat: 'urbano' },
+    { id: 'dolares',       label: 'Monedas',          emoji: '🪙', cat: 'urbano' },
+    { id: 'humo_urbano',   label: 'Humo',             emoji: '💨', cat: 'urbano' },
+    { id: 'lluvia_tags',   label: 'Vinilos',          emoji: '💿', cat: 'urbano' },
+    // Retro / Vintage
+    { id: 'tv_static',     label: 'TV Estática',    emoji: '📺', cat: 'retro' },
+    // Especial
+    { id: 'bola_espejos',  label: 'Bola de Espejos',emoji: '🪩', cat: 'especial' },
   ];
 
   const OVERLAY_CATEGORIES = [
@@ -3349,7 +4050,9 @@ const Renderer = (() => {
     { id: 'naturaleza', label: 'Naturaleza' },
     { id: 'festivo',    label: 'Festivo' },
     { id: 'scifi',      label: 'Sci-fi' },
-    { id: 'retro',      label: 'Retro' },
+    { id: 'retro',      label: 'Retro / Vintage' },
+    { id: 'urbano',     label: '🏙️ Urbano / Street' },
+    { id: 'especial',   label: '🪩 Especial' },
   ];
 
   /* ── Font list ── */
@@ -3373,6 +4076,23 @@ const Renderer = (() => {
     { id: 'comic',      label: 'Comic Neue',        family: "'Comic Neue', 'Comic Sans MS', cursive",                 preview: 'Abc' },
     { id: 'boogaloo',   label: 'Boogaloo',          family: "'Boogaloo', cursive",                                    preview: 'Abc' },
     { id: 'pressstart', label: 'Press Start 2P',    family: "'Press Start 2P', monospace",                            preview: 'Abc' },
+    // Urbano / Street fonts
+    { id: 'black_ops',   label: 'Black Ops One',    family: "'Black Ops One', Impact, sans-serif",                    preview: 'Abc' },
+    { id: 'teko',        label: 'Teko',             family: "'Teko', 'Arial Narrow', sans-serif",                    preview: 'Abc' },
+    { id: 'exo2',        label: 'Exo 2',            family: "'Exo 2', 'Segoe UI', sans-serif",                       preview: 'Abc' },
+    { id: 'changa',      label: 'Changa One',       family: "'Changa One', Impact, sans-serif",                      preview: 'Abc' },
+    { id: 'barlow_cond', label: 'Barlow Condensed', family: "'Barlow Condensed', 'Arial Narrow', sans-serif",        preview: 'Abc' },
+    { id: 'ultra',       label: 'Ultra',            family: "'Ultra', Georgia, serif",                               preview: 'Abc' },
+    { id: 'fjalla',      label: 'Fjalla One',       family: "'Fjalla One', 'Franklin Gothic Medium', sans-serif",    preview: 'Abc' },
+    { id: 'space_mono',  label: 'Space Mono',       family: "'Space Mono', 'Courier New', monospace",                preview: 'Abc' },
+    { id: 'rubik_mono',  label: 'Rubik Mono One',   family: "'Rubik Mono One', Impact, sans-serif",                  preview: 'Abc' },
+    { id: 'graduate',    label: 'Graduate',         family: "'Graduate', 'Arial Black', sans-serif",                 preview: 'Abc' },
+    // Vintage / Retro fonts
+    { id: 'lobster',      label: 'Lobster',          family: "'Lobster', cursive",                                    preview: 'Abc' },
+    { id: 'abril',        label: 'Abril Fatface',    family: "'Abril Fatface', Georgia, serif",                       preview: 'Abc' },
+    { id: 'special_elite',label: 'Special Elite',   family: "'Special Elite', 'Courier New', monospace",             preview: 'Abc' },
+    { id: 'lilita',       label: 'Lilita One',       family: "'Lilita One', Impact, sans-serif",                      preview: 'Abc' },
+    { id: 'luckiest',     label: 'Luckiest Guy',     family: "'Luckiest Guy', 'Arial Black', cursive",               preview: 'Abc' },
   ];
 
   /* ── Text effects (applied when drawing active lyric line) ── */
@@ -3480,21 +4200,78 @@ const Renderer = (() => {
       ctx.shadowColor = color; ctx.shadowBlur = 28 * GI;
       ctx.fillStyle = color; ctx.fillText(txt, cx + ox, midY + oy); ctx.shadowBlur = 0;
     },
+
+    // ── Nuevos efectos ──
+    espejo: (ctx, txt, cx, midY, fsLg, color, GI, t) => {
+      // Mirror ball: base render + fast-flickering coloured sparkle dots orbiting the text
+      ctx.shadowColor = color; ctx.shadowBlur = 20 * GI;
+      ctx.fillStyle = color; ctx.fillText(txt, cx, midY); ctx.shadowBlur = 0;
+      const txtW = ctx.measureText(txt).width;
+      for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2 + t * 2.6;
+        const dist = txtW * (0.42 + sr(i * 7) * 0.38);
+        const fx = cx + Math.cos(ang) * dist;
+        const fy = midY + Math.sin(ang) * dist * (fsLg / Math.max(1, txtW)) * 0.88;
+        const flicker = Math.sin(t * 9.5 + i * 1.8);
+        if (flicker < 0) continue;
+        const hue = (i * 30 + t * 62) % 360;
+        ctx.save(); ctx.globalAlpha = flicker * 0.88;
+        ctx.shadowColor = `hsl(${hue},100%,92%)`; ctx.shadowBlur = fsLg * 0.24 * GI;
+        ctx.fillStyle = `hsl(${hue},100%,93%)`;
+        ctx.beginPath(); ctx.arc(fx, fy, Math.max(1.5, fsLg * 0.042), 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.shadowBlur = 0;
+    },
+
+    retro_glow: (ctx, txt, cx, midY, fsLg, color, GI, t) => {
+      // Warm amber/sepia flicker — vintage cassette/radio vibe
+      const flicker = 0.86 + 0.14 * Math.sin(t * 11.3) * (0.7 + 0.3 * Math.sin(t * 7.1));
+      ctx.shadowColor = '#ffaa33'; ctx.shadowBlur = (38 + 10 * flicker) * GI;
+      ctx.fillStyle = color; ctx.fillText(txt, cx, midY);
+      ctx.shadowColor = 'rgba(255,180,50,0.5)'; ctx.shadowBlur = (16 + 6 * flicker) * GI;
+      ctx.globalAlpha = 0.35; ctx.fillStyle = 'rgba(255,220,120,1)'; ctx.fillText(txt, cx, midY);
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    },
+
+    polvo: (ctx, txt, cx, midY, fsLg, color, GI, t) => {
+      // Dust particles drifting upward off the text
+      ctx.shadowColor = color; ctx.shadowBlur = 26 * GI;
+      ctx.fillStyle = color; ctx.fillText(txt, cx, midY); ctx.shadowBlur = 0;
+      const txtW = ctx.measureText(txt).width;
+      for (let i = 0; i < 16; i++) {
+        const baseX = cx - txtW / 2 + sr(i * 11) * txtW;
+        const drift = ((t * sr(i * 3 + 1) * 0.65 + sr(i * 7) * 4) % 4) / 4;
+        const px = baseX + (sr(i * 9) - 0.5) * txtW * 0.4 * drift;
+        const py = midY - fsLg * (0.38 + drift * 1.25);
+        const alpha = Math.max(0, 1 - drift) * 0.52 * (0.6 + 0.4 * Math.sin(t * 3.1 + i));
+        if (alpha < 0.02) continue;
+        ctx.save(); ctx.globalAlpha = alpha;
+        ctx.shadowColor = color; ctx.shadowBlur = 6 * GI;
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(px, py, Math.max(1, fsLg * 0.026), 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.shadowBlur = 0;
+    },
   };
 
   const TEXT_EFFECT_LIST = [
-    { id: 'none',        label: 'Ninguno',   emoji: '⬜' },
-    { id: 'neon',        label: 'Neón',      emoji: '⚡' },
-    { id: 'fuego_glow',  label: 'Fuego',     emoji: '🔥' },
-    { id: 'contorno',    label: 'Contorno',  emoji: '✏️' },
-    { id: 'latido',      label: 'Latido',    emoji: '💗' },
-    { id: 'arcoiris',    label: 'Arco iris', emoji: '🌈' },
-    { id: 'cromatico',   label: 'Cromático', emoji: '🔮' },
-    { id: 'sombra_ring', label: 'Anillo',    emoji: '🔵' },
-    { id: 'aparecer',    label: 'Aparecer',  emoji: '🌟' },
-    { id: 'subir',       label: 'Subir',     emoji: '⬆️' },
-    { id: 'typing',      label: 'Máquina',   emoji: '⌨️' },
-    { id: 'vibrar',      label: 'Vibrar',    emoji: '📣' },
+    { id: 'none',        label: 'Ninguno',      emoji: '⬜' },
+    { id: 'neon',        label: 'Neón',         emoji: '⚡' },
+    { id: 'fuego_glow',  label: 'Fuego',        emoji: '🔥' },
+    { id: 'contorno',    label: 'Contorno',     emoji: '✏️' },
+    { id: 'latido',      label: 'Latido',       emoji: '💗' },
+    { id: 'arcoiris',    label: 'Arco iris',    emoji: '🌈' },
+    { id: 'cromatico',   label: 'Cromático',    emoji: '🔮' },
+    { id: 'sombra_ring', label: 'Anillo',       emoji: '🔵' },
+    { id: 'aparecer',    label: 'Aparecer',     emoji: '🌟' },
+    { id: 'subir',       label: 'Subir',        emoji: '⬆️' },
+    { id: 'typing',      label: 'Máquina',      emoji: '⌨️' },
+    { id: 'vibrar',      label: 'Vibrar',       emoji: '📣' },
+    { id: 'espejo',      label: 'Bola Espejos', emoji: '🪩' },
+    { id: 'retro_glow',  label: 'Retro Glow',   emoji: '📼' },
+    { id: 'polvo',       label: 'Polvo',        emoji: '💫' },
   ];
 
   /* ── Fill / karaoke reveal styles ── */
@@ -3511,6 +4288,9 @@ const Renderer = (() => {
     { id: 'completo',     label: 'Línea completa',   emoji: '💡' },
     { id: 'pulso_linea',  label: 'Pulso total',      emoji: '🫀' },
     { id: 'ola_total',    label: 'Ola total',        emoji: '🎨' },
+    { id: 'espejo_fill',  label: 'Disco Espejos',    emoji: '🪩' },
+    { id: 'retro_fill',   label: 'Retro Ámbar',      emoji: '📼' },
+    { id: 'acido',        label: 'Ácido',            emoji: '🧪' },
   ];
 
   /* ── Progress bar styles ── */
@@ -3847,12 +4627,17 @@ const Renderer = (() => {
       titleFont = '', artistFont = '',
       titleGlow = 1.0, artistGlow = 0.6,
       titleShadowColor = '#000000', titleShadowBlur = 0,
-      titleShadowOffsetX = 0, titleShadowOffsetY = 2,
+      titleShadowOffsetX = 0, titleShadowOffsetY = 2, titleShadowOpacity = 1,
       artistShadowColor = '#000000', artistShadowBlur = 0,
-      artistShadowOffsetX = 0, artistShadowOffsetY = 2,
+      artistShadowOffsetX = 0, artistShadowOffsetY = 2, artistShadowOpacity = 1,
     } = introConfig;
     const T = THEMES[theme] || THEMES.classic;
     const exitTrans = (useSameTransOut || !transitionOut) ? transition : transitionOut;
+
+    // ── Reset critical state — prevent cross-frame contamination ──
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; ctx.shadowColor = 'transparent';
+    ctx.filter = 'none'; if (ctx.resetTransform) ctx.resetTransform();
 
     // ── 1. Theme background + animations ──
     _drawBg(ctx, W, H, T);
@@ -4154,6 +4939,67 @@ const Renderer = (() => {
         ctx.fillStyle = rg2; ctx.fillRect(0, 0, W, H);
       });
 
+    } else if (style === 'disco') {
+      // Mirror ball disco intro: dark club + rotating light beams + mirror ball
+      ctx.fillStyle = 'rgba(0,0,0,0.90)'; ctx.fillRect(0, 0, W, H);
+      const ballX = W * 0.5, ballY2 = H * 0.14;
+      const bR2 = Math.min(W, H) * 0.05;
+      for (let b = 0; b < 22; b++) {
+        const ang = (b / 22) * Math.PI * 2 + time * 0.75;
+        const hue = (b * 16 + time * 26) % 360;
+        const beamLen = Math.hypot(W, H) * 0.88;
+        const ebx = ballX + Math.cos(ang) * beamLen, eby = ballY2 + Math.sin(ang) * beamLen;
+        const beam = ctx.createLinearGradient(ballX, ballY2, ebx, eby);
+        beam.addColorStop(0, `hsla(${hue},100%,80%,0.16)`);
+        beam.addColorStop(0.6, `hsla(${hue},100%,70%,0.04)`);
+        beam.addColorStop(1, 'transparent');
+        ctx.save(); ctx.strokeStyle = beam; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(ballX, ballY2); ctx.lineTo(ebx, eby); ctx.stroke();
+        ctx.restore();
+      }
+      const floorG2 = ctx.createLinearGradient(0, H * 0.7, 0, H);
+      floorG2.addColorStop(0, 'transparent'); floorG2.addColorStop(1, 'rgba(30,30,80,0.28)');
+      ctx.fillStyle = floorG2; ctx.fillRect(0, H * 0.7, W, H * 0.3);
+      ctx.save(); ctx.translate(ballX, ballY2); ctx.rotate(time * 0.52);
+      const bg2 = ctx.createRadialGradient(-bR2 * 0.35, -bR2 * 0.35, 0, 0, 0, bR2);
+      bg2.addColorStop(0, '#e0e0e0'); bg2.addColorStop(0.5, '#808080'); bg2.addColorStop(1, '#181818');
+      ctx.beginPath(); ctx.arc(0, 0, bR2, 0, Math.PI * 2); ctx.fillStyle = bg2; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 0.7;
+      for (let f = 0; f < 8; f++) { const a = f / 8 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * bR2, Math.sin(a) * bR2); ctx.stroke(); }
+      for (let r = 1; r < 4; r++) { ctx.beginPath(); ctx.arc(0, 0, bR2 * r / 4, 0, Math.PI * 2); ctx.stroke(); }
+      for (let f = 0; f < 14; f++) {
+        const fa = (f / 14) * Math.PI * 2, d = bR2 * 0.56;
+        ctx.fillStyle = `hsla(${(f * 26 + time * 55) % 360},100%,88%,0.78)`;
+        ctx.beginPath(); ctx.arc(Math.cos(fa) * d, Math.sin(fa) * d, bR2 * 0.072, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(180,180,180,0.4)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(ballX, 0); ctx.lineTo(ballX, ballY2 - bR2 * 1.1); ctx.stroke();
+
+    } else if (style === 'calle') {
+      // Street/urban graffiti intro: brick wall + spray-paint corner glows + vignette
+      ctx.fillStyle = 'rgba(8,8,8,0.95)'; ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      const bW2 = W * 0.065, bH2 = H * 0.055;
+      ctx.strokeStyle = 'rgba(255,255,255,0.055)'; ctx.lineWidth = 1;
+      for (let row = 0; row < Math.ceil(H / bH2) + 1; row++) {
+        const boff = (row % 2) * bW2 * 0.5;
+        for (let col = -1; col < Math.ceil(W / bW2) + 1; col++) {
+          ctx.strokeRect(col * bW2 + boff, row * bH2, bW2, bH2);
+        }
+      }
+      ctx.restore();
+      [[0.08, 0.12, 280], [0.92, 0.14, 18], [0.12, 0.86, 125], [0.88, 0.88, 55]].forEach(([fx, fy, hue]) => {
+        const sg = ctx.createRadialGradient(fx * W, fy * H, 0, fx * W, fy * H, W * 0.28);
+        sg.addColorStop(0, `hsla(${hue},100%,62%,0.13)`);
+        sg.addColorStop(0.55, `hsla(${hue},100%,50%,0.04)`);
+        sg.addColorStop(1, 'transparent');
+        ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+      });
+      const vg2 = ctx.createRadialGradient(W * .5, H * .5, H * .1, W * .5, H * .5, W * .7);
+      vg2.addColorStop(0, 'transparent'); vg2.addColorStop(1, 'rgba(0,0,0,0.52)');
+      ctx.fillStyle = vg2; ctx.fillRect(0, 0, W, H);
+
     } else {
       ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, 0, W, H);
     }
@@ -4202,7 +5048,9 @@ const Renderer = (() => {
     }
 
     // ── 4. Layout ──
-    const fsBase   = Math.max(24, Math.round(fontSize * W / 1920));
+    // Use a fixed base size — independent of the lyrics `fontSize` setting so that
+    // changes in the "Text & Typography" panel do NOT affect the intro title size.
+    const fsBase   = Math.max(28, Math.round(52 * W / 1920));
     const fsTitle  = Math.round(fsBase * 1.8 * clampN(titleSize, 0.5, 2.0));
     const fsArtist = Math.round(fsTitle * clampN(artistRatio, 0.2, 1.0));
     const cx = W / 2, cy = H / 2;
@@ -4322,8 +5170,12 @@ const Renderer = (() => {
       ctx.restore();
     }
 
-    const _effectiveTitleFont  = titleFont  || fontFamily;
-    const _effectiveArtistFont = artistFont || fontFamily;
+    const _INTRO_DEFAULT_FONT  = "'Segoe UI', Arial, sans-serif";
+    const _effectiveTitleFont  = titleFont  || _INTRO_DEFAULT_FONT;
+    const _effectiveArtistFont = artistFont || _INTRO_DEFAULT_FONT;
+
+    // ── FG overlay (under title text, above background) ──
+    ctx.save(); (OVERLAYS[overlayEffect] || OVERLAYS.none)(ctx, W, H, bgT); ctx.restore();
 
     // Pre-measure
     ctx.font = `800 ${fsTitle}px ${_effectiveTitleFont}`;
@@ -4361,7 +5213,10 @@ const Renderer = (() => {
     /** Apply user-configured drop-shadow for title text */
     function _applyTitleShadow() {
       if (titleShadowBlur > 0) {
-        ctx.shadowColor   = titleShadowColor;
+        const a = clampN(titleShadowOpacity ?? 1, 0, 1);
+        ctx.shadowColor   = (a < 0.99 && typeof titleShadowColor === 'string' && /^#[0-9a-f]{6}$/i.test(titleShadowColor))
+          ? `rgba(${parseInt(titleShadowColor.slice(1,3),16)},${parseInt(titleShadowColor.slice(3,5),16)},${parseInt(titleShadowColor.slice(5,7),16)},${a.toFixed(3)})`
+          : titleShadowColor;
         ctx.shadowBlur    = titleShadowBlur;
         ctx.shadowOffsetX = titleShadowOffsetX;
         ctx.shadowOffsetY = titleShadowOffsetY;
@@ -4370,7 +5225,10 @@ const Renderer = (() => {
     /** Apply user-configured drop-shadow for artist text */
     function _applyArtistShadow() {
       if (artistShadowBlur > 0) {
-        ctx.shadowColor   = artistShadowColor;
+        const a = clampN(artistShadowOpacity ?? 1, 0, 1);
+        ctx.shadowColor   = (a < 0.99 && typeof artistShadowColor === 'string' && /^#[0-9a-f]{6}$/i.test(artistShadowColor))
+          ? `rgba(${parseInt(artistShadowColor.slice(1,3),16)},${parseInt(artistShadowColor.slice(3,5),16)},${parseInt(artistShadowColor.slice(5,7),16)},${a.toFixed(3)})`
+          : artistShadowColor;
         ctx.shadowBlur    = artistShadowBlur;
         ctx.shadowOffsetX = artistShadowOffsetX;
         ctx.shadowOffsetY = artistShadowOffsetY;
@@ -4394,7 +5252,7 @@ const Renderer = (() => {
 
     } else if (style === 'neon') {
       ctx.save(); ctx.globalAlpha *= 0.4;
-      ctx.font = `700 ${fsTitle}px ${fontFamily}`;
+      ctx.font = `700 ${fsTitle}px ${_effectiveTitleFont}`;
       ctx.shadowColor = titleColor; ctx.shadowBlur = 70; ctx.fillStyle = titleColor;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(titleDisplay, tX, tY);
@@ -4404,7 +5262,7 @@ const Renderer = (() => {
 
     } else if (style === 'cinematic') {
       const cinTitle = (title || '\u266b').toUpperCase();
-      ctx.font = `200 ${Math.round(fsTitle * 0.9)}px ${fontFamily}`;
+      ctx.font = `200 ${Math.round(fsTitle * 0.9)}px ${_effectiveTitleFont}`;
       const cinDisplay = _fit(ctx, cinTitle, W - 160);
       ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
       _drawTxt(cinDisplay, tX, tY, Math.round(fsTitle * 0.9), '200');
@@ -4433,7 +5291,7 @@ const Renderer = (() => {
 
     } else if (style === 'frame_neon') {
       ctx.save(); ctx.globalAlpha *= 0.45;
-      ctx.font = `700 ${fsTitle}px ${fontFamily}`;
+      ctx.font = `700 ${fsTitle}px ${_effectiveTitleFont}`;
       ctx.shadowColor = titleColor; ctx.shadowBlur = 80; ctx.fillStyle = titleColor;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(titleDisplay, tX, tY);
       ctx.restore();
@@ -4442,7 +5300,7 @@ const Renderer = (() => {
 
     } else if (style === 'luxury') {
       const luxTitle = (title || '\u266b').toUpperCase();
-      ctx.font = `200 ${Math.round(fsTitle * 0.9)}px ${fontFamily}`;
+      ctx.font = `200 ${Math.round(fsTitle * 0.9)}px ${_effectiveTitleFont}`;
       const luxDisplay = _fit(ctx, luxTitle, W - 160);
       ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
       _drawTxt(luxDisplay, tX, tY, Math.round(fsTitle * 0.9), '200');
@@ -4461,7 +5319,7 @@ const Renderer = (() => {
       const gSeed = Math.floor(time * 7);
       const gpr = s => Math.abs((s * 1664525 + 1013904223) & 0x7FFFFFFF) / 0x7FFFFFFF;
       ctx.save(); ctx.globalAlpha *= 0.5;
-      ctx.font = `800 ${fsTitle}px ${fontFamily}`;
+      ctx.font = `800 ${fsTitle}px ${_effectiveTitleFont}`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = '#ff0055'; ctx.fillText(titleDisplay, tX + gpr(gSeed) * 12 - 6, tY + gpr(gSeed + 1) * 8 - 4);
       ctx.fillStyle = '#00eeff'; ctx.fillText(titleDisplay, tX - gpr(gSeed + 2) * 10 + 5, tY - gpr(gSeed + 3) * 6 + 3);
@@ -4485,7 +5343,7 @@ const Renderer = (() => {
       ctx.shadowBlur = 0; ctx.fillStyle = titleColor;
       _drawTxt(titleDisplay, tX, tY, fsTitle, '900');
       // Colored accent bar above title text
-      ctx.font = `900 ${fsTitle}px ${fontFamily}`;
+      ctx.font = `900 ${fsTitle}px ${_effectiveTitleFont}`;
       const tw_ = ctx.measureText(titleDisplay).width;
       ctx.save(); ctx.globalAlpha *= 0.85; ctx.fillStyle = artistColor;
       ctx.fillRect(cx - tw_ / 2, tY - Math.round(fsTitle * 0.72), Math.min(W * 0.18, 240), Math.max(3, Math.round(fsTitle * 0.05)));
@@ -4503,7 +5361,7 @@ const Renderer = (() => {
       ctx.restore();
 
     } else if (style === 'gamer') {
-      ctx.font = `700 ${fsTitle}px ${fontFamily}`;
+      ctx.font = `700 ${fsTitle}px ${_effectiveTitleFont}`;
       const gSeed2 = Math.floor(time * 5);
       const gpr2 = s => Math.abs((s * 1664525 + 1013904223) & 0x7FFFFFFF) / 0x7FFFFFFF;
       ctx.save(); ctx.globalAlpha *= 0.35;
@@ -4521,7 +5379,7 @@ const Renderer = (() => {
       ctx.restore();
 
     } else if (style === 'metal') {
-      ctx.font = `900 ${fsTitle}px ${fontFamily}`;
+      ctx.font = `900 ${fsTitle}px ${_effectiveTitleFont}`;
       const metDisplay = _fit(ctx, title || '\u266b', W - 160);
       ctx.save(); ctx.globalAlpha *= 0.4;
       ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 40; ctx.fillStyle = '#ff4400';
@@ -4588,6 +5446,120 @@ const Renderer = (() => {
       ctx.arc(tX, tY - fsTitle * 0.6, Math.min(W, H) * 0.25, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
+
+    } else if (style === 'hologram') {
+      // Holographic: iridescent shifting rainbow layers + scanlines
+      const hHue = (time * 28) % 360;
+      ctx.save(); ctx.globalAlpha *= 0.38;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let h = 0; h < 3; h++) {
+        const hue = (hHue + h * 120) % 360;
+        ctx.font = `800 ${fsTitle}px ${_effectiveTitleFont}`;
+        ctx.shadowColor = `hsl(${hue},100%,65%)`; ctx.shadowBlur = 18;
+        ctx.fillStyle = `hsla(${hue},100%,65%,0.7)`;
+        ctx.fillText(titleDisplay, tX + Math.sin(time*1.5+h)*3, tY + Math.cos(time*1.2+h)*2);
+      }
+      ctx.restore();
+      ctx.fillStyle = '#e8f8ff'; ctx.shadowColor = `hsl(${hHue},70%,82%)`; ctx.shadowBlur = 14;
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '800');
+      // Scanline overlay — only draw visible lines to avoid transparent fillRect overhead
+      ctx.save(); ctx.globalAlpha *= 0.06; ctx.fillStyle = 'rgba(120,220,255,0.5)';
+      const _hlToggle = (time * 8) | 0;
+      for (let sy = 0; sy < H; sy += 4) {
+        if ((((sy / 4) | 0) + _hlToggle) % 2 === 0) ctx.fillRect(0, sy, W, 2);
+      }
+      ctx.restore();
+
+    } else if (style === 'fuego') {
+      // Fire glow — warm flame layers under/over title
+      ctx.save(); ctx.globalAlpha *= 0.45;
+      ctx.font = `900 ${fsTitle}px ${_effectiveTitleFont}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.shadowColor = '#ff1100'; ctx.shadowBlur = 32 + Math.sin(time * 5) * 8;
+      ctx.fillStyle = '#ff3300';
+      ctx.fillText(titleDisplay, tX, tY + 8);
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha *= 0.55;
+      ctx.font = `900 ${fsTitle}px ${_effectiveTitleFont}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.shadowColor = '#ff7700'; ctx.shadowBlur = 22;
+      ctx.fillStyle = '#ff6600';
+      ctx.fillText(titleDisplay, tX, tY); ctx.restore();
+      ctx.fillStyle = titleColor; ctx.shadowColor = '#ffdd00'; ctx.shadowBlur = 18 + Math.sin(time * 6) * 6;
+      _applyTitleShadow();
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '900');
+      _clearShadow();
+
+    } else if (style === 'periodico') {
+      // Old newspaper headline — dark paper tint + heavy serif lines
+      ctx.save(); ctx.globalAlpha *= 0.07;
+      ctx.fillStyle = 'rgba(240,225,185,0.5)'; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+      const newsTitle = (title || '\u266b').toUpperCase();
+      ctx.font = `900 ${Math.round(fsTitle * 0.88)}px Georgia, 'Times New Roman', serif`;
+      const newsDisplay = _fit(ctx, newsTitle, W - 120);
+      const nLine1Y = tY - Math.round(fsTitle * 0.72);
+      const nLine2Y = tY + Math.round(fsTitle * 0.65);
+      ctx.save(); ctx.globalAlpha *= 0.75; ctx.fillStyle = titleColor;
+      ctx.fillRect(cx - W * 0.38, nLine1Y - 7, W * 0.76, 4);
+      ctx.fillRect(cx - W * 0.38, nLine1Y - 2, W * 0.76, 1);
+      ctx.fillRect(cx - W * 0.38, nLine2Y + 2, W * 0.76, 4);
+      ctx.restore();
+      ctx.shadowBlur = 0; ctx.fillStyle = titleColor;
+      _drawTxt(newsDisplay, tX, tY, Math.round(fsTitle * 0.88), '900');
+
+    } else if (style === 'arcade') {
+      // Retro arcade CRT screen — dark bg + scanlines + green phosphor glow
+      ctx.save(); ctx.globalAlpha *= 0.8;
+      ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha *= 0.09;
+      for (let sy = 0; sy < H; sy += 4) {
+        ctx.fillStyle = '#00ff44'; ctx.fillRect(0, sy, W, 1);
+      }
+      const crtG = ctx.createRadialGradient(cx, cy, H * 0.15, cx, cy, H * 0.65);
+      crtG.addColorStop(0, 'rgba(0,255,60,0.25)'); crtG.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = crtG; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+      const arcColor = titleColor.startsWith('#') ? titleColor : '#00ff44';
+      ctx.fillStyle = arcColor; ctx.shadowColor = arcColor;
+      ctx.shadowBlur = 20 + Math.sin(time * 8) * 6;
+      _applyTitleShadow();
+      _drawTxt(titleDisplay, tX, tY, fsTitle, '700');
+      _clearShadow();
+
+    } else if (style === 'graffiti') {
+      // Street art graffiti — thick outline, color underpaint, drips
+      const gpr3 = s => Math.abs((s * 1664525 + 1013904223) & 0x7FFFFFFF) / 0x7FFFFFFF;
+      ctx.save(); ctx.globalAlpha *= 0.75;
+      ctx.font = `900 ${Math.round(fsTitle * 1.04)}px ${_effectiveTitleFont}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(5, fsTitle * 0.09); ctx.lineJoin = 'round';
+      ctx.strokeText(titleDisplay, tX, tY);
+      ctx.fillStyle = artistColor; ctx.shadowColor = artistColor; ctx.shadowBlur = 10;
+      ctx.fillText(titleDisplay, tX, tY);
+      ctx.restore();
+      ctx.fillStyle = titleColor; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 5;
+      _applyTitleShadow();
+      _drawTxt(titleDisplay, tX, tY, Math.round(fsTitle * 0.98), '900');
+      _clearShadow();
+      // Paint drips
+      ctx.save(); ctx.globalAlpha *= 0.4;
+      ctx.font = `900 ${fsTitle}px ${_effectiveTitleFont}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const drW = ctx.measureText(titleDisplay).width;
+      for (let d = 0; d < 5; d++) {
+        const dx = tX - drW * 0.38 + gpr3(d * 7) * drW * 0.76;
+        const dy = tY + fsTitle * 0.42;
+        const dh = gpr3(d * 13 +2) * fsTitle * 0.55 + fsTitle * 0.08;
+        const dr = gpr3(d * 5 + 3) * 3 + 2;
+        ctx.fillStyle = titleColor;
+        ctx.beginPath(); ctx.ellipse(dx, dy, dr, dr * 0.65, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(dx - dr * 0.45, dy, dr * 0.9, dh);
+        ctx.beginPath(); ctx.ellipse(dx, dy + dh, dr * 1.1, dr * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+
     } else {
       // Fallback rendering for styles without an explicit title block
       ctx.shadowColor = titleColor; ctx.shadowBlur = 20 * clampN(titleGlow, 0, 3);
@@ -4645,8 +5617,6 @@ const Renderer = (() => {
       _drawProgress(ctx, W, H, progT, progDur, progressBarStyle, _progressT, Math.max(12, Math.round(fontSize * 0.44 * W / 1920)), progressBarThickness, progressTimeSize);
       ctx.restore();
     }
-    // ── FG overlay ──
-    ctx.save(); (OVERLAYS[overlayEffect] || OVERLAYS.none)(ctx, W, H, bgT); ctx.restore();
   }
 
   function _drawBg(ctx, W, H, T) {
@@ -4782,6 +5752,30 @@ const Renderer = (() => {
       const dy = Math.sin(t * 1.35) * logH * 0.09;
       const dp = 1 + 0.04 * Math.sin(t * 2.7);
       ctx.translate(_acx, _acy + dy); ctx.scale(dp, dp); ctx.translate(-_acx, -_acy);
+    } else if (animType === 'bounce') {
+      // Springy vertical bounce — energetic up-down oscillation
+      const _bp = Math.abs(Math.sin(t * 3.4));
+      const dy = -_bp * logH * 0.22;
+      const _sq = 1 - _bp * 0.08;       // squash at apex
+      ctx.translate(_acx, _acy + dy); ctx.scale(1 / _sq, _sq); ctx.translate(-_acx, -_acy);
+    } else if (animType === 'orbit') {
+      // Circular orbit around the logo's position
+      const _or = logH * 0.18;
+      const ox = Math.cos(t * 1.1) * _or;
+      const oy = Math.sin(t * 1.1) * _or * 0.55;
+      ctx.translate(ox, oy);
+    } else if (animType === 'wave') {
+      // Horizontal wave motion
+      const wx = Math.sin(t * 1.8) * logW * 0.14;
+      const wy = Math.sin(t * 3.2) * logH * 0.06;
+      ctx.translate(wx, wy);
+    } else if (animType === 'shake') {
+      // Random jitter — attention-grabbing
+      const _sh = (s) => ((s * 1664525 + 1013904223) & 0x7fffffff) / 0x7fffffff;
+      const sid = Math.floor(t * 28);
+      const sx = (_sh(sid * 3 + 1) - 0.5) * logW * 0.05;
+      const sy2 = (_sh(sid * 7 + 2) - 0.5) * logH * 0.05;
+      ctx.translate(sx, sy2);
     }
 
     // Visual effect (applied via filter — already set for coin above, others override)
@@ -4800,6 +5794,18 @@ const Renderer = (() => {
       ctx.filter = 'sepia(0.4) contrast(1.12) drop-shadow(2px 3px 4px rgba(0,0,0,0.8))';
     } else if (visualEffect === 'shadow') {
       ctx.filter = 'drop-shadow(5px 7px 16px rgba(0,0,0,0.95)) drop-shadow(0 0 5px rgba(0,0,0,0.85))';
+    } else if (visualEffect === 'neon') {
+      // Hue-cycling neon glow
+      const _nh = (t * 38) % 360;
+      ctx.filter = `drop-shadow(0 0 14px hsl(${_nh},100%,65%)) drop-shadow(0 0 6px hsl(${(_nh+60)%360},100%,72%)) drop-shadow(0px 1px 4px rgba(0,0,0,0.5))`;
+      ctx.globalAlpha = alpha * (0.88 + 0.12 * Math.sin(t * 5.5));
+    } else if (visualEffect === 'rainbow') {
+      // Hue-rotate filter gives a cycling rainbow tint
+      const _rh = (t * 50) % 360;
+      ctx.filter = `hue-rotate(${_rh.toFixed(0)}deg) saturate(1.6) drop-shadow(0px 1px 5px rgba(0,0,0,0.6))`;
+    } else if (visualEffect === 'retro') {
+      // Warm sepia aged-film look
+      ctx.filter = 'sepia(0.75) contrast(1.08) brightness(1.06) drop-shadow(1px 2px 8px rgba(0,0,0,0.7))';
     } else if (ctx.filter === 'none' || !ctx.filter) {
       ctx.filter = 'drop-shadow(0px 1px 4px rgba(0,0,0,0.5))';
     }
@@ -4815,8 +5821,11 @@ const Renderer = (() => {
       watermarkOpacity=0.35, watermarkSize=0.22, watermarkPosition='br',
       watermarkRanges=[], watermarkAnim='none', watermarkVisualEffect='none',
     } = opts;
-    // Rate-limited log: fires only when activeColorOverride or songTitle changes
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');
+    // ── Reset critical state each frame — prevents cross-frame canvas contamination ──
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; ctx.shadowColor = 'transparent';
+    ctx.filter = 'none'; if (ctx.resetTransform) ctx.resetTransform();
     const T=THEMES[theme]||THEMES.classic;
     const GI=clampN(glowIntensity,0,3);
 
@@ -4838,6 +5847,8 @@ const Renderer = (() => {
     ctx.save(); (ANIMATIONS[animation]||ANIMATIONS.none)(ctx,W,H,time); ctx.restore();
     // Skip darkening for solid-color backgrounds (bg_*) so the chosen colour stays accurate
     if (!animation.startsWith('bg_')) { ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.fillRect(0,0,W,H); }
+    // Foreground overlay (under lyric text, above animated background)
+    ctx.save(); (OVERLAYS[overlayEffect]||OVERLAYS.none)(ctx,W,H,time); ctx.restore();
 
     let activeIdx=-1;
     for (let i=0; i<lines.length; i++) { if (lines[i].time<=time) activeIdx=i; }
@@ -4870,7 +5881,7 @@ const Renderer = (() => {
       ctx.restore();
     }
 
-    if (prevLine) {
+    if (prevLine && !(currLine && currLine.isBlank)) {
       ctx.save();
       ctx.globalAlpha = clampN(prevLineOpacity, 0, 1);
       ctx.font=`300 ${fsMd}px ${fontFamily}`; ctx.fillStyle=inactiveColor;
@@ -4880,7 +5891,7 @@ const Renderer = (() => {
       _pW.forEach((ln,li)=>ctx.fillText(ln,cx,_pBY+li*_pSp));
       ctx.restore();
     }
-    if (nextLine) {
+    if (nextLine && !nextLine.isBlank && nextLine.time != null && (nextLine.time - time) <= 5) {
       ctx.save();
       ctx.globalAlpha = clampN(secondaryOpacity, 0, 1);
       ctx.font=`400 ${fsMd}px ${fontFamily}`; ctx.fillStyle=inactiveColor;
@@ -4895,7 +5906,7 @@ const Renderer = (() => {
       ctx.font=`300 ${fsMd}px ${fontFamily}`; ctx.fillStyle='rgba(255,255,255,0.10)';
       ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('',cx,midY); ctx.textBaseline='alphabetic';
       // fall through to overlay + watermark
-    } else if (currLine) {
+    } else if (currLine && !currLine.isBlank) {
       // If line is a label/indicator, render as a dimmed italic caption
       if (currLine.isLabel) {
         ctx.font = `400 italic ${fsMd}px ${fontFamily}`;
@@ -5057,6 +6068,41 @@ const Renderer = (() => {
           ctx.fillText(txt,cx,wY); ctx.restore();
           ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
           ctx.shadowColor=lineActiveColor; ctx.shadowBlur=12*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY); ctx.restore();
+        } else if (fillEffect === 'espejo_fill') {
+          // Disco sparkle fill: left-to-right base + glinting dot sparks on revealed portion
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          ctx.shadowColor=lineActiveColor; ctx.shadowBlur=14*GI; ctx.fillStyle=lineActiveColor; ctx.fillText(txt,cx,wY);
+          ctx.restore();
+          for(let si=0;si<8;si++){
+            const sxPos=startX+txtW*localPct*sr(si*5+time*3)*0.92;
+            const syPos=wY+(sr(si*7+time*3)-0.5)*fsLg*0.82;
+            const shue=(si*45+time*82)%360;
+            const sAlpha=Math.max(0,Math.sin(time*8.5+si*1.9))*0.88;
+            if(sAlpha<0.1) continue;
+            ctx.save(); ctx.globalAlpha=sAlpha;
+            ctx.shadowColor=`hsl(${shue},100%,92%)`; ctx.shadowBlur=fsLg*0.22*GI;
+            ctx.fillStyle=`hsl(${shue},100%,93%)`;
+            ctx.beginPath();ctx.arc(sxPos,syPos,Math.max(1.5,fsLg*0.04),0,Math.PI*2);ctx.fill();
+            ctx.restore();
+          }
+        } else if (fillEffect === 'retro_fill') {
+          // Warm amber/sepia left-to-right fill — cassette/vintage vibe
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          const rfg=ctx.createLinearGradient(startX,0,startX+txtW,0);
+          rfg.addColorStop(0,'#ffcc55'); rfg.addColorStop(0.5,'#ff9922'); rfg.addColorStop(1,'#ffee88');
+          ctx.shadowColor='rgba(255,175,40,0.9)'; ctx.shadowBlur=14*GI;
+          ctx.fillStyle=rfg; ctx.fillText(txt,cx,wY); ctx.restore();
+        } else if (fillEffect === 'acido') {
+          // Acid: fast hue-cycling psychedelic left-to-right fill
+          ctx.save(); ctx.beginPath(); ctx.rect(startX-2,wY-fsLg*1.1,(txtW+2)*localPct,fsLg*2.2); ctx.clip();
+          const aHue=(time*92)%360;
+          const ag=ctx.createLinearGradient(startX,0,startX+txtW,0);
+          ag.addColorStop(0,`hsl(${aHue},100%,65%)`);
+          ag.addColorStop(0.33,`hsl(${(aHue+120)%360},100%,68%)`);
+          ag.addColorStop(0.66,`hsl(${(aHue+240)%360},100%,65%)`);
+          ag.addColorStop(1,`hsl(${aHue},100%,65%)`);
+          ctx.shadowColor=`hsl(${aHue},100%,72%)`; ctx.shadowBlur=18*GI;
+          ctx.fillStyle=ag; ctx.fillText(txt,cx,wY); ctx.restore();
         }
 
         // ── Stroke / contorno ──
@@ -5086,7 +6132,7 @@ const Renderer = (() => {
 
       ctx.restore(); // end zoom transform
       } // end currLine.isLabel else
-    } else if (!(lyricsEndTime && time >= lyricsEndTime)) {
+    } else if (currLine === null && !(lyricsEndTime && time >= lyricsEndTime)) {
       // Before first line: show upcoming first lyric as a dim center preview (lead-in)
       // so the singer can read and prepare before it starts
       if (lines.length > 0) {
@@ -5105,8 +6151,7 @@ const Renderer = (() => {
         ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('♪  ♪  ♪',cx,midY); ctx.textBaseline='alphabetic';
       }
     }
-    // Foreground overlay (renders atop text)
-    ctx.save(); (OVERLAYS[overlayEffect]||OVERLAYS.none)(ctx,W,H,time); ctx.restore();
+    // Foreground overlay handled above (drawn under text)
     // Optional watermark
     if (showWatermark) _drawWatermark(ctx, W, H, time, watermarkOpacity, watermarkSize, watermarkPosition, watermarkRanges, watermarkAnim, watermarkVisualEffect);
   }

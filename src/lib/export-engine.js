@@ -8,7 +8,7 @@ import Renderer from './renderer.js';
 import Sync from './sync.js';
 import Intro from './intro.js';
 import Outro from './outro.js';
-import { formatTime, debounce } from './utils.js';
+import { formatTime, debounce, toast } from './utils.js';
 import { Muxer, ArrayBufferTarget } from 'webm-muxer';
 import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4ABTarget } from 'mp4-muxer';
 import AppModal from './app-modal.js';
@@ -691,9 +691,12 @@ const ExportEngine = (() => {
       startRecording();
     });
 
-    /* ── Section collapse buttons ── */
-    document.querySelectorAll('.sec-collapse-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+    /* ── Section collapse: click anywhere on the header to toggle ── */
+    document.querySelectorAll('.settings-section-header').forEach(header => {
+      const btn = header.querySelector('.sec-collapse-btn');
+      if (!btn) return;
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', () => {
         const secId = btn.dataset.sec;
         const sec = document.getElementById(secId);
         if (!sec) return;
@@ -760,6 +763,12 @@ const ExportEngine = (() => {
       });
     }
 
+    /* ── Save session button ── */
+    const saveSessionBtn = document.getElementById('saveSessionBtn');
+    if (saveSessionBtn) {
+      saveSessionBtn.addEventListener('click', () => saveSession());
+    }
+
     /* ── Intro card controls ── */
     const introEnabledToggle     = document.getElementById('introEnabledToggle');
     const introTitleInput        = document.getElementById('introTitleInput');
@@ -798,6 +807,11 @@ const ExportEngine = (() => {
       { id: 'invierno',   emoji: '❄️',  label: 'Invierno'   },
       { id: 'vhs_retro',  emoji: '📼',  label: 'VHS Retro'  },
       { id: 'neon_city',  emoji: '🌇',  label: 'Neon City'  },
+      { id: 'hologram',   emoji: '💎',  label: 'Hologram'   },
+      { id: 'fuego',      emoji: '🔥',  label: 'Fuego'      },
+      { id: 'periodico',  emoji: '📰',  label: 'Periódico'  },
+      { id: 'arcade',     emoji: '🕹️',  label: 'Arcade'     },
+      { id: 'graffiti',   emoji: '🎨',  label: 'Graffiti'   },
     ];
     const _transitionList = [
       { id: 'fade',          emoji: '✨',  label: 'Fade'    },
@@ -885,12 +899,24 @@ const ExportEngine = (() => {
       if (introTitleShadowColorEl)   introTitleShadowColorEl.value   = ic.titleShadowColor  || '#000000';
       if (introTitleShadowBlurEl)    { introTitleShadowBlurEl.value    = ic.titleShadowBlur    ?? 0; if (introTitleShadowBlurValEl)    introTitleShadowBlurValEl.textContent    = (ic.titleShadowBlur    ?? 0) + 'px'; }
       if (introTitleShadowOffsetEl)  { introTitleShadowOffsetEl.value  = ic.titleShadowOffsetY ?? 2; if (introTitleShadowOffsetValEl)  introTitleShadowOffsetValEl.textContent  = (ic.titleShadowOffsetY ?? 2) + 'px'; }
+      const introTitleShadowOpacityEl    = document.getElementById('introTitleShadowOpacitySlider');
+      const introTitleShadowOpacityValEl = document.getElementById('introTitleShadowOpacityVal');
+      const introTitleShadowOffsetXEl    = document.getElementById('introTitleShadowOffsetXSlider');
+      const introTitleShadowOffsetXValEl = document.getElementById('introTitleShadowOffsetXVal');
+      if (introTitleShadowOpacityEl)  { introTitleShadowOpacityEl.value  = ic.titleShadowOpacity  ?? 1; if (introTitleShadowOpacityValEl)  introTitleShadowOpacityValEl.textContent  = Math.round((ic.titleShadowOpacity  ?? 1) * 100) + '%'; }
+      if (introTitleShadowOffsetXEl)  { introTitleShadowOffsetXEl.value  = ic.titleShadowOffsetX  ?? 0; if (introTitleShadowOffsetXValEl)  introTitleShadowOffsetXValEl.textContent  = (ic.titleShadowOffsetX  ?? 0) + 'px'; }
 
       const introArtistShadowColorEl   = document.getElementById('introArtistShadowColorPicker');
       const introArtistShadowBlurEl    = document.getElementById('introArtistShadowBlurSlider');
       const introArtistShadowBlurValEl = document.getElementById('introArtistShadowBlurVal');
+      const introArtistShadowOffsetEl  = document.getElementById('introArtistShadowOffsetSlider');
+      const introArtistShadowOffsetValEl = document.getElementById('introArtistShadowOffsetVal');
+      const introArtistShadowOpacityEl    = document.getElementById('introArtistShadowOpacitySlider');
+      const introArtistShadowOpacityValEl = document.getElementById('introArtistShadowOpacityVal');
       if (introArtistShadowColorEl)  introArtistShadowColorEl.value   = ic.artistShadowColor || '#000000';
       if (introArtistShadowBlurEl)   { introArtistShadowBlurEl.value   = ic.artistShadowBlur  ?? 0; if (introArtistShadowBlurValEl) introArtistShadowBlurValEl.textContent = (ic.artistShadowBlur ?? 0) + 'px'; }
+      if (introArtistShadowOffsetEl) { introArtistShadowOffsetEl.value  = ic.artistShadowOffsetY ?? 2; if (introArtistShadowOffsetValEl) introArtistShadowOffsetValEl.textContent = (ic.artistShadowOffsetY ?? 2) + 'px'; }
+      if (introArtistShadowOpacityEl) { introArtistShadowOpacityEl.value = ic.artistShadowOpacity ?? 1; if (introArtistShadowOpacityValEl) introArtistShadowOpacityValEl.textContent = Math.round((ic.artistShadowOpacity ?? 1) * 100) + '%'; }
     }
     _syncIntroUIRef = _syncIntroUI;
 
@@ -998,6 +1024,50 @@ const ExportEngine = (() => {
         const v = parseInt(introArtistShadowBlurSlider.value, 10);
         Intro.set({ artistShadowBlur: v });
         if (introArtistShadowBlurVal) introArtistShadowBlurVal.textContent = v + 'px';
+        renderPreviewFrame();
+      });
+    }
+
+    // Title shadow opacity + offsetX
+    const introTitleShadowOpacitySlider = document.getElementById('introTitleShadowOpacitySlider');
+    const introTitleShadowOpacityVal    = document.getElementById('introTitleShadowOpacityVal');
+    const introTitleShadowOffsetXSlider = document.getElementById('introTitleShadowOffsetXSlider');
+    const introTitleShadowOffsetXVal    = document.getElementById('introTitleShadowOffsetXVal');
+    if (introTitleShadowOpacitySlider) {
+      introTitleShadowOpacitySlider.addEventListener('input', () => {
+        const v = parseFloat(introTitleShadowOpacitySlider.value);
+        Intro.set({ titleShadowOpacity: v });
+        if (introTitleShadowOpacityVal) introTitleShadowOpacityVal.textContent = Math.round(v * 100) + '%';
+        renderPreviewFrame();
+      });
+    }
+    if (introTitleShadowOffsetXSlider) {
+      introTitleShadowOffsetXSlider.addEventListener('input', () => {
+        const v = parseInt(introTitleShadowOffsetXSlider.value, 10);
+        Intro.set({ titleShadowOffsetX: v });
+        if (introTitleShadowOffsetXVal) introTitleShadowOffsetXVal.textContent = v + 'px';
+        renderPreviewFrame();
+      });
+    }
+
+    // Artist shadow offset Y + opacity
+    const introArtistShadowOffsetSlider    = document.getElementById('introArtistShadowOffsetSlider');
+    const introArtistShadowOffsetVal       = document.getElementById('introArtistShadowOffsetVal');
+    const introArtistShadowOpacitySlider   = document.getElementById('introArtistShadowOpacitySlider');
+    const introArtistShadowOpacityVal      = document.getElementById('introArtistShadowOpacityVal');
+    if (introArtistShadowOffsetSlider) {
+      introArtistShadowOffsetSlider.addEventListener('input', () => {
+        const v = parseInt(introArtistShadowOffsetSlider.value, 10);
+        Intro.set({ artistShadowOffsetY: v });
+        if (introArtistShadowOffsetVal) introArtistShadowOffsetVal.textContent = v + 'px';
+        renderPreviewFrame();
+      });
+    }
+    if (introArtistShadowOpacitySlider) {
+      introArtistShadowOpacitySlider.addEventListener('input', () => {
+        const v = parseFloat(introArtistShadowOpacitySlider.value);
+        Intro.set({ artistShadowOpacity: v });
+        if (introArtistShadowOpacityVal) introArtistShadowOpacityVal.textContent = Math.round(v * 100) + '%';
         renderPreviewFrame();
       });
     }
@@ -1972,7 +2042,7 @@ const ExportEngine = (() => {
         target: new ArrayBufferTarget(),
         video:  { codec: videoCodec === 'vp8' ? 'V_VP8' : 'V_VP9', width: rW, height: rH, frameRate: fps },
         audio:  { codec: 'A_OPUS', sampleRate, numberOfChannels: numChannels },
-        firstTimestampBehavior: 'offset',
+        firstTimestampBehavior: 'strict',
       });
       fileExt = 'webm'; blobType = 'video/webm';
     }
@@ -2009,12 +2079,18 @@ const ExportEngine = (() => {
       previewCanvas.width = rW; previewCanvas.height = rH;
     }
     const prevCtx  = previewCanvas.getContext('2d');
-    const MAX_QUEUE = 12;
+    const MAX_QUEUE = 8;
     let _lastYield = performance.now();
     const _renderStart = performance.now();
 
+    // Pre-fetch audio channel data for interleaved encoding
+    const audioChunkSamples = Math.round(sampleRate / fps);
+    const channels = [];
+    for (let c = 0; c < numChannels; c++) channels.push(audioBuffer.getChannelData(c));
+
     for (let i = 0; i < totalFrames; i++) {
       if (_vcErr) throw _vcErr;
+      if (_acErr) throw _acErr;
       if (videoEncoder.state !== 'configured') throw new Error('VideoEncoder cerrado inesperadamente');
       // Drain the encoder's JS-side queue before queuing another frame.
       // With realtime mode the queue stays near 0; this guards stalls on slow GPUs.
@@ -2032,13 +2108,35 @@ const ExportEngine = (() => {
       const t     = tsUs / 1_000_000;
 
       Renderer.drawFrame(offCanvas, getRenderOpts(t));
-      if (i % fps === 0) prevCtx.drawImage(offCanvas, 0, 0);
+      // Update preview canvas every 8 frames (~0.27s at 30fps) for a live-looking feed
+      if (i % 8 === 0) prevCtx.drawImage(offCanvas, 0, 0);
 
+      // Create VideoFrame AFTER drawing but BEFORE any canvas operations that follow
       const videoFrame = new VideoFrame(offCanvas, { timestamp: tsUs, duration: durUs });
-      // Keyframe every 1 second; force first frame as keyframe unconditionally
-      const isKeyFrame = i === 0 || i % fps === 0;
+      // Keyframe every 2 seconds for robust seeking compatibility
+      const isKeyFrame = i === 0 || i % (fps * 2) === 0;
       videoEncoder.encode(videoFrame, { keyFrame: isKeyFrame });
       videoFrame.close();
+
+      // ── Interleave: encode the audio chunk that matches this video frame ──
+      // Feeding audio+video chunks together (same time window) ensures the muxer
+      // can write properly interleaved clusters. Without this, all video data
+      // arrives before any audio, causing many players to freeze mid-playback.
+      const aStart = i * audioChunkSamples;
+      const aCount = Math.min(audioChunkSamples, totalSamples - aStart);
+      if (aCount > 0) {
+        const tsUsA  = Math.round((aStart / sampleRate) * 1_000_000);
+        const planar = new Float32Array(aCount * numChannels);
+        for (let c = 0; c < numChannels; c++) {
+          planar.set(channels[c].subarray(aStart, aStart + aCount), c * aCount);
+        }
+        const audioData = new AudioData({
+          format: 'f32-planar', sampleRate, numberOfChannels: numChannels,
+          numberOfFrames: aCount, timestamp: tsUsA, data: planar,
+        });
+        audioEncoder.encode(audioData);
+        audioData.close();
+      }
 
       const pct = Math.round(((i + 1) / totalFrames) * 100);
       progressBarInner.style.width = pct + '%';
@@ -2046,9 +2144,7 @@ const ExportEngine = (() => {
       exportSeekBar.value          = (t / duration) * 100;
       exportCurrentTime.textContent = formatTime(t);
 
-      // Yield every 4 frames so the encoder's output callback can run before
-      // the next batch is queued. This is critical at 60fps where frames come fast.
-      // Also yield on time threshold for UI responsiveness.
+      // Yield every 4 frames so encoder output callbacks can run between batches.
       const _nowTs = performance.now();
       if (i % 4 === 3 || _nowTs - _lastYield >= 12) {
         const elapsed = (_nowTs - _renderStart) / 1000;
@@ -2061,24 +2157,23 @@ const ExportEngine = (() => {
       }
     }
     if (_vcErr) throw _vcErr;
-    console.log('[EE] Video frames done — encodeQueueSize:', videoEncoder.encodeQueueSize);
+    if (_acErr) throw _acErr;
+    console.log('[EE] Video+audio interleaved done — encodeQueueSize:', videoEncoder.encodeQueueSize);
 
-    progressLabel.textContent = 'Codificando audio...';
-    if (progressDetail) progressDetail.textContent = 'Procesando y codificando pistas de audio…';
-    const audioChunkSamples = Math.round(sampleRate / fps);
-    const channels = [];
-    for (let c = 0; c < numChannels; c++) channels.push(audioBuffer.getChannelData(c));
-
-    for (let start = 0; start < totalSamples; start += audioChunkSamples) {
-      const count  = Math.min(audioChunkSamples, totalSamples - start);
-      const tsUs   = Math.round((start / sampleRate) * 1_000_000);
-      const planar = new Float32Array(count * numChannels);
+    // Encode any remaining audio samples not covered during the video loop
+    // (occurs when audio duration is not an exact multiple of frame duration)
+    const audioVideoEnd = totalFrames * audioChunkSamples;
+    for (let aStart = audioVideoEnd; aStart < totalSamples; aStart += audioChunkSamples) {
+      const aCount = Math.min(audioChunkSamples, totalSamples - aStart);
+      if (aCount <= 0) break;
+      const tsUsA  = Math.round((aStart / sampleRate) * 1_000_000);
+      const planar = new Float32Array(aCount * numChannels);
       for (let c = 0; c < numChannels; c++) {
-        planar.set(channels[c].subarray(start, start + count), c * count);
+        planar.set(channels[c].subarray(aStart, aStart + aCount), c * aCount);
       }
       const audioData = new AudioData({
         format: 'f32-planar', sampleRate, numberOfChannels: numChannels,
-        numberOfFrames: count, timestamp: tsUs, data: planar,
+        numberOfFrames: aCount, timestamp: tsUsA, data: planar,
       });
       audioEncoder.encode(audioData);
       audioData.close();
@@ -2089,7 +2184,7 @@ const ExportEngine = (() => {
     channels.length = 0;
     progressLabel.textContent = 'Finalizando...';
     if (progressDetail) progressDetail.textContent = 'Empaquetando video y audio en el archivo…';
-    console.log('[EE] Audio done — flushing encoders...');
+    console.log('[EE] Flushing encoders...');
     const FLUSH_TIMEOUT = 20_000;
     await Promise.race([
       Promise.all([videoEncoder.flush(), audioEncoder.flush()]),
@@ -2121,30 +2216,58 @@ const ExportEngine = (() => {
   ═══════════════════════════════════════════════════════ */
   function applySettings(s) {
     if (!s) return;
-    if (s.theme) {
+    if (s.theme !== undefined) {
       currentTheme = s.theme;
-      if (themeSelector) themeSelector.querySelectorAll('.theme-btn')
-        .forEach(b => b.classList.toggle('active', b.dataset.theme === s.theme));
+      if (themePicker) themePicker.setValue(s.theme);
     }
     if (s.animation !== undefined) {
       currentAnimation = s.animation;
-      if (animGrid) animGrid.querySelectorAll('.anim-card')
-        .forEach(c => c.classList.toggle('active', c.dataset.anim === s.animation));
+      if (animPicker) animPicker.setValue(s.animation);
     }
     if (s.overlay !== undefined) {
       currentOverlay = s.overlay;
-      if (overlayGrid) overlayGrid.querySelectorAll('.anim-card')
-        .forEach(c => c.classList.toggle('active', c.dataset.ov === s.overlay));
+      if (overlayPicker) overlayPicker.setValue(s.overlay);
+    }
+    if (s.font !== undefined) {
+      currentFont = s.font;
+      if (fontPicker) fontPicker.setValue(s.font);
+    }
+    if (s.textEffect !== undefined) {
+      currentTextEffect = s.textEffect;
+      if (textFxPicker) textFxPicker.setValue(s.textEffect);
+    }
+    if (s.fillEffect !== undefined) {
+      currentFillEffect = s.fillEffect;
+      if (fillFxPicker) fillFxPicker.setValue(s.fillEffect);
+    }
+    if (s.progressStyle !== undefined) {
+      currentProgressStyle = s.progressStyle;
+      if (progressPicker) progressPicker.setValue(s.progressStyle);
+    }
+    if (s.textShadowType !== undefined) {
+      currentTextShadowType = s.textShadowType;
+      if (textShadowPic) textShadowPic.setValue(s.textShadowType);
+    }
+    if (s.strokeEffect !== undefined) {
+      currentStrokeEffect = s.strokeEffect;
+      if (strokePic) strokePic.setValue(s.strokeEffect);
     }
     if (s.textPosition && textPositionSelect) { currentTextPos = s.textPosition; textPositionSelect.value = s.textPosition; }
     if (s.glow !== undefined && glowSlider) { currentGlow = s.glow; glowSlider.value = s.glow; if (glowVal) glowVal.textContent = parseFloat(s.glow).toFixed(1) + '×'; }
-    if (s.fontSize    && fontSizeSlider)   { fontSizeSlider.value = s.fontSize; fontSizeVal.textContent = s.fontSize + 'px'; }
+    if (s.fontSize    && fontSizeSlider)   { fontSizeSlider.value = s.fontSize; if (fontSizeVal) fontSizeVal.textContent = s.fontSize + 'px'; }
     if (s.resolution  && resolutionSelect)   resolutionSelect.value   = s.resolution;
-    if (s.inactiveColor) {
+    if (s.fps         && fpsSelect)          fpsSelect.value          = s.fps;
+    if (s.exportFormat && exportFormatSelect) exportFormatSelect.value = s.exportFormat;
+    if (s.inactiveColor !== undefined) {
       currentInactiveColor = s.inactiveColor;
       if (inactiveColorPicker) inactiveColorPicker.value = s.inactiveColor;
     }
     if (s.progressBarColor && progressBarColorPicker) progressBarColorPicker.value = s.progressBarColor;
+    if (s.progressOpacity !== undefined && progressOpacitySlider) {
+      currentProgressOpacity = s.progressOpacity;
+      progressOpacitySlider.value = s.progressOpacity;
+      if (progressOpacityVal) progressOpacityVal.textContent = Math.round(s.progressOpacity * 100) + '%';
+    }
     if (s.secondarySize !== undefined && secondarySizeSlider) {
       currentSecondarySize = s.secondarySize; secondarySizeSlider.value = s.secondarySize;
       if (secondarySizeVal) secondarySizeVal.textContent = Math.round(s.secondarySize * 100) + '%';
@@ -2161,21 +2284,9 @@ const ExportEngine = (() => {
       currentPrevOpacity = s.prevOpacity; prevOpacitySlider.value = s.prevOpacity;
       if (prevOpacityVal) prevOpacityVal.textContent = Math.round(s.prevOpacity * 100) + '%';
     }
-    if (s.font && fontSelector) {
-      currentFont = s.font;
-      fontSelector.querySelectorAll('.font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === s.font));
-    }
     if (s.zoom !== undefined && zoomSlider) {
       currentZoom = s.zoom; zoomSlider.value = s.zoom;
       if (zoomVal) zoomVal.textContent = parseFloat(s.zoom).toFixed(2) + '×';
-    }
-    if (s.textEffect !== undefined && textEffectGrid) {
-      currentTextEffect = s.textEffect;
-      textEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.te === s.textEffect));
-    }
-    if (s.fillEffect !== undefined && fillEffectGrid) {
-      currentFillEffect = s.fillEffect;
-      fillEffectGrid.querySelectorAll('.anim-card').forEach(c => c.classList.toggle('active', c.dataset.fe === s.fillEffect));
     }
     if (s.progressBarThickness !== undefined && progressBarThicknessSlider) {
       currentProgressBarThickness = s.progressBarThickness;
@@ -2187,9 +2298,183 @@ const ExportEngine = (() => {
       progressTimeSizeSlider.value = s.progressTimeSize;
       if (progressTimeSizeVal) progressTimeSizeVal.textContent = parseFloat(s.progressTimeSize).toFixed(1) + '×';
     }
+    if (s.textShadowColor !== undefined) {
+      currentTextShadowColor = s.textShadowColor;
+      const el = document.getElementById('textShadowColorPicker');
+      if (el) el.value = s.textShadowColor;
+    }
+    if (s.textShadowBlur !== undefined) {
+      currentTextShadowBlur = s.textShadowBlur;
+      const el = document.getElementById('textShadowBlurSlider');
+      const val = document.getElementById('textShadowBlurVal');
+      if (el) { el.value = s.textShadowBlur; if (val) val.textContent = s.textShadowBlur + 'px'; }
+    }
+    if (s.textShadowOffsetY !== undefined) {
+      currentTextShadowOffsetY = s.textShadowOffsetY;
+      const el = document.getElementById('textShadowOffsetYSlider');
+      const val = document.getElementById('textShadowOffsetYVal');
+      if (el) { el.value = s.textShadowOffsetY; if (val) val.textContent = s.textShadowOffsetY + 'px'; }
+    }
+    if (s.strokeColor !== undefined) {
+      currentStrokeColor = s.strokeColor;
+      const el = document.getElementById('strokeColorPicker');
+      if (el) el.value = s.strokeColor;
+    }
+    if (s.strokeWidth !== undefined) {
+      currentStrokeWidth = s.strokeWidth;
+      const el = document.getElementById('strokeWidthSlider');
+      const val = document.getElementById('strokeWidthVal');
+      if (el) { el.value = s.strokeWidth; if (val) val.textContent = s.strokeWidth + 'px'; }
+    }
+    // Watermark / logo settings
+    if (s.showWatermark !== undefined) {
+      showWatermark = s.showWatermark;
+      const el = document.getElementById('watermarkToggle');
+      if (el) el.checked = s.showWatermark;
+    }
+    if (s.watermarkOpacity !== undefined && watermarkOpacitySlider) {
+      currentWatermarkOpacity = s.watermarkOpacity;
+      watermarkOpacitySlider.value = s.watermarkOpacity;
+      if (watermarkOpacityVal) watermarkOpacityVal.textContent = Math.round(s.watermarkOpacity * 100) + '%';
+    }
+    if (s.watermarkSize !== undefined && watermarkSizeSlider) {
+      currentWatermarkSize = s.watermarkSize;
+      watermarkSizeSlider.value = s.watermarkSize;
+      if (watermarkSizeVal) watermarkSizeVal.textContent = Math.round(s.watermarkSize * 100) + '%';
+    }
+    if (s.watermarkPos !== undefined) {
+      currentWatermarkPos = s.watermarkPos;
+      if (watermarkPosGrid) {
+        watermarkPosGrid.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.pos === s.watermarkPos));
+      }
+    }
+    if (s.watermarkAnim !== undefined) {
+      watermarkAnim = s.watermarkAnim;
+      if (watermarkAnimGrid) {
+        watermarkAnimGrid.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.anim === s.watermarkAnim));
+      }
+    }
+    if (s.watermarkVisualEffect !== undefined) {
+      watermarkVisualEffect = s.watermarkVisualEffect;
+      const el = document.getElementById('watermarkEffectGrid');
+      if (el) el.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.toggle('active', b.dataset.vfx === s.watermarkVisualEffect));
+    }
+    if (s.watermarkRanges && Array.isArray(s.watermarkRanges)) {
+      watermarkRanges = s.watermarkRanges;
+      // Restore each range's toggle + from/to
+      s.watermarkRanges.forEach((r, i) => {
+        const n = i + 1;
+        const tog = document.getElementById(`wmR${n}Toggle`);
+        const panel = document.getElementById(`wmR${n}Panel`);
+        const fromEl = document.getElementById(`wmR${n}From`);
+        const toEl   = document.getElementById(`wmR${n}To`);
+        const fromTx = document.getElementById(`wmR${n}FromText`);
+        const toTx   = document.getElementById(`wmR${n}ToText`);
+        if (tog) tog.checked = r.enabled;
+        if (panel) panel.style.display = r.enabled ? '' : 'none';
+        if (fromEl) fromEl.value = r.from;
+        if (toEl)   toEl.value   = r.to;
+        const fmt = t => `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+        if (fromTx) fromTx.value = fmt(r.from);
+        if (toTx)   toTx.value   = fmt(r.to);
+      });
+    }
   }
 
-  return { init, setup, applySettings };
+  /* ═══════════════════════════════════════════════════════
+     saveSession() — collect all current state and download as .mkrk
+  ═══════════════════════════════════════════════════════ */
+  async function saveSession() {
+    const rawFile = Audio.rawFile;
+    if (!rawFile) { toast('No hay audio cargado.', 'warn'); return; }
+
+    const saveBtn = document.getElementById('saveSessionBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Guardando…'; }
+
+    try {
+      // Encode audio as base64
+      const ab = await rawFile.arrayBuffer();
+      const bytes = new Uint8Array(ab);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      const audioB64 = btoa(binary);
+
+      const projectName = (document.getElementById('songTitleInput')?.value || '').trim()
+                        || rawFile.name.replace(/\.[^.]+$/, '');
+
+      const pkg = {
+        version:       '1',
+        projectName,
+        audioFileName: rawFile.name,
+        audioMime:     rawFile.type || 'audio/mpeg',
+        audioB64,
+        lines:         Lyrics.lines,
+        endTime:       Lyrics.getEndTime(),
+        intro:         Intro.get(),
+        outro:         Outro.get(),
+        settings: {
+          theme:                currentTheme,
+          animation:            currentAnimation,
+          overlay:              currentOverlay,
+          font:                 currentFont,
+          fontSize:             fontSizeSlider?.value,
+          textEffect:           currentTextEffect,
+          fillEffect:           currentFillEffect,
+          progressStyle:        currentProgressStyle,
+          progressOpacity:      currentProgressOpacity,
+          progressBarColor:     progressBarColorPicker?.value,
+          progressBarThickness: currentProgressBarThickness,
+          progressTimeSize:     currentProgressTimeSize,
+          textPosition:         currentTextPos,
+          glow:                 currentGlow,
+          zoom:                 currentZoom,
+          inactiveColor:        currentInactiveColor,
+          secondarySize:        currentSecondarySize,
+          secondaryOpacity:     currentSecondaryOpacity,
+          nextOffset:           currentNextOffset,
+          prevOpacity:          currentPrevOpacity,
+          textShadowType:       currentTextShadowType,
+          textShadowColor:      currentTextShadowColor,
+          textShadowBlur:       currentTextShadowBlur,
+          textShadowOffsetY:    currentTextShadowOffsetY,
+          strokeEffect:         currentStrokeEffect,
+          strokeColor:          currentStrokeColor,
+          strokeWidth:          currentStrokeWidth,
+          showWatermark,
+          watermarkOpacity:     currentWatermarkOpacity,
+          watermarkSize:        currentWatermarkSize,
+          watermarkPos:         currentWatermarkPos,
+          watermarkAnim,
+          watermarkVisualEffect,
+          watermarkRanges:      JSON.parse(JSON.stringify(watermarkRanges)),
+          resolution:           resolutionSelect?.value,
+          fps:                  fpsSelect?.value,
+          exportFormat:         exportFormatSelect?.value,
+        },
+      };
+
+      const json  = JSON.stringify(pkg);
+      const blob  = new Blob([json], { type: 'application/json' });
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a');
+      const safeName = projectName.replace(/[\\/:*?"<>|]/g, '_') || 'sesion';
+      a.href     = url;
+      a.download = safeName + '.mkrk';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast('Sesión guardada: ' + a.download, 'success');
+    } catch (err) {
+      console.error('[EE] saveSession error:', err);
+      toast('Error al guardar la sesión.', 'error');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar sesión'; }
+    }
+  }
+
+  return { init, setup, applySettings, saveSession };
 })();
 
 export default ExportEngine;

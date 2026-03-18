@@ -2,8 +2,9 @@ import React, { useRef, useState } from 'react';
 import Lyrics from '../../lib/lyrics.js';
 import { toast } from '../../lib/utils.js';
 
-export default function Panel1Upload({ isActive, hasAudio, hasLyrics, setHasLyrics, loadAudioFile, goToStep }) {
-  const fileInputRef = useRef(null);
+export default function Panel1Upload({ isActive, hasAudio, hasLyrics, setHasLyrics, loadAudioFile, loadSession, goToStep }) {
+  const fileInputRef    = useRef(null);
+  const sessionInputRef = useRef(null);
   const [hasName, setHasName] = useState(false);
   const canGoToSync = hasAudio && hasLyrics && hasName;
 
@@ -12,10 +13,13 @@ export default function Panel1Upload({ isActive, hasAudio, hasLyrics, setHasLyri
     e.preventDefault();
     e.currentTarget.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
-    if (file && /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name)) {
+    if (!file) return;
+    if (/\.mkrk$/i.test(file.name)) {
+      loadSession(file);
+    } else if (/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name)) {
       loadAudioFile(file);
     } else {
-      toast('Formato no soportado. Usa MP3, WAV, OGG, M4A, AAC o FLAC.', 'error');
+      toast('Formato no soportado. Usa MP3, WAV, OGG, M4A, AAC, FLAC o .mkrk.', 'error');
     }
   }
 
@@ -31,6 +35,12 @@ export default function Panel1Upload({ isActive, hasAudio, hasLyrics, setHasLyri
   function onFileChange(e) {
     const file = e.target.files[0];
     if (file) loadAudioFile(file);
+  }
+
+  function onSessionFileChange(e) {
+    const file = e.target.files[0];
+    if (file) loadSession(file);
+    e.target.value = '';
   }
 
   /* ── Lyrics ── */
@@ -60,6 +70,24 @@ export default function Panel1Upload({ isActive, hasAudio, hasLyrics, setHasLyri
     <section id="panel1" className={`step-panel${isActive ? ' active' : ''}`}>
       <h2 className="panel-title">🎵 Carga tu canción</h2>
       <p className="panel-subtitle">Define el nombre del proyecto, sube el audio y escribe la letra.</p>
+
+      {/* Restore session banner */}
+      <div className="session-restore-row">
+        <span className="session-restore-label">¿Tienes una sesión guardada?</span>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => sessionInputRef.current?.click()}
+        >
+          📂 Cargar sesión (.mkrk)
+        </button>
+        <input
+          ref={sessionInputRef}
+          type="file"
+          accept=".mkrk"
+          style={{ display: 'none' }}
+          onChange={onSessionFileChange}
+        />
+      </div>
 
       {/* Project name — defines the subfolder name when saving */}
       <div className="project-name-row">

@@ -95,7 +95,8 @@ const Lyrics = (() => {
   }
 
   function getSyncedLines() {
-    return lines.filter(l => !l.isBlank && l.time !== null)
+    // Include blank lines that have been explicitly synced — they act as silence/pause markers
+    return lines.filter(l => l.time !== null)
                 .sort((a, b) => a.time - b.time);
   }
 

@@ -4,6 +4,127 @@ Todas las mejoras notables de Karaoke Video Maker se documentan en este archivo.
 
 ---
 
+## [0.3.14] - 2026-03-15
+
+### 🐛 Correcciones
+
+#### 🎬 Renderización AVI y MP4 a 30fps / 60fps
+- **Bug crítico: contaminación de estado del canvas entre frames** — al reutilizar el mismo canvas en el bucle de exportación offline (WebCodecs + AVI MJPEG), las propiedades `globalAlpha`, `globalCompositeOperation`, `shadowBlur`, `filter` y la matriz de transformación podían persistir de un frame al siguiente causando frames corruptos o artefactos visuales en la exportación a 30fps y 60fps. Se añade reset explícito de todas estas propiedades al inicio de cada llamada a `drawFrame` y `drawIntroFrame`.
+- **Optimización: estilo Fuego reducía el FPS de exportación** — la sombra del texto en el estilo de intro *Fuego* era de 65–77px (muy costosa para la GPU). Reducida a 32–40px manteniendo el efecto visual pero eliminando el cuello de botella que llenaba la cola del `VideoEncoder` a 60fps.
+- **Optimización: estilo Hologram ejecutaba `fillRect` transparente innecesariamente** — el bucle de scanlines dibujaba tanto las líneas visibles como las transparentes. Ahora solo se dibujan las líneas visibles (50% menos operaciones de composición).
+
+### ✨ Nuevas Funcionalidades
+
+#### 💧 4 Nuevas animaciones de logo marca de agua
+- **Rebote** 🏀 — movimiento vertical elástico tipo pelota con squash en el apex
+- **Orbitar** 🪐 — el logo sigue una trayectoria circular elíptica alrededor de su posición
+- **Ola** 🌊 — oscilación horizontal + vertical suave (movimiento de ola)
+- **Sacudir** 📳 — jitter aleatorio de alta frecuencia (llamada de atención)
+
+#### ✨ 3 Nuevos efectos visuales de logo marca de agua
+- **Neón** ⚡ — resplandor de neón con hue cíclico en tiempo real
+- **Arcoíris** 🌈 — filtro `hue-rotate` que hace ciclar el color del logo continuamente
+- **Retro** 🎞️ — aspecto cine antiguo con sepia + contraste elevado
+
+---
+
+## [0.3.13] - 2026-03-15
+
+### 🐛 Correcciones
+
+#### 🎭 Sombra del título en intro/outro
+- **Bug: sombra con fuente distinta** — en estilos como Neon, Glitch, Gamer, Metal y Frame Neon el texto de respaldo usaba la fuente de las letras (lyric font) en lugar de la fuente elegida para el título, generando un "texto fantasma" con tipografía diferente. Corregido para todos estos estilos.
+- **Bug: cambios en letras afectaban el intro** — modificar la fuente, tamaño u otros ajustes de las letras de la canción también cambiaba el aspecto del intro/outro. Ahora el intro usa un valor predeterminado propio (`'Segoe UI', Arial, sans-serif`) cuando no hay fuente de título especificada, aislándolo completamente de los ajustes de letras.
+- También corregidos los estilos `Cinematic`, `Luxury` y `Magazine` que medían el texto con la fuente de letras en lugar de la fuente de título.
+
+#### 🎨 Efectos de primer plano
+- **Overlays ahora se dibujan bajo el texto** — los efectos de primer plano (nieve, notas, brasas, spray, etc.) se renderizaban encima de las letras y del título. Ahora se renderizan sobre el fondo/animación pero debajo del texto, para no tapar la letra.
+
+### ✨ Nuevas Funcionalidades
+
+#### 🎭 5 Nuevos estilos de intro/outro
+- **Hologram** 💎 — capas iridiscentes con hues en movimiento + scanlines translúcidas
+- **Fuego** 🔥 — efecto llama con capas de resplandor naranja/rojo bajo el título
+- **Periódico** 📰 — titular de periódico antiguo en serif con líneas dobles arriba y abajo
+- **Arcade** 🕹️ — pantalla CRT retro con scanlines verdes y resplandor fósforo
+- **Graffiti** 🎨 — pintura de calle con contorno negro grueso, capa de color y goteos
+
+#### 🔤 Fuentes expandidas para intro/outro
+Los selectores de fuente del intro y outro ahora incluyen **más de 40 fuentes** organizadas en grupos:
+- Sistema: Segoe UI, Arial, Verdana, Impact, Georgia, etc.
+- Google Fonts (modernas): Montserrat, Oswald, Raleway, Poppins, Bebas Neue, Pacifico, etc.
+- Google Fonts (impacto/display): Bangers, Black Ops One, Teko, Exo 2, Fjalla One, Bungee, Permanent Marker, Ultra, etc.
+- Google Fonts (serif/clásica): Playfair Display, Cinzel, Dancing Script, Lobster, Abril Fatface, etc.
+
+#### 🌑 Controles de sombra ampliados
+La sección "Sombra del título" y "Sombra del artista" ahora incluyen:
+- **Opacidad de sombra** (0–100%) — controla la transparencia de la sombra
+- **Desplazamiento X** — mueve la sombra horizontalmente
+- El cálculo interno usa `rgba()` dinámico cuando la opacidad es menor a 100%
+
+
+
+### ✨ Nuevas Funcionalidades
+
+#### 🏙️ Contenido Urbano / Street / Rap
+Nueva categoría "Urbano / Street" con material específico para música urbana, rap, trap y hip-hop:
+
+**5 Temas nuevos (categoría Urbano / Street)**
+- **Asfalto**: fondo oscuro textura concreto con acento dorado — look clásico rap
+- **Grafiti**: oscuro con destellos de color en las esquinas evocando pintura en spray sobre pared
+- **Trap**: negro profundo con calida ambientación dorada oscura — estética trap/drill
+- **Cypher**: rojo intenso agresivo con spotlight central — círculo cypher/batalla rimas
+- **Barrio**: azul noche frío con acento cyan — vibe calle urbana nocturna
+
+**3 Animaciones de fondo nuevas (categoría Urbano / Street)**
+- **Ciudad**: skyline de ciudad con ventanas que se iluminan y apagan aleatoriamente + suave brillo de calle azul
+- **Neon City**: letreros de neón que parpadean con reflejo en suelo mojado
+- **Metro**: baldosas de metro con franjas de luz de vagón pasando
+
+**4 Efectos de primer plano nuevos (categoría Urbano / Street)**
+- **Spray**: gotitas de pintura spray en colores de graffiti flotando hacia arriba
+- **Cadenas**: eslabones de cadena dorada cayendo lentamente
+- **Dólares**: billetes girando cayendo hacia abajo
+- **Humo**: anillos de humo espeso ascendiendo — vibe hip-hop
+
+**6 Fuentes nuevas (estilo urbano/rap)**
+- **Black Ops One**: fuente militar/street de impacto
+- **Teko**: tipografía condensada urbana
+- **Exo 2**: futurista/tecnológica
+- **Changa One**: negrita inclinada estilo urban
+- **Barlow Condensed**: condensada limpia urbana
+- **Ultra**: serif pesado de impacto
+
+### 🐛 Correcciones
+
+#### 🎤 Texto Inactivo (siguiente frase) No Siempre Visible
+- **Antes**: el texto de la próxima frase se ocultaba durante las pausas/blancos intermedios aunque la frase estuviera a punto de cantarse
+- **Ahora**: el texto inactivo (siguiente frase) se muestra siempre que falten **5 segundos o menos** para cantarla, independientemente de si hay una pausa de por medio
+
+#### 👻 Texto Fantasma Durante Pausas
+- **Antes**: al terminar una frase activa y entrar en una pausa, la frase anterior seguía apareciendo en grande con coloreado inactivo (efecto fantasma) porque el bloque `else if` de lead-in se disparaba también mid-canción
+- **Ahora**: el área de texto activo queda completamente en **blanco** durante las pausas; el bloque de lead-in solo se activa antes de que comience la primera frase
+
+---
+
+## [0.3.11] - 2026-03-11
+
+### ✨ Nuevas Funcionalidades
+
+#### 💾 Guardar y Restaurar Sesión
+Nueva funcionalidad para guardar el progreso completo del proyecto y restaurarlo en cualquier momento:
+- **Guardado**: botón "💾 Guardar sesión" en el Paso 4 genera un archivo `.mkrk` con el audio original, la letra sincronizada, la configuración de intro/outro y todos los ajustes de exportación
+- **Restauración**: en el Paso 1 aparece un banner "¿Tienes una sesión guardada?" con botón "📂 Cargar sesión (.mkrk)". También se detecta arrastrando un `.mkrk` directamente sobre la zona de audio
+- El archivo `.mkrk` es JSON estándar con el audio embebido en base64; permite retomar el trabajo exactamente donde se dejó
+
+### 🐛 Correcciones
+
+#### 🎛️ Secciones del Paso 4 No Respondían al Clic
+- **Causa**: las secciones colapsadas ("Fondo del video", "Efecto en primer plano", "Texto y tipografía", "Barra de progreso", "Opciones de video") tenían área de clic muy pequeña y no respondían correctamente
+- **Solución**: ahora toda la barra del encabezado de cada sección es clickeable (no solo el pequeño botón ▸/▾); el cursor cambia a `pointer` al pasar por encima, indicando que es interactivo
+
+---
+
 ## [0.3.10] - 2026-03-11
 
 ### ✨ Nuevas Funcionalidades

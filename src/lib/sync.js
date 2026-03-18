@@ -583,10 +583,33 @@ const Sync = (() => {
 
       if (line.isBlank) {
         li.classList.add('blank');
-        const dot = document.createElement('span'); dot.className = 'sync-dot'; li.appendChild(dot);
+        if (line.time !== null) li.classList.add('synced');
+        const dot = document.createElement('span'); dot.className = 'sync-dot';
+        if (line.time !== null) { dot.style.background = '#888'; dot.style.boxShadow = ''; }
+        li.appendChild(dot);
+        const timeEl = document.createElement('span'); timeEl.className = 'sync-time';
+        timeEl.style.color = '#888';
+        timeEl.textContent = line.time !== null ? formatTime(line.time, true) : '';
+        li.appendChild(timeEl);
         const lbl = document.createElement('span');
-        lbl.style.cssText = 'font-size:0.8rem;color:var(--text-dim)';
+        lbl.style.cssText = 'font-size:0.8rem;color:var(--text-dim);flex:1';
         lbl.textContent = '— pausa —'; li.appendChild(lbl);
+        // Button to sync silence start time
+        const bSilence = document.createElement('button');
+        bSilence.textContent = line.time !== null ? '🔇 ' + formatTime(line.time, true) : '🔇 Sincronizar';
+        bSilence.title = 'Marca dónde termina la frase anterior y comienza el silencio';
+        bSilence.style.cssText = btnStyle + ';color:#aaa;font-size:10px';
+        bSilence.addEventListener('click', e => {
+          e.stopPropagation();
+          const t = Audio.getCurrentTime();
+          Lyrics.setTime(i, t);
+          timeEl.textContent = formatTime(t, true);
+          bSilence.textContent = '🔇 ' + formatTime(t, true);
+          dot.style.background = '#888';
+          li.classList.add('synced');
+          toast('Silencio marcado en ' + formatTime(t, true), 'info');
+        });
+        actions.appendChild(bSilence);
       } else {
         const dot = document.createElement('span'); dot.className = 'sync-dot'; li.appendChild(dot);
         const timeEl = document.createElement('span'); timeEl.className = 'sync-time';
@@ -746,15 +769,15 @@ const Sync = (() => {
   }
 
   function _insertLineAfter(i) {
-    const list = document.getElementById('lyricsList');
-    if (!list) return;
+    const ul = els.lyricsList();
+    if (!ul) return;
 
     // Remove any existing inline form to avoid duplicates
-    const existing = list.querySelector('.insert-line-form');
+    const existing = ul.querySelector('.insert-line-form');
     if (existing) existing.remove();
 
     // Find the <li> that corresponds to index i
-    const targetRow = list.querySelector(`li[data-idx="${i}"]`);
+    const targetRow = ul.querySelector(`[data-line-idx="${i}"]`);
     if (!targetRow) return;
 
     const formLi = document.createElement('li');
